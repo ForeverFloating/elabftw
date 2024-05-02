@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @copyright 2012 Nicolas CARPi
@@ -6,6 +7,8 @@
  * @license AGPL-3.0
  * @package elabftw
  */
+
+declare(strict_types=1);
 
 namespace Elabftw\Make;
 
@@ -26,7 +29,11 @@ class MakeQrPdf extends AbstractMakePdf
 
     public function __construct(MpdfProviderInterface $mpdfProvider, AbstractEntity $entity, private array $idArr)
     {
-        parent::__construct($mpdfProvider, $entity);
+        parent::__construct(
+            mpdfProvider: $mpdfProvider,
+            entity: $entity,
+            includeChangelog: false
+        );
     }
 
     /**

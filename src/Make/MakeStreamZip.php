@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @copyright 2012 Nicolas CARPi
@@ -7,17 +8,22 @@
  * @package elabftw
  */
 
+declare(strict_types=1);
+
 namespace Elabftw\Make;
 
-use function count;
 use DateTimeImmutable;
 
 use Elabftw\Elabftw\App;
+
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Models\AbstractEntity;
-use function json_encode;
 use League\Flysystem\UnableToReadFile;
+
 use ZipStream\ZipStream;
+
+use function count;
+use function json_encode;
 
 /**
  * Make a zip archive from experiment or db item
@@ -27,9 +33,12 @@ class MakeStreamZip extends AbstractMakeZip
     // data array (entries) that will be converted to json
     protected array $dataArr = array();
 
-    public function __construct(protected ZipStream $Zip, AbstractEntity $entity, protected array $idArr, protected bool $usePdfa = false)
+    public function __construct(protected ZipStream $Zip, AbstractEntity $entity, protected array $idArr, protected bool $usePdfa = false, bool $includeChangelog = false)
     {
-        parent::__construct($entity);
+        parent::__construct(
+            entity: $entity,
+            includeChangelog: $includeChangelog
+        );
     }
 
     /**

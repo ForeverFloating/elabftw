@@ -15,6 +15,7 @@
 
   {% if not searchPage %}
     {% include 'show-view-edit.html' %}
+    {% include 'request-actions-show.html' %}
   {% endif %}
 
   <hr>
@@ -36,7 +37,7 @@
 
       {% include 'scope-button.html' with {'reload': 'reloadEntitiesShow,scopeBtn', 'target': 'scope_' ~ Entity.type} %}
 
-      <button class='btn btn-secondary btn-sm mr-2' type='button' data-action='toggle-next' data-toggle-target='filtersDiv' aria-label='{{ 'Toggle filters'|trans }}' aria-expanded='false' aria-controls='filtersDiv'>
+      <button class='btn btn-secondary btn-sm ml-2 mr-2' type='button' data-action='toggle-next' data-toggle-target='filtersDiv' aria-label='{{ 'Toggle filters'|trans }}' aria-expanded='false' aria-controls='filtersDiv'>
         <i class='fas fa-filter fa-fw mr-1 color-white'></i>{{ 'Filters'|trans }}
       </button>
 
@@ -80,7 +81,7 @@
       {% if not searchPage %}
         <input type='hidden' name='q' value='{{ DisplayParams.query|e('html_attr') }}' />
       {% endif %}
-      {% if DisplayParams.searchType == constant('Elabftw\\Enums\\SearchType::Related') %}
+      {% if App.Request.query.get('related') %}
         <input type='hidden' name='related' value='{{ App.Request.query.get('related')|number_format }}' />
         <input type='hidden' name='related_origin' value='{{ App.Request.query.getAlpha('related_origin') }}' />
       {% endif %}
@@ -89,7 +90,9 @@
       <select name='cat' class='autosubmit mr-1 mb-2 form-control' aria-label='{{ 'Filter category'|trans }}'>
         <option value=''>{{ 'Filter category'|trans }}</option>
         {% for category in categoryArr %}
-          <option value='{{ category.id }}'{{ App.Request.query.get('cat') == category.id ? ' selected' }}>
+          <option value='{{ category.id }}'
+            {{- App.Request.query.get('cat') == category.id or (searchPage and (App.Request.query.get('expCatHelper') == category.title or App.Request.query.get('resCatHelper') == category.title)) ? ' selected' -}}
+          >
           {{ category.title }}</option>
         {% endfor %}
       </select>
@@ -98,7 +101,9 @@
       <select name='status' class='autosubmit mr-1 mb-2 form-control' aria-label='{{ 'Filter status'|trans }}'>
         <option value=''>{{ 'Filter status'|trans }}</option>
         {% for status in statusArr %}
-          <option value='{{ status.id }}'{{ App.Request.query.get('status') == status.id ? ' selected' }}>
+          <option value='{{ status.id }}'
+            {{- App.Request.query.get('status') == status.id or (searchPage and (App.Request.query.get('expStatusHelper') == status.title or App.Request.query.get('resStatusHelper') == status.title)) ? ' selected' -}}
+          >
           {{ status.title }}</option>
         {% endfor %}
       </select>
@@ -139,13 +144,24 @@
 
       {# SEARCH WITH TAG #}
       {% if App.Config.configArr.debug -%}
-        <!-- [html-validate-disable-block element-permitted-content: suppress error from select picker: div child of button] -->
+        <!-- [html-validate-disable prefer-native-element: suppress error from tom-select] -->
       {%- endif %}
-      <select multiple name='tags[]' class='form-control mr-1 mb-2 selectpicker' data-show-subtext='true' data-none-selected-text='{{ 'Tags'|trans }}' data-live-search='true' data-style='' data-style-base='form-control' data-showtick='true' data-actions-box='true'>
+      <select
+        id='tagFilter'
+        multiple
+        name='tags[]'
+        class='form-control mr-1 mb-2 '
+        placeholder='{{ 'Tags'|trans }}'
+      >
+        <option value='' disabled >{{ 'Tags'|trans }}</option>
         {% for tag in tagsArrForSelect %}
-          <option value='{{ tag.tag|e('html_attr') }}'{{ tag.tag in App.Request.query.all('tags') ? ' selected' }}>{{ tag.tag }}</option>
+          <option value='{{ tag.tag|e('html_attr') }}' {{- tag.tag in App.Request.query.all('tags') ? ' selected' }}>{{ tag.tag }}</option>
         {% endfor %}
       </select>
+      {% if App.Config.configArr.debug -%}
+        <!-- [html-validate-enable prefer-native-element: end suppress error from tom-select] -->
+      {%- endif %}
+
       {# ARCHIVED filter #}
       <div class='input-group mr-1 mb-2'>
         <div class='input-group-text'>
@@ -172,7 +188,8 @@
 
   <div id='showModeContent'>
 
-  {% if count == 0 and searchType != constant('Elabftw\\Enums\\SearchType::Undefined') %}
+    {# Show message if we're looking for something (query parameters are present), but the number of results is 0 #}
+    {% if count == 0 and App.Request.query.all|length > 0 %}
     <div class='row display-flex' id='itemList'>
       {% set otherPage = Entity.type == 'experiments' ? 'database' : 'experiments' %}
       {% set otherCategory = Entity.type == 'experiments' ? 'items' : 'experiments' %}
@@ -183,7 +200,7 @@
         <button class='btn btn-primary' type='button'>{{ 'Search in %s'|trans|format(otherCategory) }}</button>
       </a>
     </div>
-  {% elseif count == 0 and searchType == constant('Elabftw\\Enums\\SearchType::Undefined') and not App.Session.get('is_anon') and not App.Request.query.get('offset') %}
+  {% elseif count == 0 and (App.Request.query.all|length == 0) and not App.Session.get('is_anon') and not App.Request.query.get('offset') %}
     <div class='row display-flex' id='itemList'>
       {{ "Welcome to eLabFTW. Use the 'Create new' button to get started!"|trans|msg('ok', false) }}
     </div>
@@ -261,6 +278,7 @@
 
           <button data-action='lock-selected-entities' type='button' class='btn btn-primary mr-1 mb-2'>{{ 'Lock'|trans }}</button>
           <button data-action='timestamp-selected-entities' type='button' class='btn btn-primary mr-1 mb-2'>{{ 'Timestamp'|trans }}</button>
+          <button data-action='archive-selected-entities' type='button' class='btn btn-secondary mr-1 mb-2'>{{ 'Archive'|trans }}</button>
           <button data-action='destroy-selected-entities' type='button' class='btn btn-danger mr-1 mb-2'>{{ 'Delete'|trans }}</button>
         </div>
       </div>
@@ -285,7 +303,7 @@
         </div>
       {% elseif App.Users.userData.display_mode == 'tb' -%}
         <table id='itemList' class='table item-table mt-2' aria-describedby='pageTitle'>
-          <thead>
+          <thead class='with-top'>
             <tr>
               <th>
                 <div class='d-flex justify-content-between'>

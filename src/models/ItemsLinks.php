@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @copyright 2022 Nicolas CARPi
@@ -6,6 +7,8 @@
  * @license AGPL-3.0
  * @package elabftw
  */
+
+declare(strict_types=1);
 
 namespace Elabftw\Models;
 
@@ -19,9 +22,19 @@ class ItemsLinks extends AbstractLinks
         return 'items';
     }
 
+    protected function getTargetPage(): string
+    {
+        return 'database';
+    }
+
     protected function getCatTable(): string
     {
         return 'items_types';
+    }
+
+    protected function getStatusTable(): string
+    {
+        return 'items_status';
     }
 
     protected function getTable(): string

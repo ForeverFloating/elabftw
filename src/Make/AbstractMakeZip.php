@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+
 /**
  * @package   Elabftw\Elabftw
  * @author    Nicolas CARPi <nico-git@deltablot.email>
@@ -7,12 +8,15 @@
  * @see       https://www.elabftw.net Official website
  */
 
+declare(strict_types=1);
+
 namespace Elabftw\Make;
 
 use Elabftw\Elabftw\Tools;
 use Elabftw\Enums\Storage;
 use Elabftw\Interfaces\PdfMakerInterface;
 use Elabftw\Interfaces\ZipMakerInterface;
+use Elabftw\Models\AbstractEntity;
 use Elabftw\Models\Items;
 use Elabftw\Models\ItemsTypes;
 use Elabftw\Models\Templates;
@@ -38,6 +42,16 @@ abstract class AbstractMakeZip extends AbstractMake implements ZipMakerInterface
     protected string $extension = '.zip';
 
     protected string $hashAlgorithm = 'sha256';
+
+    /**
+    * Constructor
+    *
+    * @param AbstractEntity $entity Experiments or Database
+    */
+    public function __construct(AbstractEntity $entity, protected bool $includeChangelog = false)
+    {
+        parent::__construct($entity);
+    }
 
     /**
      * Folder and zip file name begins with date for experiments
@@ -103,7 +117,7 @@ abstract class AbstractMakeZip extends AbstractMake implements ZipMakerInterface
             $this->usePdfa,
         );
         $log = (new Logger('elabftw'))->pushHandler(new ErrorLogHandler());
-        return new MakePdf($log, $MpdfProvider, $this->Entity, array($this->Entity->id));
+        return new MakePdf($log, $MpdfProvider, $this->Entity, array($this->Entity->id), $this->includeChangelog);
     }
 
     /**

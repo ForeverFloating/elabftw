@@ -14,7 +14,6 @@ import { relativeMoment, makeSortableGreatAgain, reloadElement, reloadElements, 
 import { Action, Target } from './interfaces';
 import { Api } from './Apiv2.class';
 
-
 document.addEventListener('DOMContentLoaded', () => {
   if (!document.getElementById('info')) {
     return;
@@ -53,11 +52,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // DESTROY LINK
     } else if (el.matches('[data-action="destroy-link"]')) {
       if (confirm(i18next.t('link-delete-warning'))) {
-        ApiC.delete(`${entity.type}/${entity.id}/${el.dataset.endpoint}/${el.dataset.target}`).then(() => reloadElements(['linksDiv', 'linksExpDiv']));
+        ApiC.delete(`${entity.type}/${entity.id}/${el.dataset.endpoint}/${el.dataset.target}`)
+          .then(() => el.parentElement.parentElement.remove());
       }
     } else if (el.matches('[data-action="destroy-related-link"]')) {
       if (confirm(i18next.t('link-delete-warning'))) {
-        ApiC.delete(`${el.dataset.endpoint.split('_')[0]}/${el.dataset.target}/${entity.type}_links/${entity.id}`).then(() => reloadElements(['relatedItemsDiv', 'relatedExperimentsDiv']));
+        ApiC.delete(`${el.dataset.endpoint.split('_')[0]}/${el.dataset.target}/${entity.type}_links/${entity.id}`)
+          .then(() => el.parentElement.parentElement.remove());
+      }
+    } else if (el.matches('[data-action="destroy-step"]')) {
+      if (confirm(i18next.t('step-delete-warning'))) {
+        StepC.destroy(parseInt(el.dataset.id, 10)).then(() => {
+          el.parentElement.parentElement.remove();
+          // keep to do list in sync
+          const todoStep = document.getElementById(`todo_step_${el.dataset.id}`);
+          if (todoStep) {
+            todoStep.parentElement.remove();
+          }
+        });
       }
     }
   });
@@ -139,20 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     });
   });
-
-  // DESTROY
-  $(document).on('click', '.stepDestroy', function(e) {
-    if (confirm(i18next.t('step-delete-warning'))) {
-      const stepId = e.currentTarget.dataset.stepid;
-      StepC.destroy(stepId).then(() => {
-        reloadElement('stepsDiv').then(() => {
-          // keep to do list in sync
-          $('#todo_step_' + stepId).parent().hide();
-        });
-      });
-    }
-  });
-
   // END STEPS
 
   // CREATE LINK

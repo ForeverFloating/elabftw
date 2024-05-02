@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @copyright 2012 Nicolas CARPi
@@ -20,7 +22,7 @@ class ConfigTest extends \PHPUnit\Framework\TestCase
 
     protected function setUp(): void
     {
-        $this->Config= Config::getConfig();
+        $this->Config = Config::getConfig();
         $this->setupValues = $this->Config->configArr;
     }
 

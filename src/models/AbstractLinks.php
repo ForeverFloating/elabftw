@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @copyright 2012, 2022 Nicolas CARPi
@@ -6,6 +7,8 @@
  * @license AGPL-3.0
  * @package elabftw
  */
+
+declare(strict_types=1);
 
 namespace Elabftw\Models;
 
@@ -16,9 +19,10 @@ use Elabftw\Enums\State;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\RestInterface;
 use Elabftw\Traits\SetIdTrait;
+use PDO;
+
 use function intval;
 use function json_encode;
-use PDO;
 
 /**
  * All about Links
@@ -52,16 +56,22 @@ abstract class AbstractLinks implements RestInterface
     public function readAll(): array
     {
         // main category table
-        $sql = 'SELECT entity.id AS itemid,
+        $sql = 'SELECT entity.id AS entityid,
             entity.title,
+            entity.custom_id,
             entity.elabid,
+            "' . $this->getTargetPage() . '" AS page,
+            "' . $this->getTargetType() . '" AS type,
             categoryt.title AS category_title,
             categoryt.color AS category_color,
+            statust.title AS status_title,
+            statust.color AS status_color,
             ' . ($this instanceof ItemsLinks ? 'entity.is_bookable,' : '') . '
             entity.state AS link_state
             FROM ' . $this->getTable() . '
             LEFT JOIN ' . $this->getTargetType() . ' AS entity ON (' . $this->getTable() . '.link_id = entity.id)
             LEFT JOIN ' . $this->getCatTable() . ' AS categoryt ON (entity.category = categoryt.id)
+            LEFT JOIN ' . $this->getStatusTable() . ' AS statust ON (entity.status = statust.id)
             WHERE ' . $this->getTable() . '.item_id = :id AND (entity.state = :state OR entity.state = :statearchived)
             ORDER by categoryt.title ASC, entity.date ASC, entity.title ASC';
 
@@ -84,7 +94,11 @@ abstract class AbstractLinks implements RestInterface
      */
     public function readRelated(): array
     {
-        $sql = 'SELECT entity.id AS entityid, entity.title, categoryt.title AS category_title, categoryt.color AS category_color, entity.state AS link_state';
+        $sql = 'SELECT entity.id AS entityid, entity.title, entity.custom_id,
+            "' . $this->getTargetPage() . '" AS page,
+            "' . $this->getTargetType() . '" AS type,
+            categoryt.title AS category_title, categoryt.color AS category_color,
+            statust.title AS status_title, statust.color AS status_color, entity.state AS link_state';
 
         if ($this instanceof ItemsLinks) {
             $sql .= ', entity.is_bookable';
@@ -92,7 +106,8 @@ abstract class AbstractLinks implements RestInterface
 
         $sql .= ' FROM ' . $this->getRelatedTable() . ' as entity_links
             LEFT JOIN ' . $this->getTargetType() . ' AS entity ON (entity_links.item_id = entity.id)
-            LEFT JOIN ' . $this->getCatTable() . ' AS categoryt ON (entity.category = categoryt.id)';
+            LEFT JOIN ' . $this->getCatTable() . ' AS categoryt ON (entity.category = categoryt.id)
+            LEFT JOIN ' . $this->getStatusTable() . ' AS statust ON (entity.status = statust.id)';
 
         $sql .= sprintf('WHERE entity_links.link_id = :id AND (entity.state = %d OR entity.state = %d) ORDER by', State::Normal->value, State::Archived->value);
 
@@ -174,7 +189,11 @@ abstract class AbstractLinks implements RestInterface
 
     abstract protected function getTargetType(): string;
 
+    abstract protected function getTargetPage(): string;
+
     abstract protected function getCatTable(): string;
+
+    abstract protected function getStatusTable(): string;
 
     abstract protected function getTable(): string;
 

@@ -9,12 +9,21 @@ import 'jquery-ui/ui/widgets/sortable';
 import { Action, CheckableItem, ResponseMsg, EntityType, Entity, Model, Target } from './interfaces';
 import { DateTime } from 'luxon';
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
+import tinymce from 'tinymce/tinymce';
 import TableSorting from './TableSorting.class';
 declare const MathJax: MathJaxObject;
+import EntityClass from './Entity.class';
 import $ from 'jquery';
 import i18next from 'i18next';
 import { Api } from './Apiv2.class';
 import { ChemDoodle } from '@deltablot/chemdoodle-web-mini/dist/chemdoodle.min.js';
+import { getEditor } from './Editor.class';
+import TomSelect from 'tom-select/dist/esm/tom-select';
+import TomSelectCheckboxOptions from 'tom-select/dist/esm/plugins/checkbox_options/plugin';
+import TomSelectClearButton from 'tom-select/dist/esm/plugins/clear_button/plugin';
+import TomSelectDropdownInput from 'tom-select/dist/esm/plugins/dropdown_input/plugin';
+import TomSelectNoActiveItems from 'tom-select/dist/esm/plugins/no_active_items/plugin';
+import TomSelectRemoveButton from 'tom-select/dist/esm/plugins/remove_button/plugin';
 
 // get html of current page reloaded via get
 function fetchCurrentPage(tag = ''): Promise<Document>{
@@ -81,7 +90,7 @@ function triggerHandler(event: Event, el: HTMLInputElement): void {
           if (toreload === 'reloadEntitiesShow') {
             reloadEntitiesShow();
           } else {
-            reloadElement(toreload);
+            reloadElement(toreload).then(() => relativeMoment());
           }
         });
       }
@@ -256,7 +265,7 @@ export function makeSortableGreatAgain(): void {
 
 export function getCheckedBoxes(): Array<CheckableItem> {
   const checkedBoxes = [];
-  $('.item input[type=checkbox]:checked').each(function() {
+  $('.entity input[type=checkbox]:checked').each(function() {
     checkedBoxes.push({
       id: parseInt($(this).data('id')),
       // the randomid is used to get the parent container and hide it when delete
@@ -309,8 +318,15 @@ export async function reloadElements(elementIds: string[]): Promise<void> {
 export function adjustHiddenState(): void {
   document.querySelectorAll('[data-save-hidden]').forEach(el => {
     const targetElement = (el as HTMLElement).dataset.saveHidden;
+    // failsafe
+    if (!targetElement) {
+      return;
+    }
     const localStorageKey = targetElement + '-isHidden';
     const button = document.querySelector(`[data-toggle-target="${targetElement}"]`) || el.previousElementSibling;
+    if (!button) {
+      return;
+    }
     const caretIcon =  button.querySelector('i');
     if (localStorage.getItem(localStorageKey) === '1') {
       el.setAttribute('hidden', 'hidden');
@@ -356,8 +372,9 @@ export function addAutocompleteToLinkInputs(): void {
           const term = request.term;
           const format = entity => {
             const category = entity.category_title ? `${entity.category_title} - `: '';
+            const status = entity.status_title ? `${entity.status_title} - `: '';
             const customid = entity.custom_id ? `${entity.custom_id} - `: '';
-            return `${entity.id} - ${category}${customid}${entity.title.substring(0, 60)}`;
+            return `${entity.id} - ${category}${status}${customid}${entity.title.substring(0, 60)}`;
           };
           if (term in cache[object.selectElid]) {
             const res = [];
@@ -552,3 +569,57 @@ export function replaceWithTitle(): void {
     });
   });
 }
+
+export function getPageName(): string {
+  return (new URL(window.location.href)).pathname.split('/').pop();
+}
+
+export async function saveStringAsFile(filename: string, content: string|Promise<string>, contentType: string = 'text/plain;charset=utf-8'): Promise<void> {
+  const blob = new Blob([await content], {type: contentType});
+  const url = URL.createObjectURL(blob);
+  // we create a link and click it
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  // cleanup by revoking the URL object
+  URL.revokeObjectURL(url);
+  link.remove();
+}
+
+// Shared function to UPDATE ENTITY BODY via save shortcut and/or save button, or autosave
+export async function updateEntityBody(): Promise<void> {
+  const editor = getEditor();
+  const entity = getEntity();
+  const EntityC = new EntityClass(entity.type);
+  return EntityC.update(entity.id, Target.Body, editor.getContent()).then(response => response.json()).then(json => {
+    if (editor.type === 'tiny') {
+      // set the editor as non dirty so we can navigate out without a warning to clear
+      tinymce.activeEditor.setDirty(false);
+    }
+    const lastSavedAt = document.getElementById('lastSavedAt');
+    if (lastSavedAt) {
+      lastSavedAt.title = json.modified_at;
+      reloadElement('lastSavedAt').then(() => relativeMoment());
+    }
+  }).catch(() => {
+    // detect if the session timedout (Session expired error is thrown)
+    // store the modifications in local storage to prevent any data loss
+    localStorage.setItem('body', editor.getContent());
+    localStorage.setItem('id', String(entity.id));
+    localStorage.setItem('type', entity.type);
+    localStorage.setItem('date', new Date().toLocaleString());
+    // reload the page so user gets redirected to the login page
+    location.reload();
+  });
+}
+
+
+// bind used plugins to TomSelect
+TomSelect.define('checkbox_options', TomSelectCheckboxOptions);
+TomSelect.define('clear_button', TomSelectClearButton);
+TomSelect.define('dropdown_input', TomSelectDropdownInput);
+TomSelect.define('no_active_items', TomSelectNoActiveItems);
+TomSelect.define('remove_button', TomSelectRemoveButton);
+export { TomSelect };

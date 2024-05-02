@@ -22,6 +22,7 @@ import 'tinymce/plugins/autosave';
 import 'tinymce/plugins/charmap';
 import 'tinymce/plugins/code';
 import 'tinymce/plugins/codesample';
+import 'tinymce/plugins/emoticons';
 import 'tinymce/plugins/fullscreen';
 import 'tinymce/plugins/image';
 import 'tinymce/plugins/insertdatetime';
@@ -54,9 +55,8 @@ import '../js/tinymce-langs/sk_SK.js';
 import '../js/tinymce-langs/sl_SI.js';
 import '../js/tinymce-langs/zh_CN.js';
 import '../js/tinymce-plugins/mention/plugin.js';
-import EntityClass from './Entity.class';
-import { EntityType, Target } from './interfaces';
-import { getEntity, reloadElement, escapeExtendedQuery } from './misc';
+import { EntityType } from './interfaces';
+import { getEntity, reloadElement, escapeExtendedQuery, updateEntityBody } from './misc';
 import { Api } from './Apiv2.class';
 import { isSortable } from './TableSorting.class';
 
@@ -64,25 +64,6 @@ import { isSortable } from './TableSorting.class';
 const ApiC = new Api();
 // AUTOSAVE
 const doneTypingInterval = 7000;  // time in ms between end of typing and save
-
-// called when you click the save button of tinymce
-export function quickSave(): void {
-  const entity = getEntity();
-  const EntityC = new EntityClass(entity.type);
-  EntityC.update(entity.id, Target.Body, tinymce.activeEditor.getContent()).catch(() => {
-    // detect if the session timedout (Session expired error is thrown)
-    // store the modifications in local storage to prevent any data loss
-    localStorage.setItem('body', tinymce.activeEditor.getContent());
-    localStorage.setItem('id', String(entity.id));
-    localStorage.setItem('type', entity.type);
-    localStorage.setItem('date', new Date().toLocaleString());
-    // reload the page so user gets redirected to the login page
-    location.reload();
-  }).then(() => {
-    // remove dirty state of editor
-    tinymce.activeEditor.setDirty(false);
-  });
-}
 
 function getNow(): DateTime {
   const locale = document.getElementById('user-prefs').dataset.jslang;
@@ -117,13 +98,13 @@ function doneTyping(): void {
     alert('Too many characters!!! Cannot save properly!!!');
     return;
   }
-  quickSave();
+  updateEntityBody();
 }
 
 // options for tinymce to pass to tinymce.init()
 export function getTinymceBaseConfig(page: string): object {
-  let plugins = 'accordion advlist anchor autolink autoresize table searchreplace code fullscreen insertdatetime charmap lists save image link pagebreak codesample template mention visualblocks visualchars';
-  let toolbar1 = 'undo redo | styles fontsize bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap adddate | codesample | link | sort-table | save';
+  let plugins = 'accordion advlist anchor autolink autoresize table searchreplace code fullscreen insertdatetime charmap lists save image link pagebreak codesample template mention visualblocks visualchars emoticons';
+  let toolbar1 = 'undo redo | styles fontsize bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap emoticons adddate | codesample | link | sort-table | save';
   let removedMenuItems = 'newdocument, image, anchor';
   if (page === 'edit') {
     plugins += ' autosave';
@@ -137,9 +118,10 @@ export function getTinymceBaseConfig(page: string): object {
   return {
     selector: '.mceditable',
     browser_spellcheck: true,
-    // make it load the skin.min.css and content.min.css from there
+    // location of the skin directory
     skin_url: '/assets',
-    content_css: '/assets/content.min.css',
+    content_css: '/assets/tinymce_content.min.css',
+    emoticons_database_url: 'assets/tinymce_emojis.js',
     // remove the "Upgrade" button
     promotion: false,
     autoresize_bottom_margin: 50,
@@ -149,6 +131,8 @@ export function getTinymceBaseConfig(page: string): object {
     pagebreak_split_block: true,
     pagebreak_separator: '<div class="page-break"></div>',
     toolbar1: toolbar1,
+    // this addresses CVE-2024-29881, it defaults to true in 7.0, so can be removed in tiny 7.0 TODO
+    convert_unsafe_embeds: true,
     // disable automatic h1 when using #
     text_patterns: false,
     removed_menuitems: removedMenuItems,

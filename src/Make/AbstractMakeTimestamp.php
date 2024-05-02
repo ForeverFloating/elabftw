@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @author Alexander Minges <alexander.minges@gmail.com>
@@ -7,6 +8,8 @@
  * @license AGPL-3.0
  * @package elabftw
  */
+
+declare(strict_types=1);
 
 namespace Elabftw\Make;
 
@@ -87,7 +90,13 @@ abstract class AbstractMakeTimestamp extends AbstractMake implements MakeTimesta
             true, // PDF/A always for timestamp pdf
         );
         $log = (new Logger('elabftw'))->pushHandler(new ErrorLogHandler());
-        $MakePdf = new MakeTimestampPdf($log, $MpdfProvider, $this->Entity, array($this->Entity->id));
+        $MakePdf = new MakeTimestampPdf(
+            log: $log,
+            mpdfProvider: $MpdfProvider,
+            entity: $this->Entity,
+            entityIdArr: array($this->Entity->id),
+            includeChangelog: true
+        );
         if ($this->configArr['keeex_enabled'] === '1') {
             $Keeex = new MakeKeeex(new Client());
             return $Keeex->fromString($MakePdf->getFileContent());

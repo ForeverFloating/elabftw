@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @copyright 2012 Nicolas CARPi
@@ -10,7 +12,6 @@
 namespace Elabftw\Models;
 
 use Elabftw\Enums\Action;
-use Elabftw\Exceptions\ImproperActionException;
 
 class LinksTest extends \PHPUnit\Framework\TestCase
 {
@@ -99,7 +100,9 @@ class LinksTest extends \PHPUnit\Framework\TestCase
     public function testReadExperimentsLinksFromTemplate(): void
     {
         $Templates = new Templates(new Users(1, 1), 1);
-        $this->expectException(ImproperActionException::class);
-        $Templates->ExperimentsLinks->readAll();
+        $this->assertEmpty($Templates->ExperimentsLinks->readAll());
+        $Templates->ExperimentsLinks->setId(1);
+        $Templates->ExperimentsLinks->postAction(Action::Create, array());
+        $this->assertEquals(1, count($Templates->ExperimentsLinks->readAll()));
     }
 }

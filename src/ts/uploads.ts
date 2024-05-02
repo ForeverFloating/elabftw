@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  const pages = ['edit', 'view'];
+  const pages = ['edit', 'view', 'template-edit'];
   if (!pages.includes(about.page)) {
     return;
   }
@@ -209,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
       $3Dmol.autoload();
       displayPlasmidViewer(about);
       malleableFilecomment.listen();
-      if ('edit' === about.page) {
+      if (['edit', 'template-edit'].includes(about.page)) {
         (new Uploader()).init();
       }
       relativeMoment();

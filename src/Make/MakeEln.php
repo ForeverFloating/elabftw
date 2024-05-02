@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @copyright 2022 Nicolas CARPi
@@ -6,6 +7,8 @@
  * @license AGPL-3.0
  * @package elabftw
  */
+
+declare(strict_types=1);
 
 namespace Elabftw\Make;
 
@@ -22,7 +25,7 @@ use ZipStream\ZipStream;
  */
 class MakeEln extends MakeStreamZip
 {
-    private const HASH_ALGO = 'sha256';
+    private const string HASH_ALGO = 'sha256';
 
     protected string $extension = '.eln';
 
@@ -35,7 +38,14 @@ class MakeEln extends MakeStreamZip
 
     public function __construct(protected ZipStream $Zip, AbstractEntity $entity, protected array $idArr)
     {
-        parent::__construct($Zip, $entity, $idArr);
+        parent::__construct(
+            Zip: $Zip,
+            entity: $entity,
+            idArr: $idArr,
+            usePdfa: false,
+            includeChangelog: false
+        );
+
         $this->creationDateTime = new DateTimeImmutable();
         $this->root = $this->creationDateTime->format('Y-m-d-His') . '-export';
         $this->dataArr = array(
@@ -55,11 +65,11 @@ class MakeEln extends MakeStreamZip
                         'slogan' => 'A free and open source electronic lab notebook.',
                         'url' => 'https://www.elabftw.net',
                         'parentOrganization' => array(
-                          '@type' => 'Organization',
-                          'name' => 'Deltablot',
-                          'logo' => 'https://www.deltablot.com/img/logos/deltablot.svg',
-                          'slogan' => 'Open Source software for research labs.',
-                          'url' => 'https://www.deltablot.com',
+                            '@type' => 'Organization',
+                            'name' => 'Deltablot',
+                            'logo' => 'https://www.deltablot.com/img/logos/deltablot.svg',
+                            'slogan' => 'Open Source software for research labs.',
+                            'url' => 'https://www.deltablot.com',
                         ),
                     ),
                     'version' => '1.0',
@@ -96,25 +106,18 @@ class MakeEln extends MakeStreamZip
             // LINKS (mentions)
             // this array will be added to the "mentions" attribute of the main dataset
             $mentions = array();
-            foreach ($e['items_links'] as $link) {
-                $id = Config::fromEnv('SITE_URL') . '/database.php?mode=view&id=' . $link['itemid'];
-                $mentions[] = array('@id' => $id);
-                $dataEntities[] = array(
-                    '@id' => $id,
-                    '@type' => 'Dataset',
-                    'name' => ($link['category'] ?? '') . ' - ' . $link['title'],
-                    'identifier' => $link['elabid'],
-                );
-            }
-            foreach ($e['experiments_links'] as $link) {
-                $id = Config::fromEnv('SITE_URL') . '/experiments.php?mode=view&id=' . $link['itemid'];
-                $mentions[] = array('@id' => $id);
-                $dataEntities[] = array(
-                    '@id' => $id,
-                    '@type' => 'Dataset',
-                    'name' => ($link['category'] ?? '') . ' - ' . $link['title'],
-                    'identifier' => $link['elabid'],
-                );
+            $linkTypes = array('experiments', 'items');
+            foreach($linkTypes as $type) {
+                foreach ($e[$type . '_links'] as $link) {
+                    $id = Config::fromEnv('SITE_URL') . '/' . $link['page'] . '.php?mode=view&id=' . $link['entityid'];
+                    $mentions[] = array('@id' => $id);
+                    $dataEntities[] = array(
+                        '@id' => $id,
+                        '@type' => 'Dataset',
+                        'name' => ($link['category'] ?? '') . ' - ' . $link['title'],
+                        'identifier' => $link['elabid'],
+                    );
+                }
             }
 
             // JSON

@@ -1,4 +1,5 @@
-<?php declare(strict_types=1);
+<?php
+
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @copyright 2012 Nicolas CARPi
@@ -6,6 +7,8 @@
  * @license AGPL-3.0
  * @package elabftw
  */
+
+declare(strict_types=1);
 
 namespace Elabftw\Services;
 
@@ -24,10 +27,10 @@ class TeamsHelper
     }
 
     /**
-     * Return the group int that will be assigned to a new user in a team
-     * 1 = sysadmin if it's the first user ever
-     * 2 = admin for first user in a team
-     * 4 = normal user
+     * Return the usergroup that will be assigned to a new user in a team
+     * Sysadmin if it's the first user ever
+     * Admin for first user in a team
+     * Normal user
      */
     public function getGroup(): Usergroup
     {
@@ -72,18 +75,9 @@ class TeamsHelper
         return $this->getUserInTeam($userid)['groups_id'] <= Usergroup::Admin->value;
     }
 
-    /**
-     * @deprecated
-     */
     public function isUserInTeam(int $userid): bool
     {
-        $sql = 'SELECT `users_id` FROM `users2teams` WHERE `teams_id` = :team AND `users_id` = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
-        $req->bindParam(':team', $this->team, PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        return (bool) $req->fetchColumn();
+        return !empty($this->getUserInTeam($userid));
     }
 
     /**

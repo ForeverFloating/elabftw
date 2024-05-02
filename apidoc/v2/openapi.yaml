@@ -31,6 +31,10 @@ components:
           type: string
         can_write:
           type: integer
+        team:
+          type: integer
+        team_name:
+          type: string
     comment:
       type: object
       properties:
@@ -64,6 +68,7 @@ components:
         admin_validate:
           type: string
         announcement:
+          description: This text will be shown on every page, including login page.
           type: string
         anon_users:
           type: string
@@ -120,6 +125,7 @@ components:
         local_register:
           type: string
         login_announcement:
+          description: This text will only be shown on the login page.
           type: string
         login_tries:
           type: string
@@ -132,6 +138,21 @@ components:
         min_days_revisions:
           type: string
         min_delta_revisions:
+          description: Minimum number of characters changed required to trigger a revision save.
+          type: string
+        onboarding_email_active:
+          enum: [0, 1]
+          type: string
+        onboarding_email_admins_body:
+          type: string
+        onboarding_email_admins_subject:
+          type: string
+        onboarding_email_body:
+          type: string
+        onboarding_email_different_for_admins:
+          enum: [0, 1]
+          type: string
+        onboarding_email_subject:
           type: string
         open_science:
           type: string
@@ -475,6 +496,10 @@ components:
         tags_id:
           type: string
           nullable: true
+        uploads:
+          type: array
+          items:
+            $ref: '#/components/schemas/upload'
     idp:
       type: object
       properties:
@@ -562,6 +587,16 @@ components:
         category_color:
           type: string
         category_title:
+          type: string
+        status_color:
+          type: string
+        status_title:
+          type: string
+        custom_id:
+          type: integer
+        page:
+          type: string
+        type:
           type: string
     notification:
       type: object
@@ -672,6 +707,20 @@ components:
           type: integer
         visible:
           type: integer
+        announcement:
+          description: Text shown on top of every page for all users of this team.
+          type: string
+          nullable: true
+        onboarding_email_active:
+          description: Do we send onboarding emails to new users?
+          enum: [0, 1]
+          type: integer
+        onboarding_email_body:
+          type: string
+          nullable: true
+        onboarding_email_subject:
+          type: string
+          nullable: true
     teamgroup:
       type: object
       properties:
@@ -787,6 +836,9 @@ components:
           type: integer
         entrypoint:
           type: integer
+        sig_pubkey:
+          type: string
+          description: Public signature key (minisign format)
         teams:
           type: array
           items:
@@ -991,6 +1043,20 @@ paths:
             first:
               summary: Look for entries linked to item with id 42.
               value: 42
+        - name: related_origin
+          in: query
+          schema:
+            type: string
+            enum: ['experiments', 'items']
+          description: |
+            When using the "related" query parameter, select the type of the related ID (experiments or items)
+          examples:
+            items:
+              summary: The related entry is a resource.
+              value: items
+            experiments:
+              summary: The related entry is an experiment.
+              value: experiments
         - name: cat
           in: query
           schema:
@@ -1037,6 +1103,34 @@ paths:
             first:
               summary: Only display results from user with id 2
               value: 2
+        - name: scope
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2, 3]
+          description: |
+            Set the scope for the results. 1: self, 2: team, 3: everything. It defaults to the user value stored in preferences.
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: ["cat", "comment", "customid", "date", "id", "lastchange", "rating", "status", "title", "user"]
+          description: |
+            Change the ordering of the results.
+          examples:
+            first:
+              summary: Order by category
+              value: cat
+            second:
+              summary: Order by custom ID
+              value: customid
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: ["asc", "desc"]
+          description: |
+            Change the sorting of results: ascending or descending.
       responses:
         '200':
           description: A list of experiments
@@ -1075,6 +1169,24 @@ paths:
             second:
               summary: Generate a csv
               value: csv
+        - name: changelog
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0, 1]
+          description: |
+            Toggles if the changelog should be included in PDF exports (pdf, pdfa, zip, zipa). Changelog is by default included if the export provides PDF/A, otherwise not.
+          examples:
+            first:
+              summary: Generate PDF exports that always includes the changelog
+              value: true
+            second:
+              summary: Generate PDF exports that always includes the changelog.
+              value: 1
+            third:
+              summary: Generate PDF exports that do not include the changelog.
+              value: false
       responses:
         '200':
           description: An experiment
@@ -1137,6 +1249,10 @@ paths:
                     type: string
                     description: Current eLabFTW version
                     example: 4.8.0
+                  elabftw_version_int:
+                    type: integer
+                    description: Current eLabFTW version as an integer
+                    example: 50102
                   ts_balance:
                     type: integer
                     description: Number of timestamp tokens left
@@ -1165,6 +1281,14 @@ paths:
                     type: integer
                     description: Total count of experiments with timestamps
                     example: 1601
+                  uploads_filesize_sum:
+                    type: integer
+                    description: Sum of stored filesize in MySQL for all uploads of the instance.
+                    example: 25681672
+                  uploads_filesize_sum_formatted:
+                    type: string
+                    description: Sum of stored filesize in MySQL for all uploads of the instance, formatted
+                    example: "24.49 MiB"
 
   # ITEMS
   /items:
@@ -1224,6 +1348,30 @@ paths:
             first:
               summary: Search for all items with a rating of 2.
               value: "rating:2"
+        - name: related
+          in: query
+          schema:
+            type: integer
+          description: |
+            Look only for entries linked to this item id.
+          examples:
+            first:
+              summary: Look for entries linked to item with id 42.
+              value: 42
+        - name: related_origin
+          in: query
+          schema:
+            type: string
+            enum: ['experiments', 'items']
+          description: |
+            When using the "related" query parameter, select the type of the related ID (experiments or items)
+          examples:
+            items:
+              summary: The related entry is a resource.
+              value: items
+            experiments:
+              summary: The related entry is an experiment.
+              value: experiments
         # This one is not exactly copy paste
         - name: cat
           in: query
@@ -1271,6 +1419,34 @@ paths:
             first:
               summary: Only display results from user with id 2
               value: 2
+        - name: scope
+          in: query
+          schema:
+            type: integer
+            enum: [1, 2, 3]
+          description: |
+            Set the scope for the results. 1: self, 2: team, 3: everything. It defaults to the user value stored in preferences.
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: ["cat", "comment", "customid", "date", "id", "lastchange", "rating", "status", "title", "user"]
+          description: |
+            Change the ordering of the results.
+          examples:
+            first:
+              summary: Order by category
+              value: cat
+            second:
+              summary: Order by custom ID
+              value: customid
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: ["asc", "desc"]
+          description: |
+            Change the sorting of results: ascending or descending.
       # end duplicate from GET /experiments
       responses:
         '200':
@@ -1310,6 +1486,24 @@ paths:
             second:
               summary: Generate a csv
               value: csv
+        - name: changelog
+          in: query
+          required: false
+          schema:
+            type: integer
+            enum: [0,1]
+          description: |
+              Toggles if the changelog should be included in PDF exports (pdf, pdfa, zip, zipa). Changelog is by default included if the export provides PDF/A, otherwise not.
+          examples:
+            first:
+              summary: Generate PDF exports that always includes the changelog
+              value: true
+            second:
+              summary: Generate PDF exports that always includes the changelog.
+              value: 1
+            third:
+              summary: Generate PDF exports that do not include the changelog.
+              value: false
       responses:
         '200':
           description: An item
@@ -2233,7 +2427,20 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/team'
+              oneOf:
+                - $ref: '#/components/schemas/team'
+                - type: object
+                  description: (Re)send the onboarding email to all users specified in the userids property. Only admins can send emails to their team members.
+                  properties:
+                      action:
+                        enum: ['sendonboardingemails']
+                        type: string
+                      userids:
+                        description: A list of user ids for which the onboarding email shall be sent.
+                        type: array
+                        items:
+                          type: integer
+                        example: [5, 11, 7, 31]
       responses:
         '200':
           description: The updated team.
@@ -2267,9 +2474,9 @@ paths:
     post:
       tags: ['Experiments categories']
       operationId: post-team-one-expcat
-      summary: Create a new experiments status.
+      summary: Create a new category for experiments.
       requestBody:
-        description: Parameters for creating a status.
+        description: Parameters for creating a category.
         content:
           application/json:
             schema:
@@ -2277,20 +2484,20 @@ paths:
               properties:
                 name:
                   type: string
-                  description: Status name
+                  description: Category name
                 color:
                   type: string
                   description: |
                     Hex color without leading \#.
                 default:
                   type: integer
-                  description: Is it the default status for the team?
+                  description: Is it the default category for the team?
       responses:
         '201':
-          description: Create a status.
+          description: Create a category.
           headers:
             location:
-              description: An URL to the status that was created.
+              description: An URL to the category that was created.
               schema:
                 type: string
   # ONE EXPERIMENTS CATEGORY
@@ -2304,7 +2511,7 @@ paths:
           type: integer
       - name: subid
         in: path
-        description: ID of the category
+        description: ID of the category.
         required: true
         schema:
           type: integer
@@ -2476,7 +2683,7 @@ paths:
     post:
       tags: ['Resources status']
       operationId: post-team-one-resstat
-      summary: Create a new experiments status.
+      summary: Create a new status for resources.
       requestBody:
         description: Parameters for creating a resources status.
         content:
@@ -3778,8 +3985,9 @@ paths:
         description: |
           Number of extra fields keys that will be returned. Value >= -1; -1: no limit, 0: users default setting from UCP.
         schema:
-          type: int
+          type: integer
           default: 0
+
     get:
       tags: ['Extra Fields Keys']
       summary: Read extra fields keys.
