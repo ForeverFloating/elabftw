@@ -107,7 +107,7 @@ $text-muted: $medium;
 }
 
 body {
-    background: $mainbackground;
+    background: $white;
 }
 
 /* little shadow on top of the screen for no reasons */
@@ -143,13 +143,13 @@ body::before {
 /* LINKS */
 a,
 .link-like {
-    color: $elabblue;
+    color: $darkblue;
     text-decoration: none;
 }
 
 a:hover,
 .link-like:hover {
-    color: $elabblue;
+    color: $darkblue;
     text-decoration: none;
 }
 
@@ -226,34 +226,34 @@ blockquote::before {
 
 /* TITLES */
 h1 {
-    color: $medium;
-    font-size: 200%;
+    color: $strongest;
+    font-size: 2.8rem;
     font-weight: normal;
     margin-top: 0;
 }
 
 h2 {
-    color: $medium;
-    font-size: 180%;
+    color: $strongest;
+    font-size: 2rem;
     font-weight: normal;
     margin-top: 0;
 }
 
 h3 {
-    color: $medium;
-    font-size: 160%;
+    color: $strongest;
+    font-size: 1.55rem;
     margin: 0 auto;
 }
 
 h4 {
-    color: $medium;
-    font-size: 150%;
+    color: $strongest;
+    font-size: 1.2rem;
     font-weight: normal;
 }
 
 h5 {
-    color: $medium;
-    font-size: 130%;
+    color: $strongest;
+    font-size: 1rem;
 }
 
 /* HEAD */
@@ -616,7 +616,7 @@ tr:nth-child(odd) {
         }
 
         &.bgnd-dark {
-            background-color: $medium;
+            background-color: $strongest;
 
             &:hover {
                 background-color: $secondlevel;
@@ -819,7 +819,7 @@ the form-control fails to do that so we do the border ourselves */
 /* END COMMENTS */
 
 @mixin breakable {
-    hyphens: auto;
+    hyphens: manual;
     line-height: 110%;
     overflow-wrap: break-word;
     word-break: break-word;
@@ -836,7 +836,7 @@ the form-control fails to do that so we do the border ourselves */
     font-size: 160%;
 
     a {
-        color: $mediumstrong;
+        color: $strongest;
 
         &:hover {
             color: $secondlevel;
@@ -882,7 +882,7 @@ the form-control fails to do that so we do the border ourselves */
 }
 
 .togglable-section-title {
-    color: $medium;
+    color: $strongest;
     font-size: 100%;
     font-weight: bold;
     text-transform: uppercase;
@@ -944,7 +944,7 @@ the form-control fails to do that so we do the border ourselves */
 
 /* elabid */
 .elabid {
-    color: $medium;
+    color: $strongest;
     overflow-wrap: break-word;
 }
 
@@ -1146,7 +1146,7 @@ the form-control fails to do that so we do the border ourselves */
 .far,
 .fas,
 .fab {
-    color: $medium;
+    color: $mediumstrong;
     pointer-events: none;
 }
 
@@ -1393,4 +1393,41 @@ input:checked + .slider::before {
 /* PROFILE page */
 .counter {
     color: $secondlevel;
+}
+
+/* Custom scss */
+#body_view {
+    table {
+        margin: 0.75rem auto;
+    }
+
+    br {
+        margin-bottom: 0.75rem;
+    }
+
+    li {
+        margin: 0.75rem auto;
+    }
+
+    li,
+    p {
+        color: $strongest;
+    }
+}
+
+#documentTitle {
+    color: $strongest;
+}
+
+.form-inline,
+.form-control {
+    width: 100%;
+}
+
+.nav-link {
+    text-align: left;
+}
+
+.text-dark {
+    color: $strongest;
 }

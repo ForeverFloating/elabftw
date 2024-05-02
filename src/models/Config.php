@@ -66,7 +66,7 @@ final class Config implements RestInterface
             ('remember_me_checked', '1'),
             ('remember_me_allowed', '1'),
             ('debug', '0'),
-            ('lang', 'en_GB'),
+            ('lang', 'en_US'),
             ('login_tries', '3'),
             ('mail_from', 'notconfigured@example.com'),
             ('proxy', ''),
