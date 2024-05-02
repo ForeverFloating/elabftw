@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ApiC.patch(`${Model.Team}/${id}`, removeEmpty(params));
     // ARCHIVE TEAM
     } else if (el.matches('[data-action="archive-team"]')) {
-      ApiC.patch(`${Model.Team}/${el.dataset.id}`, {'action': 'archive'});
+      ApiC.patch(`${Model.Team}/${el.dataset.id}`, {'action': Action.Archive});
     // DESTROY TEAM
     } else if (el.matches('[data-action="destroy-team"]')) {
       ApiC.delete(`${Model.Team}/${el.dataset.id}`).then(() => reloadElement('teamsDiv'));
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // mask all
       document.getElementById('ts_loginpass').toggleAttribute('hidden', true);
       document.getElementById('ts_urldiv').toggleAttribute('hidden', true);
-    } else if (select.value === 'universign') {
+    } else if (select.value === 'universign' || select.value === 'dgn') {
       // only make loginpass visible
       document.getElementById('ts_loginpass').removeAttribute('hidden');
       document.getElementById('ts_urldiv').toggleAttribute('hidden', true);

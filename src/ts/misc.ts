@@ -9,6 +9,7 @@ import 'jquery-ui/ui/widgets/sortable';
 import { Action, CheckableItem, ResponseMsg, EntityType, Entity, Model, Target } from './interfaces';
 import { DateTime } from 'luxon';
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
+import TableSorting from './TableSorting.class';
 declare const MathJax: MathJaxObject;
 import $ from 'jquery';
 import i18next from 'i18next';
@@ -292,6 +293,8 @@ export async function reloadElement(elementId: string): Promise<void> {
   }
   const html = await fetchCurrentPage();
   document.getElementById(elementId).innerHTML = html.getElementById(elementId).innerHTML;
+
+  (new TableSorting()).init();
   listenTrigger(elementId);
 }
 
@@ -524,8 +527,28 @@ export function escapeExtendedQuery(searchTerm: string): string {
 export function replaceWithTitle(): void {
   document.querySelectorAll('[data-replace-with-title="true"]').forEach((el: HTMLElement) => {
     const ApiC = new Api();
+    // mask error notifications
+    ApiC.notifOnError = false;
+    // view mode is innerText
+    let changedAttribute = 'innerText';
+    // edit mode is value because it's an input
+    if (el instanceof HTMLInputElement) {
+      changedAttribute = 'value';
+    }
     ApiC.getJson(`${el.dataset.endpoint}/${el.dataset.id}`).then(json => {
-      el.innerText = json.title;
+      // view mode for Experiments or Resources
+      let value = json.title;
+      // edit mode
+      if (el instanceof HTMLInputElement) {
+        value = `${json.id} - ${json.title}`;
+        if (el.dataset.endpoint === Model.User) {
+          value = `${json.userid} - ${json.fullname}`;
+        }
+      }
+      el[changedAttribute] = value;
+    }).catch(() => {
+      el[changedAttribute] = i18next.t('resource-not-found');
+      el.classList.add('color-warning');
     });
   });
 }

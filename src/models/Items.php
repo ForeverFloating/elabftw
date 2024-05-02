@@ -13,6 +13,7 @@ use Elabftw\Elabftw\DisplayParams;
 use Elabftw\Elabftw\Metadata;
 use Elabftw\Elabftw\Permissions;
 use Elabftw\Elabftw\Tools;
+use Elabftw\Enums\Action;
 use Elabftw\Enums\EntityType;
 use Elabftw\Enums\FilterableColumn;
 use Elabftw\Exceptions\IllegalActionException;
@@ -97,6 +98,11 @@ class Items extends AbstractConcreteEntity
         return $Permissions->getCan($can);
     }
 
+    public function canBookInPast(): bool
+    {
+        return $this->Users->isAdmin || (bool) $this->entityData['book_users_can_in_past'];
+    }
+
     public function duplicate(): int
     {
         $this->canOrExplode('read');
@@ -131,6 +137,10 @@ class Items extends AbstractConcreteEntity
         $this->ItemsLinks->duplicate($this->id, $newId);
         $this->Steps->duplicate($this->id, $newId);
         $this->Tags->copyTags($newId);
+        // also add a link to the previous resource
+        $ItemsLinks = new ItemsLinks(new self($this->Users, $newId));
+        $ItemsLinks->setId($this->id);
+        $ItemsLinks->postAction(Action::Create, array());
 
         return $newId;
     }

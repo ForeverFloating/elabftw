@@ -423,6 +423,7 @@ CREATE TABLE `items` (
   `book_max_minutes` INT UNSIGNED NOT NULL DEFAULT 0,
   `book_max_slots` INT UNSIGNED NOT NULL DEFAULT 0,
   `book_can_overlap` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  `book_users_can_in_past` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `book_is_cancellable` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `book_cancel_minutes` INT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
@@ -859,8 +860,6 @@ CREATE TABLE `uploads` (
 
 CREATE TABLE `users` (
   `userid` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
-  `salt` varchar(255) NULL DEFAULT NULL,
-  `password` varchar(255) NULL DEFAULT NULL,
   `password_hash` varchar(255) NULL DEFAULT NULL,
   `password_modified_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `mfa_secret` varchar(32) NULL DEFAULT NULL,

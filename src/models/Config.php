@@ -55,7 +55,7 @@ final class Config implements RestInterface
      * Insert the default values in the sql config table
      * Only run once of first ever page load
      */
-    public function create(): int
+    public function create(): bool
     {
         $schema = Update::getRequiredSchema();
 
@@ -66,7 +66,7 @@ final class Config implements RestInterface
             ('remember_me_checked', '1'),
             ('remember_me_allowed', '1'),
             ('debug', '0'),
-            ('lang', 'en_US'),
+            ('lang', 'en_GB'),
             ('login_tries', '3'),
             ('mail_from', 'notconfigured@example.com'),
             ('proxy', ''),
@@ -183,7 +183,7 @@ final class Config implements RestInterface
         $req = $this->Db->prepare($sql);
         $req->bindParam(':schema', $schema);
 
-        return (int) $this->Db->execute($req);
+        return $this->Db->execute($req);
     }
 
     /**
@@ -262,11 +262,13 @@ final class Config implements RestInterface
 
         // loop the array and update config
         foreach ($params as $name => $value) {
-            $req->bindParam(':value', $value);
-            $req->bindParam(':name', $name);
-            $this->Db->execute($req);
-            AuditLogs::create(new ConfigModified($name, (string) $this->configArr[$name], (string) $value));
-            $this->configArr[$name] = (string) $value;
+            if ($this->configArr[$name] !== $value) {
+                $req->bindParam(':value', $value);
+                $req->bindParam(':name', $name);
+                $this->Db->execute($req);
+                AuditLogs::create(new ConfigModified($name, (string) $this->configArr[$name], (string) $value));
+                $this->configArr[$name] = (string) $value;
+            }
         }
 
         return $this->readAll();
@@ -312,6 +314,8 @@ final class Config implements RestInterface
         $sql = 'DELETE FROM config';
         $req = $this->Db->prepare($sql);
         $this->Db->execute($req);
-        return (bool) $this->create();
+        $createResult = $this->create();
+        $this->configArr = $this->readAll();
+        return $createResult;
     }
 }

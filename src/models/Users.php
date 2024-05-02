@@ -18,6 +18,7 @@ use Elabftw\Elabftw\Tools;
 use Elabftw\Elabftw\UserParams;
 use Elabftw\Enums\Action;
 use Elabftw\Enums\BasePermissions;
+use Elabftw\Enums\Usergroup;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Exceptions\InvalidCredentialsException;
@@ -80,8 +81,8 @@ class Users implements RestInterface
         string $firstname = '',
         string $lastname = '',
         string $passwordHash = '',
-        ?int $group = null,
-        bool $forceValidation = false,
+        ?Usergroup $usergroup = null,
+        bool $automaticValidationEnabled = false,
         bool $alertAdmin = true,
         ?string $validUntil = null,
         ?string $orgid = null,
@@ -103,23 +104,13 @@ class Users implements RestInterface
         // Registration date is stored in epoch
         $registerDate = time();
 
-        // get the group for the new user
-        if ($group === null) {
-            $group = $TeamsHelper->getGroup();
-        }
+        // get the user group for the new users
+        $usergroup ??= $TeamsHelper->getGroup();
 
-        $isSysadmin = $group === 1 ? 1 : 0;
+        $isSysadmin = $usergroup === Usergroup::Sysadmin;
 
-        // transform group in 2 if it is 1 because users2teams.groups_id is 2 or 4, not 1
-        if ($group === 1) {
-            $group = 2;
-        }
-
-        // will new user be validated?
-        $validated = $Config->configArr['admin_validate'] && ($group === 4) ? 0 : 1;
-        if ($forceValidation) {
-            $validated = 1;
-        }
+        // is user validated automatically (true) or by an admin (false)?
+        $isValidated = $automaticValidationEnabled || !$Config->configArr['admin_validate'] || $usergroup !== Usergroup::User;
 
         $defaultRead = BasePermissions::Team->toJson();
         $defaultWrite = BasePermissions::User->toJson();
@@ -157,11 +148,11 @@ class Users implements RestInterface
         $req->bindParam(':firstname', $firstname);
         $req->bindParam(':lastname', $lastname);
         $req->bindParam(':register_date', $registerDate);
-        $req->bindParam(':validated', $validated, PDO::PARAM_INT);
+        $req->bindValue(':validated', $isValidated, PDO::PARAM_INT);
         $req->bindValue(':lang', $Config->configArr['lang']);
         $req->bindValue(':valid_until', $validUntil);
         $req->bindValue(':orgid', $orgid);
-        $req->bindValue(':is_sysadmin', $isSysadmin);
+        $req->bindValue(':is_sysadmin', $isSysadmin, PDO::PARAM_INT);
         $req->bindValue(':default_read', $defaultRead);
         $req->bindValue(':default_write', $defaultWrite);
         $this->Db->execute($req);
@@ -171,11 +162,18 @@ class Users implements RestInterface
         $isFirstUser = $TeamsHelper->isFirstUserInTeam();
         // now add the user to the team
         $Users2Teams = new Users2Teams($this->requester);
-        $Users2Teams->addUserToTeams($userid, array_column($teams, 'id'), $group);
+        $Users2Teams->addUserToTeams(
+            $userid,
+            array_column($teams, 'id'),
+            // transform Sysadmin to Admin because users2teams.groups_id is 2 (Admin) or 4 (User), but never 1 (Sysadmin)
+            $usergroup === Usergroup::Sysadmin
+                ? Usergroup::Admin->value
+                : $usergroup->value,
+        );
         if ($alertAdmin && !$isFirstUser) {
-            $this->notifyAdmins($TeamsHelper->getAllAdminsUserid(), $userid, $validated, $teams[0]['name']);
+            $this->notifyAdmins($TeamsHelper->getAllAdminsUserid(), $userid, $isValidated, $teams[0]['name']);
         }
-        if ($validated === 0) {
+        if (!$isValidated) {
             $Notifications = new SelfNeedValidation();
             $Notifications->create($userid);
             // set a flag to show correct message to user
@@ -213,12 +211,12 @@ class Users implements RestInterface
 
         $archived = '';
         if ($includeArchived) {
-            $archived = 'OR users.archived = 1';
+            $archived = ' OR users.archived = 1';
         }
 
         $admins = '';
         if ($onlyAdmins) {
-            $admins = 'AND users2teams.groups_id = 2';
+            $admins = sprintf(' AND users2teams.groups_id = %d', Usergroup::Admin->value);
         }
 
         // NOTE: $tmpTable avoids the use of DISTINCT, so we are able to use ORDER BY with teams_id.
@@ -229,9 +227,9 @@ class Users implements RestInterface
             CONCAT(users.firstname, ' ', users.lastname) AS fullname,
             users.orcid, users.auth_service
             FROM users
-            CROSS JOIN" . $tmpTable . ' users2teams ON (users2teams.users_id = users.userid' . $teamFilterSql . ' ' . $admins . ')
+            CROSS JOIN" . $tmpTable . ' users2teams ON (users2teams.users_id = users.userid' . $teamFilterSql . $admins . ')
             WHERE (users.email LIKE :query OR users.firstname LIKE :query OR users.lastname LIKE :query)
-            AND (users.archived = 0 ' . $archived . ')
+            AND (users.archived = 0' . $archived . ')
             ORDER BY users2teams.teams_id ASC, users.lastname ASC';
         $req = $this->Db->prepare($sql);
         $req->bindValue(':query', '%' . $query . '%');
@@ -301,7 +299,10 @@ class Users implements RestInterface
 
     public function isAdminSomewhere(): bool
     {
-        $sql = 'SELECT users_id FROM users2teams WHERE users_id = :userid AND groups_id <= 2';
+        $sql = sprintf(
+            'SELECT users_id FROM users2teams WHERE users_id = :userid AND groups_id <= %d',
+            Usergroup::Admin->value,
+        );
         $req = $this->Db->prepare($sql);
         $req->bindParam(':userid', $this->userData['userid']);
         $this->Db->execute($req);
@@ -395,42 +396,12 @@ class Users implements RestInterface
         if ($UsersHelper->cannotBeDeleted()) {
             throw new ImproperActionException('Cannot delete a user that owns experiments, items, comments, templates or uploads!');
         }
+
+        // Due to the InnoDB cascading actions of the foreign key constraints the deletion will also happen in the other tables
         $sql = 'DELETE FROM users WHERE userid = :userid';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        $sql = 'DELETE FROM users2teams WHERE users_id = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        $sql = 'DELETE FROM users2team_groups WHERE userid = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        $sql = 'DELETE FROM todolist WHERE userid = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        $sql = 'DELETE FROM team_events WHERE userid = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        $sql = 'DELETE FROM notifications WHERE userid = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        $sql = 'DELETE FROM favtags2users WHERE users_id = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        return true;
+        return $this->Db->execute($req);
     }
 
     /**
@@ -443,9 +414,16 @@ class Users implements RestInterface
             return true;
         }
         // check if in the teams we have in common, the potential admin is admin
-        $sql = 'SELECT * FROM users2teams u1
-                INNER JOIN users2teams u2 ON u1.teams_id = u2.teams_id
-                WHERE u1.users_id = :admin_userid AND u2.users_id = :user_userid AND u1.groups_id <= 2';
+        $sql = sprintf(
+            'SELECT *
+                FROM users2teams u1
+                INNER JOIN users2teams u2
+                    ON (u1.teams_id = u2.teams_id)
+                WHERE u1.users_id = :admin_userid
+                    AND u2.users_id = :user_userid
+                    AND u1.groups_id <= %d',
+            Usergroup::Admin->value,
+        );
         $req = $this->Db->prepare($sql);
         $req->bindParam(':admin_userid', $this->userid, PDO::PARAM_INT);
         $req->bindParam(':user_userid', $userid, PDO::PARAM_INT);
@@ -657,10 +635,10 @@ class Users implements RestInterface
         return $this->userData;
     }
 
-    private function notifyAdmins(array $admins, int $userid, int $validated, string $team): void
+    private function notifyAdmins(array $admins, int $userid, bool $isValidated, string $team): void
     {
         $Notifications = new UserCreated($userid, $team);
-        if ($validated === 0) {
+        if (!$isValidated) {
             $Notifications = new UserNeedValidation($userid, $team);
         }
         foreach ($admins as $admin) {

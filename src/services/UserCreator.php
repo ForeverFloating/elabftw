@@ -47,14 +47,14 @@ class UserCreator
         if (isset($this->reqBody['orgid'])) {
             $orgid = (new UserParams('orgid', $this->reqBody['orgid']))->getContent();
         }
-        return (new Users())->createOne(
+        return (new Users(null, null, $this->requester))->createOne(
             (new UserParams('email', $this->reqBody['email']))->getContent(),
             $teams,
             (new UserParams('firstname', $this->reqBody['firstname']))->getContent(),
             (new UserParams('lastname', $this->reqBody['lastname']))->getContent(),
             // password is never set by admin/sysadmin
             '',
-            Check::usergroup($this->requester, Usergroup::from((int) ($this->reqBody['usergroup'] ?? 4)))->value,
+            Check::usergroup($this->requester, Usergroup::from((int) ($this->reqBody['usergroup'] ?? Usergroup::User->value))),
             // automatically validate user
             true,
             // don't alert admin

@@ -10,6 +10,7 @@
 namespace Elabftw\Services;
 
 use Elabftw\Elabftw\Db;
+use Elabftw\Enums\Usergroup;
 use Elabftw\Exceptions\ResourceNotFoundException;
 use PDO;
 
@@ -28,16 +29,16 @@ class TeamsHelper
      * 2 = admin for first user in a team
      * 4 = normal user
      */
-    public function getGroup(): int
+    public function getGroup(): Usergroup
     {
         if ($this->isFirstUser()) {
-            return 1;
+            return Usergroup::Sysadmin;
         }
 
         if ($this->isFirstUserInTeam()) {
-            return 2;
+            return Usergroup::Admin;
         }
-        return 4;
+        return Usergroup::User;
     }
 
     public function getPermissions(int $userid): array
@@ -68,7 +69,7 @@ class TeamsHelper
 
     public function isAdminInTeam(int $userid): bool
     {
-        return $this->getUserInTeam($userid)['groups_id'] <= 2;
+        return $this->getUserInTeam($userid)['groups_id'] <= Usergroup::Admin->value;
     }
 
     /**
@@ -90,9 +91,17 @@ class TeamsHelper
      */
     public function getAllAdminsUserid(): array
     {
-        $sql = 'SELECT users_id FROM users2teams
-            LEFT JOIN users ON (users2teams.users_id = users.userid)
-            WHERE groups_id IN (1, 2) AND users.archived = 0 AND users2teams.teams_id = :team';
+        $sql = sprintf(
+            'SELECT users_id
+                FROM users2teams
+                LEFT JOIN users
+                    ON (users2teams.users_id = users.userid)
+                WHERE groups_id IN (%d, %d)
+                    AND users.archived = 0
+                    AND users2teams.teams_id = :team',
+            Usergroup::Sysadmin->value,
+            Usergroup::Admin->value,
+        );
         $req = $this->Db->prepare($sql);
         $req->bindParam(':team', $this->team, PDO::PARAM_INT);
         $this->Db->execute($req);

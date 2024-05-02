@@ -36,10 +36,11 @@ class Transform
         return match (Notifications::from($notif['category'])) {
             Notifications::CommentCreated =>
                 sprintf(
-                    '<span data-action="ack-notif" data-id="%d" data-href="experiments.php?mode=view&amp;id=%d">%s</span>' . $relativeMoment,
+                    '<span data-action="ack-notif" data-id="%d" data-href="%s.php?mode=view&amp;id=%d">%s</span>' . $relativeMoment,
                     (int) $notif['id'],
-                    (int) $notif['body']['experiment_id'],
-                    _('New comment on your experiment.'),
+                    $notif['body']['page'],
+                    (int) $notif['body']['entity_id'],
+                    _('New comment on your entry.'),
                     $notif['created_at'],
                 ),
             Notifications::EventDeleted =>
@@ -102,8 +103,7 @@ class Transform
                 ),
             Notifications::NewVersionInstalled =>
                 sprintf(
-                    '<span data-action="ack-notif" data-id="%d" data-href="https://www.deltablot.com/posts/release-%d">%s</span>' . $relativeMoment,
-                    (int) $notif['id'],
+                    '<a class="color-white" href="https://www.deltablot.com/posts/release-%d" target="_blank">%s</a>' . $relativeMoment,
                     App::INSTALLED_VERSION_INT,
                     sprintf(_('A new eLabFTW version has been installed since your last visit.%sRead the release notes by clicking this message.'), '<br>'),
                     $notif['created_at'],
