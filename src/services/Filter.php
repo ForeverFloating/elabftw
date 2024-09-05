@@ -170,7 +170,7 @@ class Filter
         // create base config for html5
         $config = HTMLPurifier_HTML5Config::createDefault();
         // allow only certain elements
-        $config->set('HTML.Allowed', 'div[class|style],br,p[class|style],sub,img[src|class|style|width|height],sup,strong,b,em,u,a[href],s,span[style],ul[style],li[style],ol[style],dl,dt,dd,blockquote,h1[class|style],h2[class|style],h3[class|style],h4[class|style],h5[class|style],h6[class|style],hr,table[style|data-table-sort|border],tr[style],td[style|colspan|rowspan],th[style|colspan|rowspan],code,video[src|controls|style],audio[src|controls],pre[class],details,summary,caption,figure,figcaption');
+        $config->set('HTML.Allowed', 'div[class|style],br,p[class|style],sub,img[src|class|style|width|height|alt],sup,strong,b,em,u[style],a[href],s,span[style],ul[style],li[style|value],ol[style|reversed|start|type],dl,dt,dd,blockquote[cite],h1[class|style],h2[class|style],h3[class|style],h4[class|style],h5[class|style],h6[class|style],hr[style],table[style|data-table-sort|border],tr[style],td[style|colspan|rowspan|headers],th[style|colspan|rowspan|abbr|headers|scope],code,video[src|controls|style|height|width],audio[src|controls],pre[class|style],details[open],summary,caption[style],figure,figcaption[style],abbr[title],aside,bdi,cite,col[span|style],data[value],del[cite|datetime],dfn[title|id],ins[cite|datetime],kbd,mark,q[cite],samp,tbody[style],tfoot[style],thead[style],time[datetime],var,wbr');
         $config->set('HTML.TargetBlank', true);
         // configure the cache for htmlpurifier
         $tmpDir = FsTools::getCacheFolder('purifier');

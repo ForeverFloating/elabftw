@@ -241,12 +241,12 @@
             <div class='caption'>
               <i class='fas fa-fw fa-download mr-1'></i>
               <p class='d-inline'>
-                <a id='upload-filename_{{ upload.id }}' class='text-break' href='app/download.php?f={{ upload.long_name|e('url') }}&amp;name={{ upload.real_name|e('url') }}&amp;storage={{ upload.storage }}' target='_blank' rel='noopener'>{{ upload.real_name }}</a>
+                <a id='upload-filename_{{ upload.id }}' class='text-break' href='app/download.php?f={{ upload.long_name|e('url') }}&amp;name={{ upload.real_name|e('url') }}&amp;storage={{ upload.storage }}' target='_blank' rel='noopener'>{{ upload.real_name }}</a><br>
                 <span class='smallgray' style='display:inline'>
                   {% if upload.filesize %}
-                    {{ upload.filesize|formatBytes }} -
+                    {{ upload.filesize|formatBytes }}<br>
                   {% endif %}
-                  {{ upload.created_at }}
+                  {{ upload.created_at|format_datetime(pattern="yyyy-MM-dd 'at' h:mm:ss a") }}
                 </span>
               </p>
             <br>

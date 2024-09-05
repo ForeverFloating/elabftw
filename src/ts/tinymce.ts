@@ -317,5 +317,11 @@ export function getTinymceBaseConfig(page: string): object {
       },
     ],
     toolbar_sticky: true,
+    // custom settings
+    table_default_attributes: {},
+    table_default_styles: {},
+    table_header_type: 'sectionCells',
+    table_use_colgroups: false,
+    table_column_resizing: 'resizetable',
   };
 }

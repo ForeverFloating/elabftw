@@ -44,7 +44,7 @@ class MpdfProvider implements MpdfProviderInterface
             'fontDir' => array_merge($fontDirs, array(dirname(__DIR__, 2) . '/web/assets/fonts')),
             'default_font' => 'DejaVu',
             // disallow getting external things
-            'whitelistStreamWrappers' => array(''),
+            'whitelistStreamWrappers' => array('http', 'https', 'file'),
         ));
 
         // make sure we can read the pdf in a long time

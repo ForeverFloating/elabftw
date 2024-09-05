@@ -30,7 +30,7 @@
 
   <p class='footer-right'>
     {{ 'Powered by'|trans }}
-    <a href='https://www.elabftw.net'>eLabFTW</a> {% if App.Session.has('is_auth') %}<a href="{{ App.getWhatsnewLink() }}">{{ constant('Elabftw\\Elabftw\\App::INSTALLED_VERSION') }}</a>{% endif %}<br>
+    <a href='https://www.elabftw.net'>eLabFTW</a> {% if App.Session.has('is_auth') %}<a href="{{ App.getWhatsnewLink() }}">{{ constant('Elabftw\\Elabftw\\App::INSTALLED_VERSION') }}</a>{% endif %}
     {% if App.Config.configArr.debug %}
       <br>{{ 'Page generated in' }} {{ generationTime() }} {{ 'seconds'|trans }}
       ({{ numberOfQueries() }} SQL)
