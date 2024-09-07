@@ -66,7 +66,7 @@ try {
             if ($App->Session->get('enforce_mfa')) {
                 $App->Users = new Users($App->Session->get('auth_userid'));
             }
-            $MfaHelper = new MfaHelper((int) $App->Users->userData['userid'], $App->Session->get('mfa_secret'));
+            $MfaHelper = new MfaHelper($App->Users->userData['userid'], $App->Session->get('mfa_secret'));
             $renderArr['mfaQRCodeImageDataUri'] = $MfaHelper->getQRCodeImageAsDataUri($App->Users->userData['email']);
             $renderArr['mfaSecret'] = implode(' ', str_split($App->Session->get('mfa_secret'), 4));
         }
@@ -92,12 +92,12 @@ try {
     // don't show the local login form if it's disabled
     $showLocal = true;
     // if there is a ?letmein in the url, we still show it.
-    if (!$App->Config->configArr['local_login'] && !$App->Request->query->has('letmein')) {
+    if (($App->Config->configArr['local_login'] === '0' && !$App->Request->query->has('letmein')) || $App->Config->configArr['local_auth_enabled'] === '0') {
         $showLocal = false;
     }
 
-    $Idps = new Idps();
-    $idpsArr = $Idps->readAll();
+    $Idps = new Idps($App->Users);
+    $idpsArr = $Idps->readAllSimpleEnabled();
 
     $Teams = new Teams($App->Users);
     $Teams->bypassReadPermission = true;

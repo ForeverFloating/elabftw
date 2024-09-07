@@ -306,6 +306,8 @@ components:
           type: string
         elabid:
           type: string
+        exclusive_edit_mode:
+          $ref: '#/components/schemas/exclusive_edit_mode'
         experiments_links:
           type: array
           items:
@@ -457,6 +459,8 @@ components:
         category_color:
           type: string
           nullable: true
+        exclusive_edit_mode:
+          $ref: '#/components/schemas/exclusive_edit_mode'
         userid:
           type: integer
         canread:
@@ -500,6 +504,67 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/upload'
+    export:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 120
+        created_at:
+          type: string
+          example: "2024-05-28 02:42:19"
+        requester_userid:
+          type: integer
+          example: 2
+        state:
+          type: integer
+          example: 1
+        long_name:
+          type: string
+          example: "7dd6ef1e6093ab8861e425aeb1950e70e2a0bea9672bfff45f20a0cf26e49222c634c2fabf408bd6e9f3c447338edf3c4f11475c0472e00ab7ba5ea41319ec49"
+        filesize:
+          type: integer
+          example: 268438
+        modified_at:
+          type: string
+          example: "2024-05-28 02:42:31"
+        real_name:
+          type: string
+          example: "export-2024-05-28_02-42-30.json"
+        team:
+          type: integer
+          example: 1
+        changelog:
+          type: integer
+          example: 0
+        pdfa:
+          type: integer
+          example: 0
+        json:
+          type: integer
+          example: 0
+        hash:
+          type: string
+          example: "90651dd009d40b4d0fabc65395e9f3eba9b913a71b13bad94904c0cede7d8c24"
+        hash_algo:
+          type: string
+          example: "sha256"
+        experiments:
+          type: integer
+          example: 1
+        items:
+          type: integer
+          example: 0
+        experiments_templates:
+          type: integer
+          example: 0
+        items_types:
+          type: integer
+          example: 0
+        format:
+          type: string
+          example: "pdf"
+>>>>>>> 56c1658f67da50f8ff7734f4a865f7bac9c5f71e
     idp:
       type: object
       properties:
@@ -859,6 +924,15 @@ components:
           type: string
         frequency:
           type: integer
+    exclusive_edit_mode:
+      type: object
+      properties:
+        locked_by:
+          type: integer
+        fullname:
+          type: string
+        locked_at:
+          type: string
 
 security:
   - token:
@@ -1169,12 +1243,47 @@ paths:
             second:
               summary: Generate a csv
               value: csv
-        - name: changelog
+        - name: json
           in: query
-          required: false
+          schema:
+            type: boolean
+          description: |
+            Include a full JSON export in the ZIP archive. Only applicable if format is zip(a).
+          examples:
+            includeJson:
+              summary: Include JSON in ZIP
+              value: true
+            excludeJson:
+              summary: Exclude JSON in ZIP
+              value: false
+        - name: withTitle
+          in: query
+          schema:
+            type: boolean
+          description: |
+            Include the title in the QR code. Only applicable if format is qrpng.
+          examples:
+            includeTitle:
+              summary: Include title in QR code
+              value: true
+            excludeTitle:
+              summary: Exclude title in QR code
+              value: false
+        - name: size
+          in: query
           schema:
             type: integer
-            enum: [0, 1]
+            default: 250
+          description: |
+            Specify the size of the QR code in pixels. Only applicable if format is qrpng.
+          examples:
+            mediumSize:
+              summary: Small QR code
+              value: 50
+        - name: changelog
+          in: query
+          schema:
+            type: boolean
           description: |
             Toggles if the changelog should be included in PDF exports (pdf, pdfa, zip, zipa). Changelog is by default included if the export provides PDF/A, otherwise not.
           examples:
@@ -1182,9 +1291,6 @@ paths:
               summary: Generate PDF exports that always includes the changelog
               value: true
             second:
-              summary: Generate PDF exports that always includes the changelog.
-              value: 1
-            third:
               summary: Generate PDF exports that do not include the changelog.
               value: false
       responses:
@@ -1208,7 +1314,15 @@ paths:
                   properties:
                     action:
                       type: string
-                      enum: ['lock', 'pin', 'updatemetadatafield', 'update', 'bloxberg', 'timestamp']
+                      enum: [
+                        'bloxberg',
+                        'exclusiveeditmode',
+                        'lock',
+                        'pin',
+                        'timestamp',
+                        'updatemetadatafield',
+                        'update',
+                      ]
                 - $ref: '#/components/schemas/experiment'
       responses:
         '200':
@@ -1471,6 +1585,7 @@ paths:
       summary: Read an item
       operationId: get-item
       parameters:
+      # Start copy paste from experiments/id
         - name: format
           in: query
           schema:
@@ -1486,24 +1601,57 @@ paths:
             second:
               summary: Generate a csv
               value: csv
-        - name: changelog
+        - name: json
           in: query
-          required: false
+          schema:
+            type: boolean
+          description: |
+            Include a full JSON export in the ZIP archive. Only applicable if format is zip(a).
+          examples:
+            includeJson:
+              summary: Include JSON in ZIP
+              value: true
+            excludeJson:
+              summary: Exclude JSON in ZIP
+              value: false
+        - name: withTitle
+          in: query
+          schema:
+            type: boolean
+          description: |
+            Include the title in the QR code. Only applicable if format is qrpng.
+          examples:
+            includeTitle:
+              summary: Include title in QR code
+              value: true
+            excludeTitle:
+              summary: Exclude title in QR code
+              value: false
+        - name: size
+          in: query
           schema:
             type: integer
-            enum: [0,1]
+            default: 250
           description: |
-              Toggles if the changelog should be included in PDF exports (pdf, pdfa, zip, zipa). Changelog is by default included if the export provides PDF/A, otherwise not.
+            Specify the size of the QR code in pixels. Only applicable if format is qrpng.
+          examples:
+            mediumSize:
+              summary: Small QR code
+              value: 50
+        - name: changelog
+          in: query
+          schema:
+            type: boolean
+          description: |
+            Toggles if the changelog should be included in PDF exports (pdf, pdfa, zip, zipa). Changelog is by default included if the export provides PDF/A, otherwise not.
           examples:
             first:
               summary: Generate PDF exports that always includes the changelog
               value: true
             second:
-              summary: Generate PDF exports that always includes the changelog.
-              value: 1
-            third:
               summary: Generate PDF exports that do not include the changelog.
               value: false
+      # End copy paste from experiments/id
       responses:
         '200':
           description: An item
@@ -1525,7 +1673,13 @@ paths:
                   properties:
                     action:
                       type: string
-                      enum: ['lock', 'pin', 'updatemetadatafield', 'update']
+                      enum: [
+                        'exclusiveeditmode',
+                        'lock',
+                        'pin',
+                        'updatemetadatafield',
+                        'update',
+                      ]
                 - $ref: '#/components/schemas/item'
       responses:
         '200':
@@ -1546,6 +1700,164 @@ paths:
         '204':
           description: The key was deleted
 
+  # IMPORT
+  /import:
+    summary: Import a file
+    get:
+      tags: ['Import']
+      summary: Get information about this endpoint
+      operationId: read-import
+      responses:
+        '200':
+          description: Information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allowed_extensions:
+                    type: array
+                    items:
+                      type: string
+                    example: [".eln", ".csv"]
+                  max_filesize:
+                    type: integer
+                    example: 2147483648
+    post:
+      tags: ['Import']
+      summary: Send a file to import
+      operationId: post-import
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: ['file', 'entity_type']
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The file to upload.
+                entity_type:
+                  type: string
+                  example: "experiments"
+                  enum: ["experiments", "items", "experiments_templates", "items_types"]
+                  description: The target entity type
+                category:
+                  type: integer
+                  example: 6
+                  description: The default category ID if no category is defined for a given entry
+                canread:
+                  type: string
+                  example: |
+                    {"base": 30, "teams": [3], "teamgroups": [], "users": [91, 32]}
+                  description: A JSON string representing read permissions
+                canwrite:
+                  type: string
+                  example: |
+                    {"base": 30, "teams": [3], "teamgroups": [], "users": [91, 32]}
+                  description: A JSON string representing write permissions
+      responses:
+        '201':
+          description: The import was successful
+          headers:
+            location:
+              description: The number at the end is the number of imported entries
+              schema:
+                type: string
+  # EXPORT
+  /exports:
+    summary: Exported files
+    get:
+      tags: ['Exports']
+      summary: List exports
+      operationId: readall-exports
+      responses:
+        '200':
+          description: A list of exports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/export'
+    post:
+      tags: ['Exports']
+      summary: Register an export request
+      operationId: post-export
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: ['format']
+              properties:
+                format:
+                  type: string
+                  example: "pdf"
+                  enum: ["csv", "eln", "json", "pdf", "zip"]
+                  description: File format for the export
+                experiments:
+                  type: string
+                  example: "on"
+                  description: Set to "on" to include experiments in the export
+                items:
+                  type: string
+                  example: "on"
+                  description: Set to "on" to include resources in the export
+                experiments_templates:
+                  type: string
+                  example: "on"
+                  description: Set to "on" to include experiments templates in the export
+                items_types:
+                  type: string
+                  example: "on"
+                  description: Set to "on" to include resources categories in the export
+                changelog:
+                  type: string
+                  example: "on"
+                  description: Set to "on" to include the changelog in PDF files
+                json:
+                  type: string
+                  example: "on"
+                  description: Set to "on" to include a full JSON export in the ZIP archives
+                pdfa:
+                  type: string
+                  example: "on"
+                  description: Set to "on" to create PDF files with the PDF/A specification
+  /exports/{id}:
+    summary: An export request
+    parameters:
+      - name: id
+        in: path
+        description: ID of the export request
+        required: true
+        schema:
+          type: integer
+    get:
+      tags: ['Exports']
+      summary: Get export
+      operationId: read-export
+      responses:
+        '200':
+          description: An export request
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/export'
+    delete:
+      tags: ['Exports']
+      summary: Remove an export request and its associated file
+      description: This method will remove the file from the server temporary storage and clear the export request.
+      operationId: delete-export
+      requestBody:
+        content:
+          application/json: {}
+      responses:
+        '204':
+          description: The file was deleted
   # COMMENTS
   /{entity_type}/{id}/comments:
     summary: Actions on comments of an entity
@@ -2219,8 +2531,15 @@ paths:
           description: The favorite tag was removed.
 
   # TEAM TAGS
-  /team_tags:
+  /teams/{id}/tags:
     summary: Manage tags at the team level.
+    parameters:
+      - name: id
+        in: path
+        description: ID of the team.
+        required: true
+        schema:
+          type: integer
     get:
       tags: ['Team tags']
       summary: Read all tags for the team.
@@ -2286,10 +2605,16 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/tag'
-  /team_tags/{id}:
+  /teams/{id}/tags/{subid}:
     summary: Retrieve a tag from its id.
     parameters:
       - name: id
+        in: path
+        description: ID of the team.
+        required: true
+        schema:
+          type: integer
+      - name: subid
         in: path
         description: ID of the tag.
         required: true
@@ -3002,8 +3327,16 @@ paths:
     get:
       tags: ['Users']
       summary: Read users from instance.
-      description: If Sysadmin all users will be shown. If Admin only the users from the team. Normal users will be shown an error.
+      description: Get a list of users with an active account on the instance.
       operationId: read-users
+      parameters:
+        - name: includeArchived
+          in: query
+          description: Include archived users in the response
+          required: false
+          schema:
+            type: string
+            enum: ['0', '1']
       responses:
         '200':
           description: A list of users
@@ -3210,6 +3543,71 @@ paths:
               schema:
                 $ref: '#/components/schemas/users'
 
+  # USERS UPLOADS
+  /users/{id}/uploads:
+    parameters:
+      - name: id
+        in: path
+        description: ID of the user or `me`.
+        required: true
+        schema:
+          oneOf:
+            - type: integer
+            - type: string
+              enum: ['me']
+        examples:
+          first:
+            summary: Access our own user.
+            value: 'me'
+          second:
+            summary: Access user with ID 42.
+            value: 42
+    get:
+      tags: ['User Uploads']
+      summary: Read attached files from a user
+      operationId: read-user-uploads
+      responses:
+        '200':
+          description: Attachments from a user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                   type: object
+                   properties:
+                     id:
+                      type: integer
+                      example: 113
+                     real_name:
+                       type: string
+                       example: example.png
+                     long_name:
+                       type: string
+                       example: 25/2509b6547bcc40c7c56df0fca0930357b7c5e90c1ee59c8040091b956bbbde3cc1726169488d6d485be5b5fed3240939083d8ea708b9a153a2d57d7be1931e43.png
+                     created_at:
+                       type: string
+                       format: date-time
+                       example: 2024-06-16 12:34:51
+                     filesize:
+                       type: integer
+                       example: 40959
+                     type:
+                       type: string
+                       example: experiments
+                     comment:
+                       type: string
+                       nullable: true
+                       example: null
+                     entity_id:
+                       type: integer
+                       example: 311
+                     entity_title:
+                       type: string
+                       example: image in body I
+                     page:
+                       type: string
+                       example: experiments
   # NOTIFICATIONS
   /users/{id}/notifications:
     parameters:
@@ -3868,28 +4266,6 @@ paths:
         required: true
         schema:
           type: integer
-    post:
-      tags: ['Revisions']
-      summary: Create a revision.
-      operationId: post-entity-revisions
-      requestBody:
-        description: Parameters for creating a revision
-        content:
-          application/json:
-            schema:
-              required: ['body']
-              type: object
-              properties:
-                body:
-                  type: string
-      responses:
-        '201':
-          description: The revision has been created.
-          headers:
-            location:
-              description: An URL to the revision that was created.
-              schema:
-                type: string
     get:
       tags: ['Revisions']
       summary: Read all revisions of that entity.

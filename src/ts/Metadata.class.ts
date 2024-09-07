@@ -206,6 +206,11 @@ export class Metadata {
       if (properties.type === ExtraFieldInputType.Url) {
         valueEl.dataset.genLink = 'true';
       }
+      if ([ExtraFieldInputType.Experiments.valueOf(), ExtraFieldInputType.Items.valueOf(), ExtraFieldInputType.Users.valueOf()].includes(properties.type)) {
+        valueEl.dataset.replaceWithTitle = 'true';
+        valueEl.dataset.endpoint = properties.type;
+        valueEl.dataset.id = properties.value as string;
+      }
     }
     const valueWrapper = document.createElement('div');
     // set the value on the right
@@ -439,6 +444,8 @@ export class Metadata {
         groupWrapperDiv.append(document.createElement('hr'));
         this.metadataDiv.append(groupWrapperDiv);
       });
+    }).then (() => {
+      replaceWithTitle();
     });
   }
 
@@ -568,6 +575,8 @@ export class Metadata {
             const deleteBtn = document.createElement('button');
             deleteBtn.dataset.action = 'metadata-rm-field';
             deleteBtn.classList.add('btn', 'p-2', 'hl-hover-gray', 'border-0', 'lh-normal');
+            deleteBtn.type = 'button';
+            deleteBtn.setAttribute('aria-label', i18next.t('remove'));
             const deleteIcon = document.createElement('i');
             deleteIcon.classList.add('fas', 'fa-trash-alt');
             deleteBtn.appendChild(deleteIcon);
@@ -593,9 +602,8 @@ export class Metadata {
               listItem.append(element.element);
             }
 
-            // this is useful for Sortable (re-ordering the elements): it needs to have an id
-            // and we use the label to get the name of the field
-            listItem.id = label.innerText;
+            // the data-name attribute is picked up by Sortable jquery-ui. Do not use the default id attribute as it's not a number.
+            listItem.dataset.name = label.innerText;
 
             wrapperUl.append(listItem);
           }

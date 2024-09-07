@@ -42,6 +42,16 @@ interface CheckableItem {
   randomid: number;
 }
 
+interface Selected {
+  experiments_categories: number[];
+  experiments_status: number[];
+  items_status: number[];
+  items_types: number[];
+  tags: number[];
+  users: number[];
+  can: string;
+}
+
 enum Method {
   GET = 'GET',
   POST = 'POST',
@@ -71,15 +81,18 @@ enum Action {
   Deduplicate = 'deduplicate',
   Disable2fa = 'disable2fa',
   Duplicate = 'duplicate',
+  ExclusiveEditMode = 'exclusiveeditmode',
   Finish = 'finish',
   Lock = 'lock',
   Notif = 'notif',
   PatchUser2Team = 'patchuser2team',
   Pin = 'pin',
+  RemoveExclusiveEditMode = 'removeexclusiveeditmode',
   Replace = 'replace',
   RequestAction = 'requestaction',
-  Sign = 'sign',
+  Review = 'review',
   SendOnboardingEmails = 'sendonboardingemails',
+  Sign = 'sign',
   Timestamp = 'timestamp',
   Unreference = 'unreference',
   UpdateMetadataField = 'updatemetadatafield',
@@ -94,6 +107,7 @@ enum Model {
   Config = 'config',
   FavTag = 'favtags',
   Idp = 'idps',
+  IdpsSources = 'idps_sources',
   ItemsStatus = 'items_status',
   Link = 'links',
   Notification = 'notifications',
@@ -104,7 +118,6 @@ enum Model {
   Step = 'steps',
   Tag = 'tags',
   Team = 'teams',
-  TeamTags = 'team_tags',
   TeamGroup = 'teamgroups',
   Todolist = 'todolist',
   UnfinishedSteps = 'unfinishedsteps',
@@ -155,6 +168,7 @@ export {
   Action,
   Categories,
   CheckableItem,
+  Selected,
   Entity,
   EntityType,
   Method,

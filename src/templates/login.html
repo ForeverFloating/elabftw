@@ -30,7 +30,7 @@
 
 {# LOGIN ANNOUNCEMENT #}
 {% if App.Config.configArr.login_announcement %}
-  {{ App.Config.configArr.login_announcement|msg('warning') }}
+  {{ App.Config.configArr.login_announcement|msg('warning', false) }}
 {% endif %}
 
 <section class='text-center'>
@@ -173,7 +173,7 @@
 
     {% endif %}
 
-    {% if App.Config.configArr.saml_toggle %}
+    {% if App.Config.configArr.saml_toggle and idpsArr|length %}
       <div class='separator col-md-4 mx-auto'></div>
       <h2>{{ 'Login through your institution'|trans }}</h2>
       <br>
@@ -181,21 +181,16 @@
         <input type='hidden' name='auth_type' value='saml'>
         {{ App.Session.get('csrf')|csrf }}
         <div class='form-group col-md-4 mx-auto'>
+          {% if App.Config.configArr.debug -%}
+            <!-- [html-validate-disable-block input-missing-label, prefer-native-element: suppress errors from tom-select] -->
+          {%- endif %}
           <label for='idp_login_select'>{{ 'Select an identity provider'|trans }}</label>
           <select name='idpId' class='form-control' id='idp_login_select'>
             {% for idp in idpsArr %}
-              {% if idp.enabled %}
-                <option value='{{ idp.id }}'>{{ idp.name }}</option>
-              {% endif %}
+              <option value='{{ idp.id }}'>{{ idp.name }}</option>
             {% endfor %}
           </select>
-          {# Remember me checkbox #}
-          {% if App.Config.configArr.remember_me_allowed %}
-            <div class='form-check mt-2'>
-              <input type='checkbox' class='form-check-input' {{ App.Config.configArr.remember_me_checked ? 'checked' }} name='rememberme' id='rememberme-2' />
-              <label for='rememberme-2' class='form-check-label'>{{ 'Remember me'|trans }}</label>
-            </div>
-          {% endif %}
+          {# No remember me checkbox for SAML because it's toggled by remember_me_allowed at the instance level #}
           <button class='btn btn-primary mt-2' type='submit' name='submit'>{{ 'Login'|trans }}</button>
         </div>
       </form>

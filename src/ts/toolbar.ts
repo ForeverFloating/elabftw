@@ -5,7 +5,14 @@
  * @license AGPL-3.0
  * @package elabftw
  */
-import { getEntity, reloadElement, reloadElements, relativeMoment, notifError } from './misc';
+import {
+  getEntity,
+  getNewIdFromPostRequest,
+  notifError,
+  relativeMoment,
+  reloadElements,
+  toggleGrayClasses,
+} from './misc';
 import { Api } from './Apiv2.class';
 import EntityClass from './Entity.class';
 import i18next from 'i18next';
@@ -36,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = (event.target as HTMLElement);
     // DUPLICATE
     if (el.matches('[data-action="duplicate-entity"]')) {
+      const copyFiles = (document.getElementById('duplicateKeepFilesSelect') as HTMLInputElement);
       let queryString = '';
       let page = '';
       if (about.page.startsWith('template-')) {
@@ -43,7 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
         page = '/ucp.php';
       }
 
-      EntityC.duplicate(entity.id).then(resp => window.location.href = `${page}?mode=edit&${queryString}id=${resp.headers.get('location').split('/').pop()}`);
+      EntityC.duplicate(entity.id, Boolean(copyFiles.checked))
+        .then(resp => {
+          const newId = getNewIdFromPostRequest(resp);
+          window.location.href = `${page}?mode=edit&${queryString}id=${newId}`;
+        });
 
     // SHARE
     } else if (el.matches('[data-action="share"]')) {
@@ -64,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       ApiC.patch(`${entity.type}/${id}`, {'action': Action.Pin}).then(() => {
         // toggle appearance of button and icon
-        ['bgnd-gray', 'hl-hover-gray'].forEach(cl => el.classList.toggle(cl));
+        toggleGrayClasses(el.classList);
         el.querySelector('i').classList.toggle('color-weak');
       });
 
@@ -93,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('container').append(overlay);
       ApiC.patch(`${entity.type}/${entity.id}`, {'action': Action.Bloxberg})
         // reload uploaded files on success
-        .then(() => reloadElement('uploadsDiv'))
+        .then(() => reloadElements(['uploadsDiv']))
         // remove overlay in all cases
         .finally(() => document.getElementById('container').removeChild(document.getElementById('loadingOverlay')));
 
@@ -102,11 +114,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const passphraseInput = (document.getElementById('sigPassphraseInput') as HTMLInputElement);
       const meaningSelect = (document.getElementById('sigMeaningSelect') as HTMLSelectElement);
       ApiC.patch(`${entity.type}/${entity.id}`, {action: Action.Sign, passphrase: passphraseInput.value, meaning: meaningSelect.value}).then(() => {
-        // using reloadElements here doesn't work for relativeMoment
-        reloadElement('commentsDiv').then(() => {
-          relativeMoment();
-          reloadElement('requestActionsDiv');
-        });
+        reloadElements(['commentsDiv', 'requestActionsDiv'])
+          .then(() => relativeMoment());
       });
     // REQUEST ACTION
     } else if (el.matches('[data-action="request-action"]')) {
@@ -116,7 +125,10 @@ document.addEventListener('DOMContentLoaded', () => {
         action: Action.Create,
         target_action: actionSelect.value,
         target_userid: userSelect.value,
-      }).then(() => reloadElement('requestActionsDiv'));
+      }).then(() => reloadElements(['requestActionsDiv']))
+        .then(() => relativeMoment())
+        // the request gets rejected if repeated
+        .catch(error => console.error(error.message));
     // SHOW ACTION
     } else if (el.matches('[data-action="show-action"]')) {
       const btn = document.getElementById(`actionButton-${el.dataset.target}`);
@@ -134,13 +146,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // DO REQUEST ACTION
     } else if (el.matches('[data-action="do-requestable-action"]')) {
-      switch (el.dataset.target.toLowerCase()) {
+      switch (el.dataset.target) {
       case Action.Archive:
-        ApiC.patch(`${entity.type}/${entity.id}`, {action: Action.Archive}).then(() => reloadElement('isArchivedDiv'));
+        ApiC.patch(`${entity.type}/${entity.id}`, {action: Action.Archive})
+          .then(() => reloadElements(['isArchivedDiv', 'requestActionsDiv']))
+          .then(() => relativeMoment());
         break;
       case Action.Lock:
         // reload the page to change the icon and make the edit button disappear (#1897)
-        EntityC.patchAction(entity.id, Action.Lock).then(() => window.location.href = `?mode=view&id=${entity.id}`);
+        EntityC.patchAction(entity.id, Action.Lock)
+          .then(() => window.location.href = `?mode=view&id=${entity.id}`);
+        break;
+      case Action.Review:
+        EntityC.patchAction(entity.id, Action.Review)
+          .then(() => window.location.href = `?mode=view&id=${entity.id}`);
         break;
       case Action.Timestamp:
         $('#timestampModal').modal('toggle');
@@ -148,14 +167,32 @@ document.addEventListener('DOMContentLoaded', () => {
       case Action.Sign:
         $('#addSignatureModal').modal('toggle');
         break;
+      case Action.RemoveExclusiveEditMode:
+        EntityC.patchAction(entity.id, Action.ExclusiveEditMode)
+          .then(() => reloadElements(['exclusiveEditModeBtn', 'exclusiveEditModeInfo', 'requestActionsDiv']))
+          .then(() => toggleGrayClasses(document.getElementById('exclusiveEditModeBtn').classList));
+        break;
       }
-      reloadElements(['commentsDiv', 'requestActionsDiv']).then(() => {
-        relativeMoment();
-      });
+    // EXPORT TO (PDF/ZIP)
+    } else if (el.matches('[data-action="export-to"]')) {
+      const format = el.dataset.format;
+      const changelog = (document.getElementById(`${format}_exportWithChangelog`) as HTMLInputElement).checked ? 1 : 0;
+      const classification = (document.getElementById(`${format}_exportClassification`) as HTMLSelectElement).value;
+      let json = 0;
+      if (format === 'zip') {
+        json = (document.getElementById(`${format}_exportJson`) as HTMLInputElement).checked ? 1 : 0;
+      }
+      const finalFormat = (document.getElementById(`${format}_exportPdfa`) as HTMLInputElement).checked ? format + 'a' : format;
+      window.open(`/api/v2/${el.dataset.type}/${el.dataset.id}?format=${finalFormat}&changelog=${changelog}&json=${json}&classification=${classification}`, '_blank');
+    } else if (el.matches('[data-action="export-to-qrpng"]')) {
+      const size = (document.getElementById('qrpng_exportSize') as HTMLInputElement).value;
+      const title = (document.getElementById('qrpng_exportTitle') as HTMLInputElement).checked ? 1: 0;
+      window.open(`/api/v2/${el.dataset.type}/${el.dataset.id}?format=qrpng&size=${size}&withTitle=${title}`, '_blank');
     // CANCEL REQUEST ACTION
     } else if (el.matches('[data-action="cancel-requestable-action"]')) {
       if (confirm(i18next.t('generic-delete-warning'))) {
-        ApiC.delete(`${entity.type}/${entity.id}/request_actions/${el.dataset.id}`).then(() => el.parentElement.parentElement.parentElement.parentElement.remove());
+        ApiC.delete(`${entity.type}/${entity.id}/request_actions/${el.dataset.id}`)
+          .then(() => el.parentElement.parentElement.parentElement.parentElement.remove());
       }
 
     // DESTROY ENTITY
@@ -164,6 +201,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const path = window.location.pathname;
         EntityC.destroy(entity.id).then(() => window.location.replace(path.split('/').pop()));
       }
+
+    // TOGGLE EXCLUSIVE EDIT MODE
+    } else if (el.matches('[data-action="toggle-exclusive-edit-mode"]')
+      || el.parentElement?.matches('[data-action="toggle-exclusive-edit-mode"]')
+    ) {
+      EntityC.patchAction(entity.id, Action.ExclusiveEditMode)
+        .then(() => reloadElements(['exclusiveEditModeBtn', 'exclusiveEditModeInfo', 'requestActionsDiv']))
+        .then(() => toggleGrayClasses(document.getElementById('exclusiveEditModeBtn').classList));
     }
   });
 });

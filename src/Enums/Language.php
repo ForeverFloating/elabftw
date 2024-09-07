@@ -12,6 +12,8 @@ declare(strict_types=1);
 
 namespace Elabftw\Enums;
 
+use function array_map;
+
 enum Language: string
 {
     case Catalan = 'ca_ES';
@@ -20,6 +22,7 @@ enum Language: string
     case EnglishGB = 'en_GB';
     case EnglishUS = 'en_US';
     case Spanish = 'es_ES';
+    case Finnish = 'fi_FI';
     case French = 'fr_FR';
     case Indonesian = 'id_ID';
     case Italian = 'it_IT';
@@ -51,6 +54,7 @@ enum Language: string
             $this::EnglishGB => 'en-gb',
             $this::EnglishUS => 'en-us',
             $this::Spanish => 'es',
+            $this::Finnish => 'fi',
             $this::French => 'fr',
             $this::Indonesian => 'id',
             $this::Italian => 'it',
@@ -76,6 +80,7 @@ enum Language: string
             Language::EnglishGB => 'English (UK/GB)',
             Language::EnglishUS => 'English (US)',
             Language::Spanish => 'Spanish',
+            Language::Finnish => 'Finnish',
             Language::French => 'French',
             Language::Indonesian => 'Indonesian',
             Language::Italian => 'Italian',

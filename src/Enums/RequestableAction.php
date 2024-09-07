@@ -18,6 +18,20 @@ enum RequestableAction: int
 
     case Archive = 10;
     case Lock = 20;
+    case Review = 30;
     case Sign = 40;
     case Timestamp = 50;
+    case RemoveExclusiveEditMode = 60;
+
+    public function toHuman(): string
+    {
+        return match ($this) {
+            self::Archive => _('archiving'),
+            self::Lock => _('locking'),
+            self::Review => _('review'),
+            self::Sign => _('signing'),
+            self::Timestamp => _('timestamping'),
+            self::RemoveExclusiveEditMode => _('removal of exclusive edit mode'),
+        };
+    }
 }

@@ -58,22 +58,24 @@ try {
     $TeamTags = new TeamTags($App->Users);
     $TeamGroups = new TeamGroups($App->Users);
     $PermissionsHelper = new PermissionsHelper();
+    $teamStats = $Teams->getStats($App->Users->userData['team']);
 
     $itemsCategoryArr = $ItemsTypes->readAll();
     $ExperimentsCategories = new ExperimentsCategories($Teams);
     $experimentsCategoriesArr = $ExperimentsCategories->readAll();
     if ($App->Request->query->has('templateid')) {
         $ItemsTypes->setId($App->Request->query->getInt('templateid'));
+        $ItemsTypes->canOrExplode('write');
     }
     $statusArr = $Status->readAll();
-    $itemsStatusArr = $ItemsStatus->readAll();
     $teamGroupsArr = $TeamGroups->readAll();
     $teamsArr = $Teams->readAll();
     $allTeamUsersArr = $App->Users->readAllFromTeam();
     // only the unvalidated ones
-    $unvalidatedUsersArr = array_filter($allTeamUsersArr, function ($u) {
-        return $u['validated'] === 0;
-    });
+    $unvalidatedUsersArr = array_filter(
+        $allTeamUsersArr,
+        fn($u): bool => $u['validated'] === 0,
+    );
     // Users search
     $isSearching = false;
     $usersArr = array();
@@ -81,12 +83,12 @@ try {
         $isSearching = true;
         $usersArr = $App->Users->readFromQuery(
             $App->Request->query->getString('q'),
-            $App->Request->query->getBoolean('includeNotTeam') ? 0 : $App->Users->userData['team'],
+            $App->Request->query->getInt('teamFilter'),
             $App->Request->query->getBoolean('includeArchived'),
             $App->Request->query->getBoolean('onlyAdmins'),
         );
         foreach ($usersArr as &$user) {
-            $UsersHelper = new UsersHelper((int) $user['userid']);
+            $UsersHelper = new UsersHelper($user['userid']);
             $user['teams'] = $UsersHelper->getTeamsFromUserid();
         }
     }
@@ -120,16 +122,18 @@ try {
         'isSearching' => $isSearching,
         'itemsCategoryArr' => $itemsCategoryArr,
         'metadataGroups' => $metadataGroups,
-        'allTeamgroupsArr' => $TeamGroups->readAllGlobal(),
+        'allTeamgroupsArr' => $TeamGroups->readAllEverything(),
         'statusArr' => $statusArr,
         'experimentsCategoriesArr' => $experimentsCategoriesArr,
-        'itemsStatusArr' => $itemsStatusArr,
+        'itemsStatusArr' => $ItemsStatus->readAll(),
         'passwordInputHelp' => $passwordComplexity->toHuman(),
         'passwordInputPattern' => $passwordComplexity->toPattern(),
         'teamGroupsArr' => $teamGroupsArr,
         'visibilityArr' => $PermissionsHelper->getAssociativeArray(),
         'remoteDirectoryUsersArr' => $remoteDirectoryUsersArr,
+        'scopedTeamgroupsArr' => $TeamGroups->readScopedTeamgroups(),
         'teamsArr' => $teamsArr,
+        'teamStats' => $teamStats,
         'unvalidatedUsersArr' => $unvalidatedUsersArr,
         'usersArr' => $usersArr,
     );

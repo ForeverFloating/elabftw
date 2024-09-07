@@ -63,7 +63,7 @@ class UserNotifications implements RestInterface
         foreach ($notifs as $key => &$notif) {
             $notif['body'] = json_decode($notif['body'], true, 512, JSON_THROW_ON_ERROR);
             // remove the step deadline web notif if user doesn't want it shown
-            if ($this->users->userData['notif_step_deadline'] === 0 && ((int) $notif['category']) === Notifications::StepDeadline->value) {
+            if ($this->users->userData['notif_step_deadline'] === 0 && ($notif['category']) === Notifications::StepDeadline->value) {
                 unset($notifs[$key]);
             }
         }
@@ -98,9 +98,9 @@ class UserNotifications implements RestInterface
         return $this->readOne();
     }
 
-    public function getPage(): string
+    public function getApiPath(): string
     {
-        return sprintf('users/%d/notifications/', $this->userid);
+        return sprintf('api/v2/users/%d/notifications/', $this->userid);
     }
 
     /**

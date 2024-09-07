@@ -21,6 +21,7 @@ use Elabftw\Elabftw\Update;
 use Elabftw\Enums\Action;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\RestInterface;
+use Elabftw\Services\Filter;
 use PDO;
 
 use function array_map;
@@ -108,6 +109,7 @@ final class Config implements RestInterface
             ('saml_user_default', '1'),
             ('saml_allowrepeatattributename', '0'),
             ('local_login', '1'),
+            ('local_auth_enabled', '1'),
             ('local_register', '1'),
             ('admins_create_users', '1'),
             ('anon_users', '0'),
@@ -139,6 +141,7 @@ final class Config implements RestInterface
             ('saml_lowercaseurlencoding', '0'),
             ('saml_fallback_orgid', '0'),
             ('email_domain', NULL),
+            ('email_send_grouped', '1'),
             ('saml_sync_teams', '0'),
             ('saml_sync_email_idp', '0'),
             ('support_url', 'https://github.com/elabftw/elabftw/issues'),
@@ -156,6 +159,7 @@ final class Config implements RestInterface
             ('extauth_teams', ''),
             ('logout_url', ''),
             ('ldap_toggle', '0'),
+            ('ldap_scheme', 'ldap'),
             ('ldap_search_attr', 'mail'),
             ('ldap_host', ''),
             ('ldap_port', '389'),
@@ -188,7 +192,8 @@ final class Config implements RestInterface
             ('onboarding_email_body', NULL),
             ('onboarding_email_different_for_admins', '0'),
             ('onboarding_email_admins_subject', NULL),
-            ('onboarding_email_admins_body', NULL)";
+            ('onboarding_email_admins_body', NULL),
+            ('allow_users_change_identity', '1')";
 
         $req = $this->Db->prepare($sql);
         $req->bindParam(':schema', $schema);
@@ -242,9 +247,7 @@ final class Config implements RestInterface
             $config['remote_dir_config'][0] = TwigFilters::decrypt($config['remote_dir_config'][0]);
         }
 
-        return array_map(function ($v): mixed {
-            return $v[0];
-        }, $config);
+        return array_map(fn($v): mixed => $v[0], $config);
     }
 
     /**
@@ -273,6 +276,10 @@ final class Config implements RestInterface
         // loop the array and update config
         foreach ($params as $name => $value) {
             if ($this->configArr[$name] !== $value) {
+                // prevent incorrect html in these two things
+                if ($name === 'login_announcement' || $name === 'announcement') {
+                    $value = Filter::body($value);
+                }
                 $req->bindParam(':value', $value);
                 $req->bindParam(':name', $name);
                 $this->Db->execute($req);
@@ -284,7 +291,7 @@ final class Config implements RestInterface
         return $this->readAll();
     }
 
-    public function getPage(): string
+    public function getApiPath(): string
     {
         return 'api/v2/config/';
     }

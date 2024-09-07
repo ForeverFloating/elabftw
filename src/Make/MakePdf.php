@@ -15,8 +15,9 @@ namespace Elabftw\Make;
 use DateTimeImmutable;
 use Elabftw\Elabftw\FsTools;
 use Elabftw\Elabftw\Tools;
+use Elabftw\Enums\Classification;
+use Elabftw\Enums\EntityType;
 use Elabftw\Enums\Storage;
-use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Interfaces\MpdfProviderInterface;
 use Elabftw\Models\AbstractEntity;
 use Elabftw\Models\Changelog;
@@ -28,7 +29,6 @@ use Elabftw\Models\Users;
 use Elabftw\Services\Filter;
 use Elabftw\Services\Tex2Svg;
 use Elabftw\Traits\TwigTrait;
-use Elabftw\Traits\UploadTrait;
 use League\Flysystem\Filesystem;
 use Psr\Log\LoggerInterface;
 use setasign\Fpdi\FpdiException;
@@ -45,7 +45,6 @@ use function strtolower;
 class MakePdf extends AbstractMakePdf
 {
     use TwigTrait;
-    use UploadTrait;
 
     public array $failedAppendPdfs = array();
 
@@ -54,21 +53,24 @@ class MakePdf extends AbstractMakePdf
 
     protected bool $includeAttachments = false;
 
+    protected AbstractEntity $Entity;
+
     private FileSystem $cacheFs;
 
     private bool $pdfa;
 
-    /**
-     * Constructor
-     *
-     * @param AbstractEntity $entity Experiments or Database
-     */
-    public function __construct(private LoggerInterface $log, MpdfProviderInterface $mpdfProvider, AbstractEntity $entity, protected array $entityIdArr, bool $includeChangelog = false)
-    {
+    public function __construct(
+        private LoggerInterface $log,
+        MpdfProviderInterface $mpdfProvider,
+        protected Users $requester,
+        protected array $entityArr,
+        bool $includeChangelog = false,
+        Classification $classification = Classification::None,
+    ) {
         parent::__construct(
             mpdfProvider: $mpdfProvider,
-            entity: $entity,
-            includeChangelog: $includeChangelog
+            includeChangelog: $includeChangelog,
+            classification: $classification,
         );
 
         $this->pdfa = $mpdfProvider->isPdfa();
@@ -81,7 +83,7 @@ class MakePdf extends AbstractMakePdf
         error_reporting(E_ERROR);
 
         $this->cacheFs = Storage::CACHE->getStorage()->getFs();
-        if ($this->pdfa === true || $this->Entity->Users->userData['inc_files_pdf']) {
+        if ($this->pdfa || $this->requester->userData['inc_files_pdf']) {
             $this->includeAttachments = true;
         }
     }
@@ -105,7 +107,7 @@ class MakePdf extends AbstractMakePdf
         $this->contentSize = strlen($output);
         if ($this->errors && $this->notifications) {
             $Notifications = new PdfGenericError();
-            $Notifications->create($this->Entity->Users->userData['userid']);
+            $Notifications->create($this->requester->userData['userid']);
         }
         return $output;
     }
@@ -117,9 +119,8 @@ class MakePdf extends AbstractMakePdf
     {
         $now = (new DateTimeImmutable())->format('Y-m-d');
         $date = $this->Entity->entityData['date'] ?? $now;
-        $title = Filter::forFilesystem($this->Entity->entityData['title']);
 
-        return sprintf('%s-%s.pdf', $date, $title);
+        return sprintf('%s-%s.pdf', $date, Filter::forFilesystem($this->getTitle()));
     }
 
     protected function getTitle(): string
@@ -137,24 +138,15 @@ class MakePdf extends AbstractMakePdf
      */
     private function loopOverEntries(): void
     {
-        $entriesCount = count($this->entityIdArr);
-        foreach ($this->entityIdArr as $key => $id) {
-            $this->Entity->setId((int) $id);
+        $entriesCount = count($this->entityArr);
+        foreach ($this->entityArr as $key => $entity) {
+            $this->Entity = $entity;
+            $this->addEntry();
 
-            try {
-                $permissions = $this->Entity->getPermissions();
-            } catch (IllegalActionException) {
-                return;
-            }
-
-            if ($permissions['read']) {
-                $this->addEntry();
-
-                if ($key !== $entriesCount - 1) {
-                    $this->mpdf->AddPageByArray(array(
-                        'sheet-size' => $this->Entity->Users->userData['pdf_format'],
-                    ));
-                }
+            if ($key !== $entriesCount - 1) {
+                $this->mpdf->AddPageByArray(array(
+                    'sheet-size' => $this->requester->userData['pdf_format'],
+                ));
             }
         }
     }
@@ -167,13 +159,13 @@ class MakePdf extends AbstractMakePdf
         // write content
         $this->mpdf->WriteHTML($this->getContent());
 
-        if ($this->Entity->Users->userData['append_pdfs']) {
+        if ($this->requester->userData['append_pdfs']) {
             $this->appendPdfs($this->getAttachedPdfs());
             if ($this->failedAppendPdfs) {
                 /** @psalm-suppress PossiblyNullArgument */
                 $this->errors[] = new PdfAppendmentFailed(
                     $this->Entity->id,
-                    $this->Entity->page,
+                    $this->Entity->entityType->toPage(),
                     implode(', ', $this->failedAppendPdfs)
                 );
             }
@@ -191,7 +183,7 @@ class MakePdf extends AbstractMakePdf
         // Inform user that there was a problem with Tex rendering
         if ($Tex2Svg->mathJaxFailed) {
             /** @psalm-suppress PossiblyNullArgument */
-            $this->errors[] = new MathjaxFailed($this->Entity->id, $this->Entity->page);
+            $this->errors[] = new MathjaxFailed($this->Entity->id, $this->Entity->entityType->toPage());
         }
         return $content;
     }
@@ -209,7 +201,7 @@ class MakePdf extends AbstractMakePdf
 
         if ($locked) {
             // get info about the locker
-            $Locker = new Users((int) $this->Entity->entityData['lockedby']);
+            $Locker = new Users($this->Entity->entityData['lockedby']);
             $lockerName = $Locker->userData['fullname'];
 
             // separate the date and time
@@ -219,7 +211,7 @@ class MakePdf extends AbstractMakePdf
 
         // read the content of the thumbnail here to feed the template
         foreach ($this->Entity->entityData['uploads'] as $key => $upload) {
-            $storageFs = Storage::from((int) $upload['storage'])->getStorage()->getFs();
+            $storageFs = Storage::from($upload['storage'])->getStorage()->getFs();
             $thumbnail = $upload['long_name'] . '_th.jpg';
             // no need to filter on extension, just insert the thumbnail if it exists
             if ($storageFs->fileExists($thumbnail)) {
@@ -229,9 +221,16 @@ class MakePdf extends AbstractMakePdf
 
         $Changelog = new Changelog($this->Entity);
 
+        $baseUrls = array();
+        foreach(array(EntityType::Items, EntityType::Experiments) as $entityType) {
+            $baseUrls[$entityType->value] = sprintf('%s/%s', Config::fromEnv('SITE_URL'), $entityType->toPage());
+        }
+
+        $siteUrl = Config::fromEnv('SITE_URL');
         $renderArr = array(
             'body' => $this->getBody(),
             'changes' => $Changelog->readAllWithAbsoluteUrls(),
+            'classification' => $this->classification->toHuman(),
             'css' => $this->getCss(),
             'date' => $date->format('Y-m-d'),
             'entityData' => $this->Entity->entityData,
@@ -240,13 +239,11 @@ class MakePdf extends AbstractMakePdf
             'locked' => $locked,
             'lockDate' => $lockDate,
             'lockerName' => $lockerName,
-            'pdfSig' => $this->Entity->Users->userData['pdf_sig'],
-            'url' => $this->getURL(),
-            'linkBaseUrl' => array(
-                'items' => Config::fromEnv('SITE_URL') . '/database.php',
-                'experiments' => Config::fromEnv('SITE_URL') . '/experiments.php',
-            ),
-            'useCjk' => $this->Entity->Users->userData['cjk_fonts'],
+            'pdfSig' => $this->requester->userData['pdf_sig'],
+            // TODO fix for templates
+            'linkBaseUrl' => $baseUrls,
+            'url' => sprintf('%s/%s?mode=view&id=%d', $siteUrl, $this->Entity->entityType->toPage(), $this->Entity->id ?? 0),
+            'useCjk' => $this->requester->userData['cjk_fonts'],
         );
 
         $Config = Config::getConfig();
@@ -333,7 +330,7 @@ class MakePdf extends AbstractMakePdf
         }
 
         foreach ($uploadsArr as $upload) {
-            $storageFs = Storage::from((int) $upload['storage'])->getStorage()->getFs();
+            $storageFs = Storage::from($upload['storage'])->getStorage()->getFs();
             if ($storageFs->fileExists($upload['long_name']) && strtolower(Tools::getExt($upload['real_name'])) === 'pdf') {
                 // the real_name is used in case of error appending it
                 // the content is stored in a temporary file so it can be read with appendPdfs()

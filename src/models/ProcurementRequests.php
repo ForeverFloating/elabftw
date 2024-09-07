@@ -77,8 +77,8 @@ class ProcurementRequests implements RestInterface
 
     public function readForEntity(int $entityId): array
     {
-        $sql = "SELECT CONCAT(users.firstname, ' ', users.lastname) AS requester_fullname, id, created_at, team, requester_userid, entity_id, qty_ordered, body, quote, email_sent, state
-            FROM procurement_requests LEFT JOIN users ON (requester_userid = users.userid) WHERE entity_id = :entity_id";
+        $sql = "SELECT CONCAT(users.firstname, ' ', users.lastname) AS requester_fullname, pr.id, pr.created_at, pr.team, pr.requester_userid, pr.entity_id, pr.qty_ordered, pr.body, pr.quote, pr.email_sent, pr.state
+            FROM procurement_requests AS pr LEFT JOIN users ON (requester_userid = users.userid) WHERE entity_id = :entity_id";
         $req = $this->Db->prepare($sql);
         $req->bindParam(':entity_id', $entityId, PDO::PARAM_INT);
         $this->Db->execute($req);
@@ -95,7 +95,7 @@ class ProcurementRequests implements RestInterface
         $req->bindParam(':requester_userid', $this->Teams->Users->userData['userid'], PDO::PARAM_INT);
         $req->bindParam(':entity_id', $reqBody['entity_id'], PDO::PARAM_INT);
         $req->bindParam(':qty_ordered', $reqBody['qty_ordered'], PDO::PARAM_INT);
-        $req->bindParam(':body', $reqBody['body'], PDO::PARAM_STR);
+        $req->bindParam(':body', $reqBody['body']);
         $req->bindParam(':quote', $reqBody['quote'], PDO::PARAM_INT);
         $req->bindValue(':state', ProcurementState::Pending->value, PDO::PARAM_INT);
         $this->Db->execute($req);
@@ -114,7 +114,7 @@ class ProcurementRequests implements RestInterface
         return $this->readOne();
     }
 
-    public function getPage(): string
+    public function getApiPath(): string
     {
         return 'api/v2/teams/current/procurement_requests/';
     }

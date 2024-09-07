@@ -63,13 +63,14 @@ try {
             null,
             $App->Request->request->getString('subject'),
             $App->Request->request->getString('body'),
-            $replyTo
+            $replyTo,
+            (bool) $App->Config->configArr['email_send_grouped'],
         );
     }
 
     // DESTROY IDP
     if ($App->Request->request->has('idpsDestroy')) {
-        $Idps = new Idps($App->Request->request->getInt('id'));
+        $Idps = new Idps($App->Users, $App->Request->request->getInt('id'));
         $Idps->destroy();
     }
 

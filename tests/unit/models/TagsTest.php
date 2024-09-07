@@ -26,9 +26,9 @@ class TagsTest extends \PHPUnit\Framework\TestCase
         $this->Experiments = new Experiments($this->Users, 1);
     }
 
-    public function testGetPage(): void
+    public function testGetApiPath(): void
     {
-        $this->assertEquals('api/v2/experiments/1/tags/', $this->Experiments->Tags->getPage());
+        $this->assertEquals('api/v2/experiments/1/tags/', $this->Experiments->Tags->getApiPath());
     }
 
     public function testCreate(): void
@@ -44,7 +44,7 @@ class TagsTest extends \PHPUnit\Framework\TestCase
         $id = $Tags->postAction(Action::Create, array('tag' => 'tag2222'));
         $this->assertIsInt($id);
         // now with no rights
-        $Teams = new Teams($this->Users, (int) $this->Users->userData['team']);
+        $Teams = new Teams($this->Users, $this->Users->userData['team']);
         $Teams->patch(Action::Update, array('user_create_tag' => 0));
         $this->expectException(ImproperActionException::class);
         $Tags->postAction(Action::Create, array('tag' => 'tag2i222'));

@@ -22,8 +22,7 @@ class AuthResponse
 {
     public int $userid;
 
-    /** @var array<int, array<int, string>> don't use an array of Team but just the ids and name */
-    public $selectableTeams = array();
+    public array $selectableTeams = array();
 
     public int $selectedTeam;
 
@@ -56,7 +55,7 @@ class AuthResponse
         // if the user only has access to one team, use this one directly
         $teamCount = count($this->selectableTeams);
         if ($teamCount === 1) {
-            $this->selectedTeam = (int) $this->selectableTeams[0]['id'];
+            $this->selectedTeam = $this->selectableTeams[0]['id'];
         } elseif ($teamCount === 0) {
             $Users = new Users($this->userid);
             $this->teamSelectionRequired = true;

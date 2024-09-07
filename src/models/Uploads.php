@@ -30,7 +30,6 @@ use Elabftw\Factories\MakeThumbnailFactory;
 use Elabftw\Interfaces\CreateUploadParamsInterface;
 use Elabftw\Interfaces\RestInterface;
 use Elabftw\Services\Check;
-use Elabftw\Traits\UploadTrait;
 use ImagickException;
 use League\Flysystem\UnableToRetrieveMetadata;
 use PDO;
@@ -44,8 +43,6 @@ use function hash_file;
  */
 class Uploads implements RestInterface
 {
-    use UploadTrait;
-
     public const string HASH_ALGORITHM = 'sha256';
 
     // size of a file in bytes above which we don't process it (50 Mb)
@@ -69,12 +66,12 @@ class Uploads implements RestInterface
      * Main method for normal file upload
      * @psalm-suppress UndefinedClass
      */
-    public function create(CreateUploadParamsInterface $params): int
+    public function create(CreateUploadParamsInterface $params, bool $isTimestamp = false): int
     {
         // by default we need write access to an entity to upload files
         $rw = 'write';
         // but timestamping/sign only needs read access
-        if ($params instanceof CreateImmutableArchivedUpload) {
+        if ($isTimestamp) {
             $rw = 'read';
         }
         $this->Entity->canOrExplode($rw);
@@ -84,8 +81,9 @@ class Uploads implements RestInterface
         $ext = $this->getExtensionOrExplode($realName);
 
         // name for the stored file, includes folder and extension (ab/ab34[...].ext)
-        $longName = $this->getLongName() . '.' . $ext;
-        $folder = substr($longName, 0, 2);
+        $someRandomString = FsTools::getUniqueString();
+        $folder = substr($someRandomString, 0, 2);
+        $longName = sprintf('%s/%s.%s', $folder, $someRandomString, $ext);
 
         // where our uploaded file lives
         $sourceFs = $params->getSourceFs();
@@ -159,7 +157,7 @@ class Uploads implements RestInterface
         $req->bindValue(':comment', $params->getComment());
         $req->bindParam(':item_id', $this->Entity->id, PDO::PARAM_INT);
         $req->bindParam(':userid', $this->Entity->Users->userData['userid'], PDO::PARAM_INT);
-        $req->bindParam(':type', $this->Entity->type);
+        $req->bindValue(':type', $this->Entity->entityType->value);
         $req->bindParam(':hash', $hash);
         $req->bindValue(':hash_algorithm', self::HASH_ALGORITHM);
         $req->bindValue(':state', $params->getState()->value, PDO::PARAM_INT);
@@ -181,7 +179,15 @@ class Uploads implements RestInterface
             } else {
                 $param = new CreateUploadFromS3($upload['real_name'], $upload['long_name'], $upload['comment']);
             }
-            $entity->Uploads->create($param);
+            $id = $entity->Uploads->create($param);
+            $fresh = new self($entity, $id);
+            // replace links in body with the new long_name
+            // don't bother if body is null
+            if ($entity->entityData['body'] === null) {
+                return;
+            }
+            $newBody = str_replace($upload['long_name'], $fresh->uploadData['long_name'], $entity->entityData['body']);
+            $entity->patch(Action::Update, array('body' => $newBody));
         }
     }
 
@@ -191,9 +197,11 @@ class Uploads implements RestInterface
     public function readOne(): array
     {
         $sql = 'SELECT uploads.*, CONCAT (users.firstname, " ", users.lastname) AS fullname
-            FROM uploads LEFT JOIN users ON (uploads.userid = users.userid) WHERE id = :id';
+            FROM uploads LEFT JOIN users ON (uploads.userid = users.userid) WHERE id = :id AND item_id = :item_id AND type = :type';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->id, PDO::PARAM_INT);
+        $req->bindParam(':item_id', $this->Entity->id, PDO::PARAM_INT);
+        $req->bindValue(':type', $this->Entity->entityType->value);
         $this->Db->execute($req);
         $this->uploadData = $this->Db->fetch($req);
         return $this->uploadData;
@@ -218,7 +226,7 @@ class Uploads implements RestInterface
             $storageFs,
             $this->uploadData['long_name'],
             $this->uploadData['real_name'],
-            true,
+            forceDownload: false,
         );
         return $DownloadController->getResponse();
     }
@@ -235,7 +243,7 @@ class Uploads implements RestInterface
             FROM uploads LEFT JOIN users ON (uploads.userid = users.userid) WHERE item_id = :id AND type = :type AND state = :state ORDER BY created_at DESC';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->Entity->id, PDO::PARAM_INT);
-        $req->bindParam(':type', $this->Entity->type);
+        $req->bindValue(':type', $this->Entity->entityType->value);
         $req->bindValue(':state', State::Normal->value, PDO::PARAM_INT);
         $this->Db->execute($req);
 
@@ -270,9 +278,9 @@ class Uploads implements RestInterface
         };
     }
 
-    public function getPage(): string
+    public function getApiPath(): string
     {
-        return sprintf('api/v2/%s/%d/uploads/', $this->Entity->page, $this->Entity->id ?? 0);
+        return sprintf('%s%d/uploads/', $this->Entity->getApiPath(), $this->Entity->id ?? 0);
     }
 
     /**
@@ -318,9 +326,32 @@ class Uploads implements RestInterface
     {
         $sql = 'SELECT storage FROM uploads WHERE long_name = :long_name LIMIT 1';
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':long_name', $longname, PDO::PARAM_STR);
+        $req->bindParam(':long_name', $longname);
         $this->Db->execute($req);
         return (int) $req->fetchColumn();
+    }
+
+    /**
+     * Create an upload from a string (binary png data or json string or mol file)
+     * For mol file the code is actually in chemdoodle-uis-unpacked.js from chemdoodle-web-mini repository
+     */
+    public function createFromString(FileFromString $fileType, string $realName, string $content, State $state = State::Normal): int
+    {
+        // a png file will be received as dataurl, so we need to convert it to binary before saving it
+        if ($fileType === FileFromString::Png) {
+            $content = $this->pngDataUrlToBinary($content);
+        }
+
+        // add file extension if it wasn't provided
+        if (Tools::getExt($realName) === 'unknown') {
+            $realName .= '.' . $fileType->value;
+        }
+        // create a temporary file so we can upload it using create()
+        $tmpFilePath = FsTools::getCacheFile();
+        $tmpFilePathFs = FsTools::getFs(dirname($tmpFilePath));
+        $tmpFilePathFs->write(basename($tmpFilePath), $content);
+
+        return $this->create(new CreateUpload($realName, $tmpFilePath, state: $state));
     }
 
     private function update(UploadParams $params): bool
@@ -338,7 +369,7 @@ class Uploads implements RestInterface
             FROM uploads LEFT JOIN users ON (uploads.userid = users.userid) WHERE item_id = :id AND type = :type AND (state = :normal OR state = :archived) ORDER BY uploads.created_at DESC';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->Entity->id, PDO::PARAM_INT);
-        $req->bindParam(':type', $this->Entity->type);
+        $req->bindValue(':type', $this->Entity->entityType->value);
         $req->bindValue(':normal', State::Normal->value, PDO::PARAM_INT);
         $req->bindValue(':archived', State::Archived->value, PDO::PARAM_INT);
         $this->Db->execute($req);
@@ -357,29 +388,6 @@ class Uploads implements RestInterface
         $upload = $this->archive();
 
         return $this->create(new CreateUpload($params->getFilename(), $params->getFilePath(), $upload['comment']));
-    }
-
-    /**
-     * Create an upload from a string (binary png data or json string or mol file)
-     * For mol file the code is actually in chemdoodle-uis-unpacked.js from chemdoodle-web-mini repository
-     */
-    private function createFromString(FileFromString $fileType, string $realName, string $content): int
-    {
-        // a png file will be received as dataurl, so we need to convert it to binary before saving it
-        if ($fileType === FileFromString::Png) {
-            $content = $this->pngDataUrlToBinary($content);
-        }
-
-        // add file extension if it wasn't provided
-        if (Tools::getExt($realName) === 'unknown') {
-            $realName .= '.' . $fileType->value;
-        }
-        // create a temporary file so we can upload it using create()
-        $tmpFilePath = FsTools::getCacheFile();
-        $tmpFilePathFs = FsTools::getFs(dirname($tmpFilePath));
-        $tmpFilePathFs->write(basename($tmpFilePath), $content);
-
-        return $this->create(new CreateUpload($realName, $tmpFilePath));
     }
 
     /**

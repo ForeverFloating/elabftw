@@ -14,6 +14,7 @@ namespace Elabftw\Models;
 
 use Elabftw\AuditEvent\PasswordChanged;
 use Elabftw\AuditEvent\UserAttributeChanged;
+use Elabftw\AuditEvent\UserDeleted;
 use Elabftw\AuditEvent\UserRegister;
 use Elabftw\Auth\Local;
 use Elabftw\Elabftw\App;
@@ -44,7 +45,6 @@ use Elabftw\Services\UsersHelper;
 use PDO;
 use Symfony\Component\HttpFoundation\Request;
 
-use function time;
 use function trim;
 
 /**
@@ -56,22 +56,18 @@ class Users implements RestInterface
 
     public array $userData = array();
 
-    public int $team = 0;
-
     public self $requester;
 
     public bool $isAdmin = false;
 
     protected Db $Db;
 
-    public function __construct(public ?int $userid = null, ?int $team = null, ?self $requester = null)
+    public function __construct(public ?int $userid = null, public ?int $team = null, ?self $requester = null)
     {
         $this->Db = Db::getConnection();
         if ($team !== null && $userid !== null) {
-            $this->team = $team;
-            $TeamsHelper = new TeamsHelper($team);
-            $permissions = $TeamsHelper->getPermissions($userid);
-            $this->isAdmin = (bool) $permissions['is_admin'];
+            $TeamsHelper = new TeamsHelper($this->team ?? 0);
+            $this->isAdmin = $TeamsHelper->isAdmin($userid);
         }
         if ($userid !== null) {
             $this->readOneFull();
@@ -93,23 +89,21 @@ class Users implements RestInterface
         bool $alertAdmin = true,
         ?string $validUntil = null,
         ?string $orgid = null,
+        bool $allowTeamCreation = false,
     ): int {
         $Config = Config::getConfig();
         $Teams = new Teams($this);
 
         // make sure that all the teams in which the user will be are created/exist
         // this might throw an exception if the team doesn't exist and we can't create it on the fly
-        $teams = $Teams->getTeamsFromIdOrNameOrOrgidArray($teams);
-        $TeamsHelper = new TeamsHelper((int) $teams[0]['id']);
+        $teams = $Teams->getTeamsFromIdOrNameOrOrgidArray($teams, $allowTeamCreation);
+        $TeamsHelper = new TeamsHelper($teams[0]['id']);
 
         $EmailValidator = new EmailValidator($email, $Config->configArr['email_domain']);
         $EmailValidator->validate();
 
         $firstname = trim($firstname);
         $lastname = trim($lastname);
-
-        // Registration date is stored in epoch
-        $registerDate = time();
 
         // get the user group for the new users
         $usergroup ??= $TeamsHelper->getGroup();
@@ -127,7 +121,6 @@ class Users implements RestInterface
             `password_hash`,
             `firstname`,
             `lastname`,
-            `register_date`,
             `validated`,
             `lang`,
             `valid_until`,
@@ -141,7 +134,6 @@ class Users implements RestInterface
             :password_hash,
             :firstname,
             :lastname,
-            :register_date,
             :validated,
             :lang,
             :valid_until,
@@ -156,7 +148,6 @@ class Users implements RestInterface
         $req->bindParam(':password_hash', $passwordHash);
         $req->bindParam(':firstname', $firstname);
         $req->bindParam(':lastname', $lastname);
-        $req->bindParam(':register_date', $registerDate);
         $req->bindValue(':validated', $isValidated, PDO::PARAM_INT);
         $req->bindValue(':lang', $Config->configArr['lang']);
         $req->bindValue(':valid_until', $validUntil);
@@ -242,7 +233,7 @@ class Users implements RestInterface
         // NOTE: $tmpTable avoids the use of DISTINCT, so we are able to use ORDER BY with teams_id.
         // Side effect: User is shown in team with lowest id
         $sql = "SELECT users.userid,
-            users.firstname, users.lastname, users.orgid, users.email, users.mfa_secret IS NOT NULL AS has_mfa_enabled,
+            users.firstname, users.lastname, users.created_at, users.orgid, users.email, users.mfa_secret IS NOT NULL AS has_mfa_enabled,
             users.validated, users.archived, users.last_login, users.valid_until, users.is_sysadmin,
             CONCAT(users.firstname, ' ', users.lastname) AS fullname,
             users.orcid, users.auth_service, sig_keys.pubkey AS sig_pubkey
@@ -273,9 +264,10 @@ class Users implements RestInterface
 
     public function readAllActiveFromTeam(): array
     {
-        return array_filter($this->readAllFromTeam(), function ($u) {
-            return $u['archived'] === 0;
-        });
+        return array_filter(
+            $this->readAllFromTeam(),
+            fn($u): bool => $u['archived'] === 0,
+        );
     }
 
     /**
@@ -330,7 +322,7 @@ class Users implements RestInterface
             Usergroup::Admin->value,
         );
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $this->userData['userid']);
+        $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
         $this->Db->execute($req);
         return $req->rowCount() >= 1;
     }
@@ -355,8 +347,8 @@ class Users implements RestInterface
                     // need to be admin to "import" a user in a team
                     $team = (int) $params['team'];
                     $TeamsHelper = new TeamsHelper($team);
-                    $permissions = $TeamsHelper->getPermissions($this->requester->userData['userid']);
-                    if ($permissions['is_admin'] !== 1 && $this->requester->userData['is_sysadmin'] !== 1) {
+                    $isAdmin = $TeamsHelper->isAdmin($this->requester->userData['userid']);
+                    if ($isAdmin === false && $this->requester->userData['is_sysadmin'] !== 1) {
                         throw new IllegalActionException('Only Admin can add a user to a team (where they are Admin)');
                     }
                     $Users2Teams = new Users2Teams($this->requester);
@@ -384,7 +376,7 @@ class Users implements RestInterface
         return $this->readOne();
     }
 
-    public function getPage(): string
+    public function getApiPath(): string
     {
         return 'api/v2/users/';
     }
@@ -431,7 +423,11 @@ class Users implements RestInterface
         $sql = 'DELETE FROM users WHERE userid = :userid';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':userid', $this->userData['userid'], PDO::PARAM_INT);
-        return $this->Db->execute($req);
+        $res = $this->Db->execute($req);
+        if ($res) {
+            AuditLogs::create(new UserDeleted($this->requester->userid ?? 0, $this->userid ?? 0));
+        }
+        return $res;
     }
 
     /**
@@ -499,24 +495,46 @@ class Users implements RestInterface
 
     protected static function search(string $column, string $term, bool $validated = false): self
     {
-        $searchColumn = 'email';
-        if ($column === 'orgid') {
-            $searchColumn = 'orgid';
-        }
-        $validatedFilter = '';
-        if ($validated) {
-            $validatedFilter = ' AND validated = 1 ';
-        }
         $Db = Db::getConnection();
-        $sql = sprintf('SELECT userid FROM users WHERE %s = :term AND archived = 0 %s LIMIT 1', $searchColumn, $validatedFilter);
+        $sql = sprintf(
+            'SELECT userid FROM users WHERE %s = :term AND archived = 0 %s LIMIT 1',
+            $column === 'orgid'
+                ? 'orgid'
+                : 'email',
+            $validated
+                ? 'AND validated = 1'
+                : '',
+        );
         $req = $Db->prepare($sql);
         $req->bindParam(':term', $term);
         $Db->execute($req);
-        $res = $req->fetchColumn();
-        if ($res === false) {
+        $res = (int) $req->fetchColumn();
+        if ($res === 0) {
             throw new ResourceNotFoundException();
         }
-        return new self((int) $res);
+        return new self($res);
+    }
+
+    /**
+     * Read all the columns (including sensitive ones) of the current user
+     */
+    protected function readOneFull(): array
+    {
+        $sql = "SELECT users.*, sig_keys.privkey AS sig_privkey, sig_keys.pubkey AS sig_pubkey,
+            CONCAT(users.firstname, ' ', users.lastname) AS fullname
+            FROM users
+            LEFT JOIN sig_keys ON (sig_keys.userid = users.userid AND state = :state)
+            WHERE users.userid = :userid";
+        $req = $this->Db->prepare($sql);
+        $req->bindValue(':userid', $this->userid, PDO::PARAM_INT);
+        $req->bindValue(':state', State::Normal->value, PDO::PARAM_INT);
+        $this->Db->execute($req);
+
+        $this->userData = $this->Db->fetch($req);
+        $this->userData['team'] = $this->team;
+        $UsersHelper = new UsersHelper($this->userData['userid']);
+        $this->userData['teams'] = $UsersHelper->getTeamsFromUserid();
+        return $this->userData;
     }
 
     private function disable2fa(): array
@@ -558,6 +576,14 @@ class Users implements RestInterface
                 throw new IllegalActionException('User tried to edit email of another user but is not sysadmin.');
             }
             Filter::email($params->getContent());
+        }
+        $Config = Config::getConfig();
+        // prevent modification of identity fields if we are not sysadmin
+        if (in_array($params->getTarget(), array('email', 'firstname', 'lastname'), true)
+            && $Config->configArr['allow_users_change_identity'] === '0'
+            && $this->requester->userData['is_sysadmin'] === 0
+        ) {
+            throw new ImproperActionException('Identity information can only be modified by Sysadmin.');
         }
         // special case for is_sysadmin: only a sysadmin can affect this column
         if ($params->getTarget() === 'is_sysadmin') {
@@ -649,28 +675,6 @@ class Users implements RestInterface
         return $this->readOne();
     }
 
-    /**
-     * Read all the columns (including sensitive ones) of the current user
-     */
-    private function readOneFull(): array
-    {
-        $sql = "SELECT users.*, sig_keys.privkey AS sig_privkey, sig_keys.pubkey AS sig_pubkey,
-            CONCAT(users.firstname, ' ', users.lastname) AS fullname
-            FROM users
-            LEFT JOIN sig_keys ON (sig_keys.userid = users.userid AND state = :state)
-            WHERE users.userid = :userid";
-        $req = $this->Db->prepare($sql);
-        $req->bindValue(':userid', $this->userid, PDO::PARAM_INT);
-        $req->bindValue(':state', State::Normal->value, PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        $this->userData = $this->Db->fetch($req);
-        $this->userData['team'] = $this->team;
-        $UsersHelper = new UsersHelper($this->userData['userid']);
-        $this->userData['teams'] = $UsersHelper->getTeamsFromUserid();
-        return $this->userData;
-    }
-
     private function notifyAdmins(array $admins, int $userid, bool $isValidated, string $team): void
     {
         $Notifications = new UserCreated($userid, $team);
@@ -678,7 +682,22 @@ class Users implements RestInterface
             $Notifications = new UserNeedValidation($userid, $team);
         }
         foreach ($admins as $admin) {
-            $Notifications->create((int) $admin);
+            $Notifications->create($admin);
+        }
+    }
+
+    private function sendOnboardingEmailsAfterValidation(): void
+    {
+        // do we send an eamil for the instance
+        if (Config::getConfig()->configArr['onboarding_email_active'] === '1') {
+            (new OnboardingEmail(-1, $this->isAdmin))->create($this->userData['userid']);
+        }
+
+        // Check setting for each team individually
+        foreach (array_column($this->userData['teams'], 'id') as $teamId) {
+            if ((new Teams($this))->readOne()['onboarding_email_active'] === 1) {
+                (new OnboardingEmail($teamId))->create($this->userData['userid']);
+            }
         }
     }
 

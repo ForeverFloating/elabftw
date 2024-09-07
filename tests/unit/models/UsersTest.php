@@ -112,9 +112,9 @@ class UsersTest extends \PHPUnit\Framework\TestCase
         $this->assertFalse($tata->isAdminOf(2));
     }
 
-    public function testGetPage(): void
+    public function testGetApiPath(): void
     {
-        $this->assertEquals('api/v2/users/', $this->Users->getPage());
+        $this->assertEquals('api/v2/users/', $this->Users->getApiPath());
     }
 
     public function testUpdateTooShortPassword(): void
@@ -222,7 +222,7 @@ class UsersTest extends \PHPUnit\Framework\TestCase
 
     public function testReadAllActiveFromTeam(): void
     {
-        $this->assertCount(8, $this->Users->readAllActiveFromTeam());
+        $this->assertCount(9, $this->Users->readAllActiveFromTeam());
     }
 
     public function testAddUserToTeam(): void

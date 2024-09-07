@@ -14,6 +14,7 @@ namespace Elabftw\Models;
 
 use Elabftw\Elabftw\Db;
 use Elabftw\Enums\Action;
+use Elabftw\Enums\EntityType;
 use Elabftw\Enums\Metadata as MetadataEnum;
 use Elabftw\Enums\State;
 use Elabftw\Exceptions\ImproperActionException;
@@ -40,9 +41,9 @@ abstract class AbstractLinks implements RestInterface
         $this->id = $id;
     }
 
-    public function getPage(): string
+    public function getApiPath(): string
     {
-        return sprintf('%s%d/%s/', $this->Entity->getPage(), $this->Entity->id ?? '', $this->getTable());
+        return sprintf('%s%d/%s/', $this->Entity->getApiPath(), $this->Entity->id ?? '', $this->getTable());
     }
 
     public function patch(Action $action, array $params): array
@@ -60,16 +61,16 @@ abstract class AbstractLinks implements RestInterface
             entity.title,
             entity.custom_id,
             entity.elabid,
-            "' . $this->getTargetPage() . '" AS page,
-            "' . $this->getTargetType() . '" AS type,
+            "' . $this->getTargetType()->toPage() . '" AS page,
+            "' . $this->getTargetType()->value . '" AS type,
             categoryt.title AS category_title,
             categoryt.color AS category_color,
             statust.title AS status_title,
             statust.color AS status_color,
-            ' . ($this instanceof ItemsLinks ? 'entity.is_bookable,' : '') . '
+            ' . ($this instanceof AbstractItemsLinks ? 'entity.is_bookable,' : '') . '
             entity.state AS link_state
             FROM ' . $this->getTable() . '
-            LEFT JOIN ' . $this->getTargetType() . ' AS entity ON (' . $this->getTable() . '.link_id = entity.id)
+            LEFT JOIN ' . $this->getTargetType()->value . ' AS entity ON (' . $this->getTable() . '.link_id = entity.id)
             LEFT JOIN ' . $this->getCatTable() . ' AS categoryt ON (entity.category = categoryt.id)
             LEFT JOIN ' . $this->getStatusTable() . ' AS statust ON (entity.status = statust.id)
             WHERE ' . $this->getTable() . '.item_id = :id AND (entity.state = :state OR entity.state = :statearchived)
@@ -95,17 +96,17 @@ abstract class AbstractLinks implements RestInterface
     public function readRelated(): array
     {
         $sql = 'SELECT entity.id AS entityid, entity.title, entity.custom_id,
-            "' . $this->getTargetPage() . '" AS page,
-            "' . $this->getTargetType() . '" AS type,
+            "' . $this->getTargetType()->toPage() . '" AS page,
+            "' . $this->getTargetType()->value . '" AS type,
             categoryt.title AS category_title, categoryt.color AS category_color,
             statust.title AS status_title, statust.color AS status_color, entity.state AS link_state';
 
-        if ($this instanceof ItemsLinks) {
+        if ($this instanceof AbstractItemsLinks) {
             $sql .= ', entity.is_bookable';
         }
 
         $sql .= ' FROM ' . $this->getRelatedTable() . ' as entity_links
-            LEFT JOIN ' . $this->getTargetType() . ' AS entity ON (entity_links.item_id = entity.id)
+            LEFT JOIN ' . $this->getTargetType()->value . ' AS entity ON (entity_links.item_id = entity.id)
             LEFT JOIN ' . $this->getCatTable() . ' AS categoryt ON (entity.category = categoryt.id)
             LEFT JOIN ' . $this->getStatusTable() . ' AS statust ON (entity.status = statust.id)';
 
@@ -132,7 +133,7 @@ abstract class AbstractLinks implements RestInterface
         if ($fromTpl) {
             $table = $this->getTemplateTable();
         }
-        $sql = 'INSERT INTO ' . $this->getTable() . ' (item_id, link_id)
+        $sql = 'INSERT IGNORE INTO ' . $this->getTable() . ' (item_id, link_id)
             SELECT :new_id, link_id
             FROM ' . $table . '
             WHERE item_id = :old_id';
@@ -176,18 +177,18 @@ abstract class AbstractLinks implements RestInterface
         $sql = sprintf(
             "SELECT metadata->>'%s' FROM %s WHERE id = :id",
             $jsonPath,
-            $this->Entity->type,
+            $this->Entity->entityType->value,
         );
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->Entity->id, PDO::PARAM_INT);
         $this->Db->execute($req);
         $extraFieldType = $req->fetchColumn();
 
-        return $this->Entity->type === $extraFieldType
+        return $this->Entity->entityType->value === $extraFieldType
             && $this->Entity->id === intval($targetId);
     }
 
-    abstract protected function getTargetType(): string;
+    abstract protected function getTargetType(): EntityType;
 
     abstract protected function getTargetPage(): string;
 
@@ -211,7 +212,7 @@ abstract class AbstractLinks implements RestInterface
     protected function create(): int
     {
         // don't insert a link to the same entity, make sure we check for the type too
-        if ($this->Entity->id === $this->id && $this->Entity->type === $this->getTargetType()) {
+        if ($this->Entity->id === $this->id && $this->Entity->entityType === $this->getTargetType()) {
             return 0;
         }
         $this->Entity->touch();

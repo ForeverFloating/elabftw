@@ -33,9 +33,9 @@ class ExtraFieldsKeys implements RestInterface
         $this->limit = $this->limit < -1 || $this->limit === 0 ? $this->Users->userData['limit_nb'] : $this->limit;
     }
 
-    public function getPage(): string
+    public function getApiPath(): string
     {
-        return 'extra_fields_keys';
+        return 'api/v2/extra_fields_keys';
     }
 
     public function postAction(Action $action, array $reqBody): int
@@ -97,7 +97,7 @@ class ExtraFieldsKeys implements RestInterface
         );
 
         $req = $this->Db->prepare($finalSql);
-        $req->bindValue(':search_term', '%' . $this->searchTerm . '%', PDO::PARAM_STR);
+        $req->bindValue(':search_term', '%' . $this->searchTerm . '%');
         $req->bindParam(':userid', $this->Users->userData['userid'], PDO::PARAM_INT);
         if ($this->limit > 0) {
             $req->bindParam(':limit', $this->limit, PDO::PARAM_INT);

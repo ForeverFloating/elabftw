@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Elabftw\Models;
 
+use DateTimeImmutable;
 use Elabftw\Elabftw\ContentParams;
 use Elabftw\Elabftw\Db;
 use Elabftw\Elabftw\DisplayParams;
@@ -29,22 +30,21 @@ use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Exceptions\ResourceNotFoundException;
+use Elabftw\Factories\LinksFactory;
 use Elabftw\Interfaces\ContentParamsInterface;
 use Elabftw\Interfaces\RestInterface;
 use Elabftw\Services\AccessKeyHelper;
 use Elabftw\Services\AdvancedSearchQuery;
 use Elabftw\Services\AdvancedSearchQuery\Visitors\VisitorParameters;
+use Elabftw\Services\Filter;
 use Elabftw\Traits\EntityTrait;
 use PDO;
 use PDOStatement;
-use Symfony\Component\HttpFoundation\Request;
 
 use function array_column;
 use function array_merge;
-use function explode;
 use function implode;
 use function is_bool;
-use function json_decode;
 use function json_encode;
 use function ksort;
 use function sprintf;
@@ -65,9 +65,9 @@ abstract class AbstractEntity implements RestInterface
 
     public Comments $Comments;
 
-    public ExperimentsLinks $ExperimentsLinks;
+    public AbstractExperimentsLinks $ExperimentsLinks;
 
-    public ItemsLinks $ItemsLinks;
+    public AbstractItemsLinks $ItemsLinks;
 
     public Steps $Steps;
 
@@ -77,20 +77,11 @@ abstract class AbstractEntity implements RestInterface
 
     public Pins $Pins;
 
-    // string representation of EntityType
-    public string $type = '';
+    public ExclusiveEditMode $ExclusiveEditMode;
 
-    // replaces $type string above
     public EntityType $entityType;
 
-    // use that to ignore the canOrExplode calls
-    public bool $bypassReadPermission = false;
-
-    // use that to ignore the canOrExplode calls
-    public bool $bypassWritePermission = false;
-
-    // will be defined in children classes
-    public string $page = '';
+    public bool $alwaysShowOwned = false;
 
     // sql of ids to include
     public string $idFilter = '';
@@ -112,103 +103,125 @@ abstract class AbstractEntity implements RestInterface
      *
      * @param int|null $id the id of the entity
      */
-    public function __construct(public Users $Users, ?int $id = null)
+    public function __construct(public Users $Users, ?int $id = null, public ?bool $bypassReadPermission = false, public ?bool $bypassWritePermission = false)
     {
         $this->Db = Db::getConnection();
 
-        $this->ExperimentsLinks = new ExperimentsLinks($this);
-        $this->ItemsLinks = new ItemsLinks($this);
+        $this->ExperimentsLinks = LinksFactory::getExperimentsLinks($this);
+        $this->ItemsLinks = LinksFactory::getItemsLinks($this);
         $this->Steps = new Steps($this);
         $this->Tags = new Tags($this);
         $this->Uploads = new Uploads($this);
         $this->Comments = new Comments($this);
         $this->TeamGroups = new TeamGroups($this->Users);
         $this->Pins = new Pins($this);
+        $this->ExclusiveEditMode = new ExclusiveEditMode($this);
         $this->setId($id);
+        $this->ExclusiveEditMode->manage();
     }
+
+    abstract public function create(
+        ?int $template = -1,
+        ?string $title = null,
+        ?string $body = null,
+        ?DateTimeImmutable $date = null,
+        ?string $canread = null,
+        ?string $canwrite = null,
+        array $tags = array(),
+        ?int $category = null,
+        ?int $status = null,
+        ?int $customId = null,
+        ?string $metadata = null,
+        int $rating = 0,
+        ?int $contentType = null,
+        bool $forceExpTpl = false,
+        string $defaultTemplateHtml = '',
+        string $defaultTemplateMd = '',
+    ): int;
 
     /**
      * Duplicate an item
      *
      * @return int the new item id
      */
-    abstract public function duplicate(): int;
+    abstract public function duplicate(bool $copyFiles = false): int;
 
-    public function getPage(): string
+    abstract public function readOne(): array;
+
+    abstract public function readAll(): array;
+
+    public function getApiPath(): string
     {
-        return sprintf('api/v2/%s/', $this->page);
+        return sprintf('api/v2/%s/', $this->entityType->value);
     }
 
     /**
-     * Count the number of timestamp archives created during past month (sliding window)
-     * Here we merge bloxberg and trusted timestamp methods because there is no way currently to tell them apart
-     */
-    public function getTimestampLastMonth(): int
-    {
-        $sql = "SELECT COUNT(id) FROM uploads WHERE comment LIKE 'Timestamp archive%'= 1 AND created_at > (NOW() - INTERVAL 1 MONTH)";
-        $req = $this->Db->prepare($sql);
-        $this->Db->execute($req);
-        return (int) $req->fetchColumn();
-    }
-
-    /**
-     * Simply update the modified_at column of the entity
+     * Signal that a submodel has been modified (such as steps or links).
+     * The modified_at column is automatically updated when the entity row is modified, but not if a child model is modified,
+     * so this need to be called after a post/patch/delete action on the submodel.
      */
     public function touch(): bool
     {
-        $sql = sprintf('UPDATE %s SET modified_at = NOW() WHERE id = :id', $this->entityType->value);
+        $sql = sprintf('UPDATE %s SET modified_at = NOW(), lastchangeby = :userid WHERE id = :id', $this->entityType->value);
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->id, PDO::PARAM_INT);
+        $req->bindParam(':userid', $this->Users->requester->userid);
         return $this->Db->execute($req);
+    }
+
+    public function lock(): array
+    {
+        $this->checkToggleLockPermissions();
+        return $this->toggleLock(1);
+    }
+
+    public function unlock(): array
+    {
+        $this->checkToggleLockPermissions();
+        return $this->toggleLock(0);
     }
 
     /**
      * Lock/unlock
      */
-    public function toggleLock(): array
+    public function toggleLock(?int $targetLockState = null): array
     {
-        $this->getPermissions();
-        if (!$this->Users->isAdmin && $this->entityData['userid'] !== $this->Users->userData['userid']) {
-            throw new ImproperActionException(_("You don't have the rights to lock/unlock this."));
+        $this->checkToggleLockPermissions();
+        $currentLockState = $this->entityData['locked'];
+        if ($targetLockState !== null) {
+            $currentLockState = $targetLockState === 1 ? 0 : 1;
+        } else {
+            $targetLockState = $currentLockState === 1 ? 0 : 1;
         }
-        $locked = $this->entityData['locked'];
 
         // if we try to unlock something we didn't lock
-        if ($locked === 1 && !$this->Users->isAdmin && ($this->entityData['lockedby'] !== $this->Users->userData['userid'])) {
-            // Get the first name of the locker to show in error message
-            $sql = 'SELECT firstname FROM users WHERE userid = :userid';
-            $req = $this->Db->prepare($sql);
-            $req->bindParam(':userid', $this->entityData['lockedby'], PDO::PARAM_INT);
-            $this->Db->execute($req);
-            $firstname = $req->fetchColumn();
-            if (is_bool($firstname) || $firstname === null) {
-                throw new ImproperActionException('Could not find the firstname of the locker!');
-            }
-            throw new ImproperActionException(
-                sprintf(_("This experiment was locked by %s. You don't have the rights to unlock this."), $firstname)
-            );
+        if ($currentLockState === 1) {
+            $this->checkUnlockPermissions();
         }
 
-        $sql = 'UPDATE ' . $this->type . ' SET locked = IF(locked = 1, 0, 1), lockedby = :lockedby, locked_at = CURRENT_TIMESTAMP WHERE id = :id';
+        $targetLockedBy = $targetLockState === 1 ? $this->Users->userData['userid'] : null;
+        $sql = 'UPDATE ' . $this->entityType->value . ' SET locked = :locked, lockedby = :lockedby, locked_at = CURRENT_TIMESTAMP WHERE id = :id';
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':lockedby', $this->Users->userData['userid'], PDO::PARAM_INT);
+        $req->bindParam(':locked', $targetLockState, PDO::PARAM_INT);
+        $req->bindParam(':lockedby', $targetLockedBy, PDO::PARAM_INT);
         $req->bindParam(':id', $this->id, PDO::PARAM_INT);
         $this->Db->execute($req);
 
         // record this action in the changelog
         $Changelog = new Changelog($this);
-        $Changelog->create(new ContentParams('locked', $locked === 1 ? 'Unlocked' : 'Locked'));
+        $Changelog->create(new ContentParams('locked', $currentLockState === 1 ? 'Unlocked' : 'Locked'));
+
+        // clear any request action - skip for templates
+        if ($this instanceof AbstractConcreteEntity) {
+            $RequestActions = new RequestActions($this->Users, $this);
+            $RequestActions->remove(RequestableAction::Lock);
+        }
 
         // clear any request action
         $RequestActions = new RequestActions($this->Users, $this);
         $RequestActions->remove(RequestableAction::Lock);
 
         return $this->readOne();
-    }
-
-    public function readAll(): array
-    {
-        return $this->readShow(new DisplayParams($this->Users, Request::createFromGlobals(), $this->entityType), true);
     }
 
     /**
@@ -264,17 +277,15 @@ abstract class AbstractEntity implements RestInterface
         // add the json permissions
         $sql .= $EntitySqlBuilder->getCanFilter($can);
 
+        if ($this->alwaysShowOwned) {
+            $sql .= ' OR entity.userid = :userid';
+        }
+
         $sqlArr = array(
             $this->extendedFilter,
             $this->idFilter,
             'GROUP BY id',
-            'ORDER BY',
-            $displayParams->orderby::toSql($displayParams->orderby),
-            $displayParams->sort->value,
-            ', entity.id',
-            $displayParams->sort->value,
-            sprintf('LIMIT %d', $displayParams->limit),
-            sprintf('OFFSET %d', $displayParams->offset),
+            $displayParams->getSql(),
         );
 
         $sql .= implode(' ', $sqlArr);
@@ -299,14 +310,21 @@ abstract class AbstractEntity implements RestInterface
      */
     public function getTags(array $items): array
     {
-        $sqlid = 'tags2entity.item_id IN (' . implode(',', array_column($items, 'id')) . ')';
-        $sql = 'SELECT DISTINCT tags2entity.tag_id, tags2entity.item_id, tags.tag, (tags_id IS NOT NULL) AS is_favorite
-            FROM tags2entity
-            LEFT JOIN tags ON (tags2entity.tag_id = tags.id)
-            LEFT JOIN favtags2users ON (favtags2users.users_id = :userid AND favtags2users.tags_id = tags.id)
-            WHERE tags2entity.item_type = :type AND ' . $sqlid . ' ORDER by tag';
+        $sql = sprintf(
+            'SELECT DISTINCT tags2entity.tag_id, tags2entity.item_id, tags.tag, (tags_id IS NOT NULL) AS is_favorite
+                FROM tags2entity
+                LEFT JOIN tags
+                    ON (tags2entity.tag_id = tags.id)
+                LEFT JOIN favtags2users
+                    ON (favtags2users.users_id = :userid
+                        AND favtags2users.tags_id = tags.id)
+                WHERE tags2entity.item_type = :type
+                    AND tags2entity.item_id IN (%s)
+                ORDER by tag',
+            implode(',', array_column($items, 'id'))
+        );
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':type', $this->type);
+        $req->bindValue(':type', $this->entityType->value);
         $req->bindParam(':userid', $this->Users->userData['userid'], PDO::PARAM_INT);
         $this->Db->execute($req);
         $allTags = array();
@@ -318,10 +336,24 @@ abstract class AbstractEntity implements RestInterface
 
     public function patch(Action $action, array $params): array
     {
+        // a Review action doesn't do anything
+        if ($action === Action::Review) {
+            // clear any request action - skip for templates
+            if ($this instanceof AbstractConcreteEntity) {
+                $RequestActions = new RequestActions($this->Users, $this);
+                $RequestActions->remove(RequestableAction::Review);
+            }
+            return $this->readOne();
+        }
         // the toggle pin action doesn't require write access to the entity
         if ($action !== Action::Pin) {
             $this->canOrExplode('write');
         }
+        // if there is an active exclusive edit mode, entity cannot be modified
+        // only user who locked can do everything
+        // (sys)admin can remove locks
+        // everyone can Pin, AccessKey, Bloxberg, Sign, Timestamp
+        $this->ExclusiveEditMode->canPatchOrExplode($action);
         match ($action) {
             Action::AccessKey => (new AccessKeyHelper($this))->toggleAccessKey(),
             Action::Archive => (
@@ -339,8 +371,13 @@ abstract class AbstractEntity implements RestInterface
                     $RequestActions->remove(RequestableAction::Archive);
                 }
             )(),
+            Action::Destroy => $this->destroy(),
             Action::Lock => $this->toggleLock(),
+            Action::ForceLock => $this->lock(),
+            Action::ForceUnlock => $this->unlock(),
             Action::Pin => $this->Pins->togglePin(),
+            Action::SetCanread => $this->update(new EntityParams('canread', $params['can'])),
+            Action::SetCanwrite => $this->update(new EntityParams('canwrite', $params['can'])),
             Action::UpdateMetadataField => (
                 function () use ($params) {
                     foreach ($params as $key => $value) {
@@ -358,6 +395,7 @@ abstract class AbstractEntity implements RestInterface
                     }
                 }
             )(),
+            Action::ExclusiveEditMode => $this->ExclusiveEditMode->toggle(),
             default => throw new ImproperActionException('Invalid action parameter.'),
         };
         return $this->readOne();
@@ -367,8 +405,11 @@ abstract class AbstractEntity implements RestInterface
     {
         $this->Uploads->includeArchived = true;
         $base = $this->readOne();
-        $base['revisions'] = (new Revisions($this))->readAll();
-        $base['changelog'] = (new Changelog($this))->readAll();
+        // items types don't have this yet
+        if ($this instanceof AbstractConcreteEntity || $this instanceof Templates) {
+            $base['revisions'] = (new Revisions($this))->readAll();
+            $base['changelog'] = (new Changelog($this))->readAll();
+        }
         ksort($base);
         return $base;
     }
@@ -381,6 +422,15 @@ abstract class AbstractEntity implements RestInterface
      */
     public function canOrExplode(string $rw): void
     {
+        if ($this->id === null) {
+            throw new ImproperActionException('Cannot check permissions without an id!');
+        }
+        if ($this->bypassWritePermission && $rw === 'write') {
+            return;
+        }
+        if ($this->bypassReadPermission && $rw === 'read') {
+            return;
+        }
         $permissions = $this->getPermissions();
 
         // READ ONLY?
@@ -394,50 +444,31 @@ abstract class AbstractEntity implements RestInterface
     }
 
     /**
-     * Verify we can read/write an item
-     * Here be dragons! Cognitive load > 9000
-     *
-     * @param array<string, mixed>|null $item one item array
+     * Get timestamper full name for display in view mode
      */
-    public function getPermissions(?array $item = null): array
+    public function getTimestamperFullname(): string
     {
-        if ($this->bypassWritePermission) {
-            return array('read' => true, 'write' => true);
+        if ($this->entityData['timestamped'] === 0) {
+            return 'Unknown';
         }
-        if ($this->bypassReadPermission) {
-            return array('read' => true, 'write' => false);
-        }
-        if (empty($this->entityData) && !isset($item)) {
-            $this->readOne();
-        }
-        // don't try to read() again if we have the item (for show where there are several items to check)
-        if (!isset($item)) {
-            $item = $this->entityData;
-        }
-
-        // if it has the deleted state, don't show it.
-        if ($item['state'] === State::Deleted->value) {
-            return array('read' => false, 'write' => false);
-        }
-
-        $Permissions = new Permissions($this->Users, $item);
-
-        if ($this instanceof Experiments || $this instanceof Items || $this instanceof Templates) {
-            return $Permissions->forEntity();
-        }
-        if ($this instanceof ItemsTypes) {
-            return $Permissions->forItemType();
-        }
-
-        return array('read' => false, 'write' => false);
+        return $this->getFullnameFromUserid($this->entityData['timestampedby']);
     }
 
-    /**
-     * Add an arbitrary filter to the query, externally, not through DisplayParams
-     */
-    public function addFilter(string $column, string|int $value): void
+    // generate a title useful for zip folder name for instance: shortened, with category and short elabid
+    public function toFsTitle(): string
     {
-        $this->filterSql .= sprintf(" AND %s = '%s'", $column, (string) $value);
+        $prefix = '';
+        if ($this->entityData['category_title']) {
+            $prefix = Filter::forFilesystem($this->entityData['category_title']) . ' - ';
+        }
+
+        return sprintf(
+            '%s%s - %s',
+            $prefix,
+            // prevent a zip name with too much characters from the title, see #3966
+            substr(Filter::forFilesystem($this->entityData['title']), 0, 100),
+            Tools::getShortElabid($this->entityData['elabid'] ?? ''),
+        );
     }
 
     /**
@@ -452,7 +483,7 @@ abstract class AbstractEntity implements RestInterface
             $period = '15000101-30000101';
         }
         [$from, $to] = explode('-', $period);
-        $sql = 'SELECT id FROM ' . $this->type . ' WHERE userid = :userid AND modified_at BETWEEN :from AND :to';
+        $sql = 'SELECT id FROM ' . $this->entityType->value . ' WHERE userid = :userid AND modified_at BETWEEN :from AND :to';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':userid', $userid, PDO::PARAM_INT);
         $req->bindParam(':from', $from);
@@ -460,17 +491,6 @@ abstract class AbstractEntity implements RestInterface
         $this->Db->execute($req);
 
         return array_column($req->fetchAll(), 'id');
-    }
-
-    /**
-     * Get timestamper full name for display in view mode
-     */
-    public function getTimestamperFullname(): string
-    {
-        if ($this->entityData['timestamped'] === 0) {
-            return 'Unknown';
-        }
-        return $this->getFullnameFromUserid($this->entityData['timestampedby']);
     }
 
     /**
@@ -486,7 +506,7 @@ abstract class AbstractEntity implements RestInterface
 
     public function getIdFromCategory(int $category): array
     {
-        $sql = 'SELECT id FROM ' . $this->type . ' WHERE team = :team AND category = :category AND (state = :statenormal OR state = :statearchived)';
+        $sql = 'SELECT id FROM ' . $this->entityType->value . ' WHERE team = :team AND category = :category AND (state = :statenormal OR state = :statearchived)';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':team', $this->Users->team, PDO::PARAM_INT);
         $req->bindValue(':statenormal', State::Normal->value, PDO::PARAM_INT);
@@ -499,11 +519,11 @@ abstract class AbstractEntity implements RestInterface
 
     public function getIdFromUser(int $userid): array
     {
-        $sql = 'SELECT id FROM ' . $this->type . ' WHERE userid = :userid AND (state = :statenormal OR state = :statearchived)';
+        $sql = 'SELECT id FROM ' . $this->entityType->value . ' WHERE userid = :userid AND (state = :statenormal OR state = :statearchived)';
         $req = $this->Db->prepare($sql);
         $req->bindValue(':statenormal', State::Normal->value, PDO::PARAM_INT);
         $req->bindValue(':statearchived', State::Archived->value, PDO::PARAM_INT);
-        $req->bindParam(':userid', $userid);
+        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
         $req->execute();
 
         return array_column($req->fetchAll(), 'id');
@@ -512,71 +532,14 @@ abstract class AbstractEntity implements RestInterface
     public function destroy(): bool
     {
         $this->canOrExplode('write');
-        if ($this instanceof AbstractConcreteEntity) {
-            // mark all uploads related to that entity as deleted
-            $sql = 'UPDATE uploads SET state = :state WHERE item_id = :entity_id AND type = :type';
-            $req = $this->Db->prepare($sql);
-            $req->bindParam(':entity_id', $this->id, PDO::PARAM_INT);
-            $req->bindValue(':type', $this->type);
-            $req->bindValue(':state', State::Deleted->value, PDO::PARAM_INT);
-            $this->Db->execute($req);
-        }
         // set state to deleted
         return $this->update(new EntityParams('state', (string) State::Deleted->value));
-    }
-
-    /**
-     * Read all from one entity
-     */
-    public function readOne(): array
-    {
-        if ($this->id === null) {
-            throw new IllegalActionException('No id was set!');
-        }
-        $EntitySqlBuilder = new EntitySqlBuilder($this);
-        $sql = $EntitySqlBuilder->getReadSqlBeforeWhere(true, true);
-
-        $sql .= sprintf(' WHERE entity.id = %d', $this->id);
-
-        $req = $this->Db->prepare($sql);
-        $this->Db->execute($req);
-        $this->entityData = $this->Db->fetch($req);
-        // Note: this is returning something with all values set to null instead of resource not found exception if the id is incorrect.
-        if ($this->entityData['id'] === null) {
-            throw new ResourceNotFoundException();
-        }
-        $this->canOrExplode('read');
-        $this->entityData['steps'] = $this->Steps->readAll();
-        $this->entityData['experiments_links'] = $this->ExperimentsLinks->readAll();
-        $this->entityData['items_links'] = $this->ItemsLinks->readAll();
-        $this->entityData['related_experiments_links'] = $this->ExperimentsLinks->readRelated();
-        $this->entityData['related_items_links'] = $this->ItemsLinks->readRelated();
-        $this->entityData['uploads'] = $this->Uploads->readAll();
-        $this->entityData['comments'] = $this->Comments->readAll();
-        $this->entityData['page'] = $this->page;
-        // add a share link
-        $ak = '';
-        if (!empty($this->entityData['access_key'])) {
-            $ak = sprintf('&access_key=%s', $this->entityData['access_key']);
-        }
-        $this->entityData['sharelink'] = sprintf('%s/%s.php?mode=view&id=%d%s', Config::fromEnv('SITE_URL'), $this->page, $this->id, $ak);
-        // add the body as html
-        $this->entityData['body_html'] = $this->entityData['body'];
-        // convert from markdown only if necessary
-        if ($this->entityData['content_type'] === self::CONTENT_MD) {
-            $this->entityData['body_html'] = Tools::md2html($this->entityData['body'] ?? '');
-        }
-        if (!empty($this->entityData['metadata'])) {
-            $this->entityData['metadata_decoded'] = json_decode($this->entityData['metadata']);
-        }
-        ksort($this->entityData);
-        return $this->entityData;
     }
 
     public function updateExtraFieldsOrdering(ExtraFieldsOrderingParams $params): array
     {
         $this->canOrExplode('write');
-        $sql = 'UPDATE ' . $this->type . ' SET metadata = JSON_SET(metadata, :field, :value) WHERE id = :id';
+        $sql = 'UPDATE ' . $this->entityType->value . ' SET metadata = JSON_SET(metadata, :field, :value) WHERE id = :id';
         $req = $this->Db->prepare($sql);
         foreach($params->ordering as $ordering => $name) {
             // build jsonPath to field
@@ -594,6 +557,57 @@ abstract class AbstractEntity implements RestInterface
         return $this->readOne();
     }
 
+    protected function checkToggleLockPermissions(): void
+    {
+        $this->getPermissions();
+        // if the entry is locked, only an admin or the locker can unlock it
+        // it is no longer necessary to be an admin or owner to lock something
+        if ($this->entityData['locked'] === 1 && (!$this->Users->isAdmin && $this->entityData['lockedby'] !== $this->Users->userData['userid'])) {
+            throw new ImproperActionException(_("You don't have the rights to lock/unlock this."));
+        }
+    }
+
+    protected function checkUnlockPermissions(): void
+    {
+        if (!$this->Users->isAdmin && ($this->entityData['lockedby'] !== $this->Users->userData['userid'])) {
+            // Get the first name of the locker to show in error message
+            $sql = 'SELECT firstname FROM users WHERE userid = :userid';
+            $req = $this->Db->prepare($sql);
+            $req->bindParam(':userid', $this->entityData['lockedby'], PDO::PARAM_INT);
+            $this->Db->execute($req);
+            $firstname = $req->fetchColumn();
+            if (is_bool($firstname) || $firstname === null) {
+                throw new ImproperActionException('Could not find the firstname of the locker!');
+            }
+            throw new ImproperActionException(
+                sprintf(_("This experiment was locked by %s. You don't have the rights to unlock this."), $firstname)
+            );
+        }
+    }
+
+    /**
+     * @return array<string, bool>
+     */
+    protected function getPermissions(): array
+    {
+        if ($this->bypassWritePermission) {
+            return array('read' => true, 'write' => true);
+        }
+        if ($this->bypassReadPermission) {
+            return array('read' => true, 'write' => false);
+        }
+        // make sure entityData is filled
+        if (empty($this->entityData)) {
+            $this->readOne();
+        }
+        // if it has the deleted state, don't show it.
+        if ($this->entityData['state'] === State::Deleted->value) {
+            return array('read' => false, 'write' => false);
+        }
+
+        return (new Permissions($this->Users, $this->entityData))->forEntity();
+    }
+
     /**
      * Update an entity. The revision is saved before so it can easily compare old and new body.
      */
@@ -603,7 +617,7 @@ abstract class AbstractEntity implements RestInterface
         switch ($params->getTarget()) {
             case 'bodyappend':
                 $content = $this->readOne()['body'] . $content;
-                // no break
+                break;
             case 'canread':
             case 'canwrite':
                 if ($this->bypassWritePermission === false) {
@@ -621,13 +635,13 @@ abstract class AbstractEntity implements RestInterface
                 (int) $Config->configArr['min_delta_revisions'],
                 (int) $Config->configArr['min_days_revisions'],
             );
-            $Revisions->postAction(Action::Create, array('body' => (string) $content));
+            $Revisions->create((string) $content);
         }
 
         $Changelog = new Changelog($this);
         $Changelog->create($params);
         // getColumn cannot be malicious here because of the previous switch
-        $sql = 'UPDATE ' . $this->type . ' SET ' . $params->getColumn() . ' = :content, lastchangeby = :userid WHERE id = :id';
+        $sql = 'UPDATE ' . $this->entityType->value . ' SET ' . $params->getColumn() . ' = :content, lastchangeby = :userid WHERE id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindValue(':content', $content);
         $req->bindParam(':id', $this->id, PDO::PARAM_INT);
@@ -644,7 +658,7 @@ abstract class AbstractEntity implements RestInterface
         }
     }
 
-    private function getFullnameFromUserid(int $userid): string
+    protected function getFullnameFromUserid(int $userid): string
     {
         // maybe user was deleted!
         try {
@@ -685,7 +699,7 @@ abstract class AbstractEntity implements RestInterface
         );
 
         // the CAST as json is necessary to avoid double encoding
-        $sql = 'UPDATE ' . $this->type . ' SET metadata = JSON_SET(metadata, :field, CAST(:value AS JSON)) WHERE id = :id';
+        $sql = 'UPDATE ' . $this->entityType->value . ' SET metadata = JSON_SET(metadata, :field, CAST(:value AS JSON)) WHERE id = :id';
         $req = $this->Db->prepare($sql);
         $req->bindParam(':field', $field);
         $req->bindValue(':value', $value);
@@ -717,14 +731,14 @@ abstract class AbstractEntity implements RestInterface
     private function bindExtendedValues(PDOStatement $req): void
     {
         foreach ($this->extendedValues as $bindValue) {
-            $req->bindValue($bindValue['param'], $bindValue['value'], $bindValue['type']);
+            $req->bindValue($bindValue['param'], $bindValue['value'], $bindValue['type'] ?? PDO::PARAM_STR);
         }
     }
 
     private function processExtendedQuery(string $extendedQuery): void
     {
         $advancedQuery = new AdvancedSearchQuery($extendedQuery, new VisitorParameters(
-            $this->type,
+            $this->entityType->value,
             $this->TeamGroups->readGroupsWithUsersFromUser(),
         ));
         $whereClause = $advancedQuery->getWhereClause();

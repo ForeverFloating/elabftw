@@ -11,7 +11,6 @@ declare(strict_types=1);
 
 namespace Elabftw\Models;
 
-use Elabftw\Elabftw\CreateImmutableUpload;
 use Elabftw\Elabftw\CreateUpload;
 use Elabftw\Enums\Action;
 use Elabftw\Enums\FileFromString;
@@ -110,14 +109,14 @@ class UploadsTest extends \PHPUnit\Framework\TestCase
         ));
     }
 
-    public function testGetPage(): void
+    public function testGetApiPath(): void
     {
-        $this->assertIsString($this->Entity->Uploads->getPage());
+        $this->assertIsString($this->Entity->Uploads->getApiPath());
     }
 
     public function testEditAnImmutableFile(): void
     {
-        $id = $this->Entity->Uploads->create(new CreateImmutableUpload('some-immutable.zip', dirname(__DIR__, 2) . '/_data/importable.zip'));
+        $id = $this->Entity->Uploads->create(new CreateUpload('some-immutable.zip', dirname(__DIR__, 2) . '/_data/importable.zip', immutable: 1));
         $this->Entity->Uploads->setId($id);
         $this->expectException(IllegalActionException::class);
         $this->Entity->Uploads->patch(Action::Update, array('real_name' => 'new'));

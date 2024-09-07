@@ -13,10 +13,6 @@ declare(strict_types=1);
 namespace Elabftw\Make;
 
 use Elabftw\Elabftw\Db;
-use Elabftw\Elabftw\FsTools;
-use Elabftw\Models\AbstractEntity;
-use Elabftw\Models\Config;
-use Elabftw\Traits\UploadTrait;
 
 use function dirname;
 
@@ -25,8 +21,6 @@ use function dirname;
  */
 abstract class AbstractMake
 {
-    use UploadTrait;
-
     // a place to gather errors or warnings generated during the making
     public array $errors = array();
 
@@ -36,7 +30,7 @@ abstract class AbstractMake
 
     protected string $contentType = 'application/octet-stream';
 
-    public function __construct(protected AbstractEntity $Entity)
+    public function __construct()
     {
         $this->Db = Db::getConnection();
     }
@@ -54,29 +48,5 @@ abstract class AbstractMake
     public function getContentType(): string
     {
         return $this->contentType;
-    }
-
-    /**
-     * Get the contents of assets/pdf.min.css
-     */
-    protected function getCss(): string
-    {
-        $assetsFs = FsTools::getFs(dirname(__DIR__, 2) . '/web/assets');
-        return $assetsFs->read('pdf.min.css');
-    }
-
-    /**
-     * Return the url of the item or experiment
-     *
-     * @return string url to the item/experiment
-     */
-    protected function getUrl(?int $entityId = null): string
-    {
-        return sprintf(
-            '%s/%s.php?mode=view&id=%d',
-            Config::fromEnv('SITE_URL'),
-            $this->Entity->page,
-            $entityId ?? $this->Entity->id ?? 0,
-        );
     }
 }

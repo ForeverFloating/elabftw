@@ -37,6 +37,7 @@ use Elabftw\Models\Users2Teams;
 use Elabftw\Services\DeviceToken;
 use Elabftw\Services\DeviceTokenValidator;
 use Elabftw\Services\LoginHelper;
+use Elabftw\Services\TeamsHelper;
 use Elabftw\Services\MfaHelper;
 use Elabftw\Services\ResetPasswordKey;
 use LdapRecord\Connection;
@@ -172,6 +173,14 @@ class LoginController implements ControllerInterface
             $this->App->Session->set('teaminit_email', $AuthResponse->initTeamUserInfo['email']);
             $this->App->Session->set('teaminit_firstname', $AuthResponse->initTeamUserInfo['firstname']);
             $this->App->Session->set('teaminit_lastname', $AuthResponse->initTeamUserInfo['lastname']);
+            $this->App->Session->set('teaminit_orgid', $AuthResponse->initTeamUserInfo['orgid']);
+            return new RedirectResponse('/login.php');
+        }
+
+        // user exists but no team was found so user must select one
+        if ($AuthResponse->teamRequestSelectionRequired) {
+            $this->App->Session->set('team_request_selection_required', true);
+            $this->App->Session->set('teaminit_userid', $AuthResponse->initTeamUserInfo['userid']);
             return new RedirectResponse('/login.php');
         }
 
@@ -242,6 +251,7 @@ class LoginController implements ControllerInterface
                     $ldapPassword = Crypto::decrypt($c['ldap_password'], Key::loadFromAsciiSafeString(Config::fromEnv('SECRET_KEY')));
                 }
                 $ldapConfig = array(
+                    'protocol' => $c['ldap_scheme'] . '://',
                     'hosts' => array($c['ldap_host']),
                     'port' => (int) $c['ldap_port'],
                     'base_dn' => $c['ldap_base_dn'],
@@ -261,6 +271,10 @@ class LoginController implements ControllerInterface
 
                 // AUTH WITH LOCAL DATABASE
             case 'local':
+                // make sure local auth is enabled
+                if ($this->App->Config->configArr['local_auth_enabled'] === '0') {
+                    throw new ImproperActionException('Local authentication is disabled on this instance.');
+                }
                 $this->App->Session->set('auth_service', self::AUTH_LOCAL);
                 // only local auth validates device token
                 $this->validateDeviceToken();
@@ -272,7 +286,7 @@ class LoginController implements ControllerInterface
                 // AUTH WITH SAML
             case 'saml':
                 $this->App->Session->set('auth_service', self::AUTH_SAML);
-                $IdpsHelper = new IdpsHelper($this->App->Config, new Idps());
+                $IdpsHelper = new IdpsHelper($this->App->Config, new Idps($this->App->Users));
                 $idpId = $this->App->Request->request->getInt('idpId');
                 // No cookie is required anymore, as entity Id is extracted from response
                 $settings = $IdpsHelper->getSettings($idpId);
@@ -295,7 +309,7 @@ class LoginController implements ControllerInterface
                 // we are already authenticated
             case 'team':
                 return new Team(
-                    (int) $this->App->Session->get('auth_userid'),
+                    $this->App->Session->get('auth_userid'),
                     $this->App->Request->request->getInt('selected_team'),
                 );
 
@@ -303,7 +317,7 @@ class LoginController implements ControllerInterface
             case 'mfa':
                 return new Mfa(
                     new MfaHelper(
-                        (int) $this->App->Session->get('auth_userid'),
+                        $this->App->Session->get('auth_userid'),
                         $this->App->Session->get('mfa_secret'),
                     ),
                     $this->App->Request->request->getAlnum('mfa_code'),
@@ -325,9 +339,14 @@ class LoginController implements ControllerInterface
      */
     private function teamSelection(int $userid, int $teamId): void
     {
+        // Ensure that the team is actually one that users should be able to select.
+        $TeamsHelper = new TeamsHelper($teamId);
+        $TeamsHelper->teamIsVisibleOrExplode();
+
         $this->App->Session->remove('team_selection_required');
         $Users2Teams = new Users2Teams(new Users($userid));
         $Users2Teams->create($userid, $teamId);
+        $this->App->Session->remove('teaminit_userid');
         // TODO avoid re-login
         $this->App->Session->getFlashBag()->add('ok', _('Your account has been associated successfully to a team. Please authenticate again.'));
         $location = '/login.php';
@@ -336,12 +355,17 @@ class LoginController implements ControllerInterface
 
     private function initTeamSelection(): void
     {
+        // Ensure that the team is actually one that users should be able to select.
+        $TeamsHelper = new TeamsHelper($this->App->Request->request->getInt('team_id'));
+        $TeamsHelper->teamIsVisibleOrExplode();
+
         // create a user in the requested team
         $newUser = ExistingUser::fromScratch(
             $this->App->Session->get('teaminit_email'),
             array($this->App->Request->request->getInt('team_id')),
             $this->App->Request->request->getString('teaminit_firstname'),
             $this->App->Request->request->getString('teaminit_lastname'),
+            orgid: $this->App->Session->get('teaminit_orgid'),
         );
         $this->App->Session->set('teaminit_done', true);
         // will display the appropriate message to user
@@ -361,9 +385,7 @@ class LoginController implements ControllerInterface
             return '/login.php';
         }
 
-        $userid = isset($this->App->Users->userData['userid'])
-            ? (int) $this->App->Users->userData['userid']
-            : $this->App->Session->get('auth_userid');
+        $userid = $this->App->Users->userData['userid'] ?? $this->App->Session->get('auth_userid');
         $MfaHelper = new MfaHelper($userid, $this->App->Session->get('mfa_secret'));
 
         // check the input code against the secret stored in session

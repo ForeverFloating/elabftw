@@ -22,6 +22,16 @@ enum ExportFormat: string
     case QrPng = 'qrpng';
     case Pdf = 'pdf';
     case PdfA = 'pdfa';
+    case SchedulerReport = 'schedulerReport';
+    case SysadminReport = 'report';
+    case TeamReport = 'teamReport';
     case Zip = 'zip';
     case ZipA = 'zipa';
+
+    // create a comma separated list of values
+    public static function toCsList(): string
+    {
+        $values = array_map(fn($case) => $case->value, self::cases());
+        return implode(', ', $values);
+    }
 }

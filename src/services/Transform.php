@@ -39,7 +39,7 @@ class Transform
         return match (Notifications::from($notif['category'])) {
             Notifications::CommentCreated =>
                 sprintf(
-                    '<span data-action="ack-notif" data-id="%d" data-href="%s.php?mode=view&amp;id=%d">%s</span>' . $relativeMoment,
+                    '<span data-action="ack-notif" data-id="%d" data-href="%s?mode=view&amp;id=%d">%s</span>' . $relativeMoment,
                     (int) $notif['id'],
                     $notif['body']['page'],
                     (int) $notif['body']['entity_id'],
@@ -78,7 +78,7 @@ class Transform
                 ),
             Notifications::MathjaxFailed =>
                 sprintf(
-                    '<span data-action="ack-notif" data-id="%d" data-href="%s.php?mode=view&amp;id=%d">%s</span>' . $relativeMoment,
+                    '<span data-action="ack-notif" data-id="%d" data-href="%s?mode=view&amp;id=%d">%s</span>' . $relativeMoment,
                     (int) $notif['id'],
                     $notif['body']['entity_page'],
                     (int) $notif['body']['entity_id'],
@@ -87,7 +87,7 @@ class Transform
                 ),
             Notifications::PdfAppendmentFailed =>
                 sprintf(
-                    '<span data-action="ack-notif" data-id="%d" data-href="%s.php?mode=view&amp;id=%d">%s (%s)</span>' . $relativeMoment,
+                    '<span data-action="ack-notif" data-id="%d" data-href="%s?mode=view&amp;id=%d">%s (%s)</span>' . $relativeMoment,
                     (int) $notif['id'],
                     $notif['body']['entity_page'],
                     (int) $notif['body']['entity_id'],
@@ -97,7 +97,7 @@ class Transform
                 ),
             Notifications::StepDeadline =>
                 sprintf(
-                    '<span data-action="ack-notif" data-id="%d" data-href="%s.php?mode=view&amp;id=%d">%s</span>' . $relativeMoment,
+                    '<span data-action="ack-notif" data-id="%d" data-href="%s?mode=view&amp;id=%d">%s</span>' . $relativeMoment,
                     (int) $notif['id'],
                     $notif['body']['entity_page'],
                     (int) $notif['body']['entity_id'],
@@ -109,6 +109,19 @@ class Transform
                     '<a class="color-white" href="https://www.deltablot.com/posts/release-%d" target="_blank">%s</a>' . $relativeMoment,
                     App::INSTALLED_VERSION_INT,
                     sprintf(_('A new eLabFTW version has been installed since your last visit.%sRead the release notes by clicking this message.'), '<br>'),
+                    $notif['created_at'],
+                ),
+            Notifications::ActionRequested =>
+                sprintf(
+                    '<span data-action="ack-notif" data-id="%d" data-href="%s?mode=view&amp;id=%d">%s</span>' . $relativeMoment,
+                    (int) $notif['id'],
+                    $notif['body']['entity_page'],
+                    (int) $notif['body']['entity_id'],
+                    sprintf(
+                        _('%s has requested %s from you.'),
+                        $notif['body']['requester_fullname'],
+                        $notif['body']['action'],
+                    ),
                     $notif['created_at'],
                 ),
             default => throw new ImproperActionException('Invalid notification type.'),

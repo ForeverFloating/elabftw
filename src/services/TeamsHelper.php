@@ -14,7 +14,7 @@ namespace Elabftw\Services;
 
 use Elabftw\Elabftw\Db;
 use Elabftw\Enums\Usergroup;
-use Elabftw\Exceptions\ResourceNotFoundException;
+use Elabftw\Exceptions\IllegalActionException;
 use PDO;
 
 class TeamsHelper
@@ -24,6 +24,22 @@ class TeamsHelper
     public function __construct(private int $team)
     {
         $this->Db = Db::getConnection();
+    }
+
+    /**
+     * Make sure that a team to which a user tries to add themselves to
+     * exists and is currently one of those selected as visible by the sysadmin.
+     */
+    public function teamIsVisibleOrExplode(): void
+    {
+        $sql = 'SELECT id, visible FROM teams WHERE id = :team_id';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':team_id', $this->team, PDO::PARAM_INT);
+        $this->Db->execute($req);
+        $team = $req->fetch();
+        if ($team == false || $team['visible'] !== 1) {
+            throw new IllegalActionException("There is no visible team with ID $this->team .");
+        }
     }
 
     /**
@@ -44,19 +60,17 @@ class TeamsHelper
         return Usergroup::User;
     }
 
-    public function getPermissions(int $userid): array
+    public function isAdmin(int $userid): bool
     {
-        $group = $this->getGroupInTeam($userid);
-        $sql = 'SELECT `is_admin` FROM `groups` WHERE `id` = :group';
+        // groups_id is either 2 (admin) or 4 (user)
+        $sql = 'SELECT `groups_id` FROM `users2teams`
+            WHERE `teams_id` = :team
+                AND `users_id` = :userid';
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':group', $group, PDO::PARAM_INT);
+        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
+        $req->bindParam(':team', $this->team, PDO::PARAM_INT);
         $this->Db->execute($req);
-
-        try {
-            return $this->Db->fetch($req);
-        } catch (ResourceNotFoundException) {
-            return array('is_admin' => 0);
-        }
+        return $req->fetchColumn() === Usergroup::Admin->value;
     }
 
     public function getUserInTeam(int $userid): array
@@ -66,18 +80,28 @@ class TeamsHelper
         $req->bindParam(':team', $this->team, PDO::PARAM_INT);
         $req->bindParam(':userid', $userid, PDO::PARAM_INT);
         $this->Db->execute($req);
-
-        return $this->Db->fetch($req);
+        return $req->fetch() ?: array();
     }
 
     public function isAdminInTeam(int $userid): bool
     {
-        return $this->getUserInTeam($userid)['groups_id'] <= Usergroup::Admin->value;
+        $userInTeam = $this->getUserInTeam($userid);
+        return !empty($userInTeam) && ($userInTeam['groups_id'] <= Usergroup::Admin->value);
     }
 
     public function isUserInTeam(int $userid): bool
     {
         return !empty($this->getUserInTeam($userid));
+    }
+
+    // just get the id and name array
+    public function getSimple(): array
+    {
+        $sql = 'SELECT id, name FROM teams WHERE id = :team';
+        $req = $this->Db->prepare($sql);
+        $req->bindParam(':team', $this->team, PDO::PARAM_INT);
+        $this->Db->execute($req);
+        return $req->fetch();
     }
 
     /**
@@ -117,20 +141,6 @@ class TeamsHelper
         $test = $req->fetch();
 
         return $test['usernb'] === 0;
-    }
-
-    /**
-     * @deprecated
-     */
-    private function getGroupInTeam(int $userid): int
-    {
-        $sql = 'SELECT `groups_id` FROM `users2teams` WHERE `teams_id` = :team AND `users_id` = :userid';
-        $req = $this->Db->prepare($sql);
-        $req->bindParam(':userid', $userid, PDO::PARAM_INT);
-        $req->bindParam(':team', $this->team, PDO::PARAM_INT);
-        $this->Db->execute($req);
-
-        return (int) $req->fetchColumn();
     }
 
     /**

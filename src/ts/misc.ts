@@ -90,7 +90,7 @@ function triggerHandler(event: Event, el: HTMLInputElement): void {
           if (toreload === 'reloadEntitiesShow') {
             reloadEntitiesShow();
           } else {
-            reloadElement(toreload).then(() => relativeMoment());
+            reloadElements([toreload]).then(() => relativeMoment());
           }
         });
       }
@@ -120,7 +120,7 @@ export function listenTrigger(elementId: string = ''): void {
  * Loop over all the input and select elements of an element and collect their value
  * Returns an object with name => value
  */
-export function collectForm(form: HTMLElement): object {
+export function collectForm(form: HTMLElement, blank = true): object {
   let params = {};
   ['input', 'select', 'textarea'].forEach(inp => {
     form.querySelectorAll(inp).forEach((input: HTMLInputElement) => {
@@ -128,20 +128,30 @@ export function collectForm(form: HTMLElement): object {
       if (el.reportValidity() === false) {
         throw new Error('Invalid input found! Aborting.');
       }
-      if (el.dataset.ignore !== '1' && el.disabled === false) {
-        params = Object.assign(params, {[input.name]: input.value});
+      let value = el.value;
+      if (el.type === 'checkbox') {
+        value = el.checked ? 'on' : 'off';
       }
-      if (el.name === 'password') {
-        // clear a password field once collected
+      if (el.dataset.ignore !== '1' && el.disabled === false) {
+        params = Object.assign(params, {[input.name]: value});
+      }
+      if (blank) {
         el.value = '';
       }
     });
   });
-  // don't send an empty password
-  if (params['password'] === '') {
-    delete params['password'];
-  }
-  return params;
+  return removeEmpty(params);
+}
+
+export function clearForm(form: HTMLElement): void {
+  ['input', 'select', 'textarea'].forEach(inp => {
+    form.querySelectorAll(inp).forEach((input: HTMLInputElement) => {
+      input.value = '';
+      if (input.type === 'checkbox') {
+        input.checked = false;
+      }
+    });
+  });
 }
 
 // for view or edit mode, get type and id from the page to construct the entity object
@@ -192,10 +202,10 @@ export function notif(info: ResponseMsg): void {
   // "status" role: see WCAG2.1 4.1.3
   p.role = 'status';
   p.innerText = info.msg;
-  const result = info.res ? 'ok' : 'ko';
   const overlay = document.createElement('div');
-  overlay.setAttribute('id', 'overlay');
-  overlay.setAttribute('class', 'overlay ' + 'overlay-' + result);
+  overlay.id = 'overlay';
+  overlay.classList.add('overlay');
+  overlay.classList.add(`overlay-${info.res ? 'ok' : 'ko'}`);
   // show the overlay
   document.body.appendChild(overlay);
   // add text inside
@@ -246,8 +256,14 @@ export function makeSortableGreatAgain(): void {
     cancel: 'nonSortable',
     // do ajax request to update db with new order
     update: function() {
+      // by default, use the id attribute (https://api.jqueryui.com/sortable/#method-toArray)
+      let attribute = 'id';
+      // but for extra fields, use the data-name attribute with the name of the field
+      if ($(this).data('table') === 'extra_fields') {
+        attribute = 'data-name';
+      }
       // send the order as an array
-      const params = {table: $(this).data('table'), entity: getEntity(), ordering: $(this).sortable('toArray')};
+      const params = {table: $(this).data('table'), entity: getEntity(), ordering: $(this).sortable('toArray', {attribute: attribute})};
       fetch('app/controllers/SortableAjaxController.php', {
         method: 'POST',
         headers: {
@@ -262,6 +278,14 @@ export function makeSortableGreatAgain(): void {
     },
   });
 }
+
+export function notifNothingSelected(): void {
+  notif({
+    msg: i18next.t('nothing-selected'),
+    res: false,
+  });
+}
+
 
 export function getCheckedBoxes(): Array<CheckableItem> {
   const checkedBoxes = [];
@@ -295,20 +319,25 @@ export async function reloadEntitiesShow(tag = ''): Promise<void | Response> {
   listenTrigger();
 }
 
-export async function reloadElement(elementId: string): Promise<void> {
-  if (!document.getElementById(elementId)) {
-    console.error(`Could not find element with id ${elementId} to reload!`);
+export async function reloadElements(elementIds: string[]): Promise<void> {
+  elementIds = elementIds.filter((elementId: string): boolean => {
+    if (!document.getElementById(elementId)) {
+      console.error(`Could not find element with id ${elementId} to reload!`);
+      return false;
+    }
+    return true;
+  });
+
+  if (elementIds.length === 0) {
     return;
   }
+
   const html = await fetchCurrentPage();
-  document.getElementById(elementId).innerHTML = html.getElementById(elementId).innerHTML;
-
+  elementIds.forEach(elementId => {
+    document.getElementById(elementId).innerHTML = html.getElementById(elementId).innerHTML;
+    listenTrigger(elementId);
+  });
   (new TableSorting()).init();
-  listenTrigger(elementId);
-}
-
-export async function reloadElements(elementIds: string[]): Promise<void> {
-  elementIds.forEach(id => reloadElement(id));
 }
 
 /**
@@ -316,8 +345,8 @@ export async function reloadElements(elementIds: string[]): Promise<void> {
  * in localStorage. The localStorage key is the value of the save-hidden data attribute.
  */
 export function adjustHiddenState(): void {
-  document.querySelectorAll('[data-save-hidden]').forEach(el => {
-    const targetElement = (el as HTMLElement).dataset.saveHidden;
+  document.querySelectorAll('[data-save-hidden]').forEach((el: HTMLElement) => {
+    const targetElement = el.dataset.saveHidden;
     // failsafe
     if (!targetElement) {
       return;
@@ -329,17 +358,17 @@ export function adjustHiddenState(): void {
     }
     const caretIcon =  button.querySelector('i');
     if (localStorage.getItem(localStorageKey) === '1') {
-      el.setAttribute('hidden', 'hidden');
-      caretIcon.classList.remove('fa-caret-down');
+      el.hidden = true;
+      caretIcon?.classList.remove('fa-caret-down');
       if (targetElement !== 'filtersDiv') {
-        caretIcon.classList.add('fa-caret-right');
+        caretIcon?.classList.add('fa-caret-right');
       }
       button.setAttribute('aria-expanded', 'false');
     // make sure to explicitly check for the value, because the key might not exist!
     } else if (localStorage.getItem(localStorageKey) === '0') {
       el.removeAttribute('hidden');
-      caretIcon.classList.remove('fa-caret-right');
-      caretIcon.classList.add('fa-caret-down');
+      caretIcon?.classList.remove('fa-caret-right');
+      caretIcon?.classList.add('fa-caret-down');
       button.setAttribute('aria-expanded', 'true');
     }
   });
@@ -408,7 +437,7 @@ export function addAutocompleteToTagInputs(): void {
   const ApiC = new Api();
   $('[data-autocomplete="tags"]').autocomplete({
     source: function(request: Record<string, string>, response: (data) => void): void {
-      ApiC.getJson(`${Model.TeamTags}/?q=${request.term}`).then(json => {
+      ApiC.getJson(`${Model.Team}/current/${Model.Tag}?q=${request.term}`).then(json => {
         const res = [];
         json.forEach(tag => {
           res.push(tag.tag);
@@ -450,7 +479,7 @@ export function escapeRegExp(string: string): string {
   return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-export function removeEmpty(params: object): object {
+function removeEmpty(params: object): object {
   for (const [key, value] of Object.entries(params)) {
     if (value === '') {
       delete params[key];
@@ -554,7 +583,7 @@ export function replaceWithTitle(): void {
     }
     ApiC.getJson(`${el.dataset.endpoint}/${el.dataset.id}`).then(json => {
       // view mode for Experiments or Resources
-      let value = json.title;
+      let value = el.dataset.endpoint === Model.User ? json.fullname : json.title;
       // edit mode
       if (el instanceof HTMLInputElement) {
         value = `${json.id} - ${json.title}`;
@@ -601,7 +630,7 @@ export async function updateEntityBody(): Promise<void> {
     const lastSavedAt = document.getElementById('lastSavedAt');
     if (lastSavedAt) {
       lastSavedAt.title = json.modified_at;
-      reloadElement('lastSavedAt').then(() => relativeMoment());
+      reloadElements(['lastSavedAt']).then(() => relativeMoment());
     }
   }).catch(() => {
     // detect if the session timedout (Session expired error is thrown)
@@ -615,7 +644,6 @@ export async function updateEntityBody(): Promise<void> {
   });
 }
 
-
 // bind used plugins to TomSelect
 TomSelect.define('checkbox_options', TomSelectCheckboxOptions);
 TomSelect.define('clear_button', TomSelectClearButton);
@@ -623,3 +651,41 @@ TomSelect.define('dropdown_input', TomSelectDropdownInput);
 TomSelect.define('no_active_items', TomSelectNoActiveItems);
 TomSelect.define('remove_button', TomSelectRemoveButton);
 export { TomSelect };
+
+// toggle appearance of button
+export function toggleGrayClasses(classList: DOMTokenList): void {
+  ['bgnd-gray', 'hl-hover-gray'].forEach(btnClass => classList.toggle(btnClass, !classList.contains(btnClass)));
+}
+
+export function getNewIdFromPostRequest(response: Response): number {
+  const location = response.headers.get('location').split('/');
+  return parseInt(location[location.length -1], 10);
+}
+
+export function sizeToMb(size: string): number {
+  const units: { [key: string]: number } = {
+    'B': 1 / (1024 ** 2),
+    'K': 1 / 1024,
+    'M': 1,
+    'G': 1024,
+    'T': 1024 ** 2,
+    'P': 1024 ** 3,
+    'E': 1024 ** 4,
+  };
+
+  const regex = /^(\d+(?:\.\d+)?)([BKMGTPE]?)$/i;
+  const match = size.match(regex);
+
+  if (!match) {
+    throw new Error('Invalid size format');
+  }
+
+  const value = parseFloat(match[1]);
+  const unit = match[2].toUpperCase();
+
+  if (!units[unit]) {
+    throw new Error('Invalid unit');
+  }
+
+  return value * units[unit];
+}

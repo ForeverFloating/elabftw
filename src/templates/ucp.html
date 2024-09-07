@@ -4,7 +4,7 @@
 {% if Entity.Users.userData.use_markdown or App.Request.query.get('editor') == 'md' or Entity.entityData.content_type == '2' %}
   {% set editor = 'md' %}
 {% endif %}
-{% if App.Request.query.get('editor') == 'tiny' %}
+{% if App.Request.query.get('editor') == 'tiny' or Entity.entityData.content_type == '1' %}
   {% set editor = 'tiny' %}
 {% endif %}
 
@@ -275,6 +275,29 @@
         </button>
       </div>
     </div>
+    <hr>
+
+    <div class='d-flex justify-content-between'>
+      <label for='always_show_owned' class='col-form-label'>{{ 'Always display your own entries, regardless of the current team'|trans }}</label>
+      <label class='switch ucp-align'>
+        <input type='checkbox' data-trigger='change' data-model='users/me' data-target='always_show_owned' {{ App.Users.userData.always_show_owned == 1 ? 'checked="checked"' }} id='always_show_owned'>
+        <span class='slider'></span>
+      </label>
+    </div>
+    <hr>
+
+    <div class='d-flex justify-content-between'>
+      <div>
+        <label for='scope_teamgroups' class='col-form-label'>{{ 'Select the scope for teamgroups'|trans }}</label>
+        <p class='smallgray'>{{ 'This setting controls which teamgroups will be listed in the permission settings window.'|trans }}</p>
+      </div>
+      <select id='scope_teamgroups' data-trigger='change' data-model='users/me' data-target='scope_teamgroups' class='form-control col-md-3'>
+        {# NOTE: it is currently not practical to use enums in twig. So we hardcode the value for now. FIXME. See: https://github.com/twigphp/Twig/issues/3681 #}
+        <option value='1' {{ App.Users.userData.scope_teamgroups == 1 ? ' selected' }}>{{ 'Self'|trans }}</option>
+        <option value='2' {{ App.Users.userData.scope_teamgroups == 2 ? ' selected' }}>{{ 'Team'|trans }}</option>
+        <option value='3' {{ App.Users.userData.scope_teamgroups == 3 ? ' selected' }}>{{ 'Everything'|trans }}</option>
+      </select>
+    </div>
   </div>
 
 </div>
@@ -304,7 +327,7 @@
 
       <div class='d-flex justify-content-between'>
         <label for='email' class='col-form-label'>{{ 'Email'|trans }}</label>
-        <input class='form-control col-md-3' name='email' id='email' type='email' value='{{ App.Users.userData.email|e('html_attr') }}' />
+        <input class='form-control col-md-3' {{ App.Config.configArr.allow_users_change_identity == '0' ? 'disabled' }} name='email' id='email' type='email' value='{{ App.Users.userData.email|e('html_attr') }}' />
       </div>
       <hr>
 
@@ -343,13 +366,13 @@
   <div class='pl-3 mt-2 mb-5' id='ucp-account-form'>
     <div class='d-flex justify-content-between'>
       <label for='firstname' class='col-form-label'>{{ 'First name'|trans }}</label>
-      <input class='form-control col-md-3' type='text' id='firstname' name='firstname' value='{{ App.Users.userData.firstname|e('html_attr') }}' />
+      <input class='form-control col-md-3' {{ App.Config.configArr.allow_users_change_identity == '0' ? 'disabled' }} type='text' id='firstname' name='firstname' value='{{ App.Users.userData.firstname|e('html_attr') }}' />
     </div>
     <hr>
 
     <div class='d-flex justify-content-between'>
       <label for='lastname' class='col-form-label'>{{ 'Last name'|trans }}</label>
-      <input class='form-control col-md-3' type='text' id='lastname' name='lastname' value='{{ App.Users.userData.lastname|e('html_attr') }}' />
+      <input class='form-control col-md-3' {{ App.Config.configArr.allow_users_change_identity == '0' ? 'disabled' }} type='text' id='lastname' name='lastname' value='{{ App.Users.userData.lastname|e('html_attr') }}' />
     </div>
     <hr>
 
@@ -391,6 +414,7 @@
     <div class='input-group'>
       <input type='password' class='form-control' autocomplete='new-password' id='sigPassphraseInput' minlength='{{ App.Config.configArr.min_password_length }}' />
       <div class='input-group-append'>
+        <button type='button' class='btn btn-light input-border' data-action='toggle-password' data-target='sigPassphraseInput' title='{{ 'Show password'|trans }}' aria-label='{{ 'Show password'|trans }}'><i class='fas fa-eye' aria-hidden='true'></i></button>
         <button type='button' data-action='create-sigkeys' class='btn btn-primary'>{{ 'Generate signature keys'|trans }}</button>
       </div>
     </div>
@@ -419,7 +443,18 @@
 <div data-tabcontent='4' hidden>
   <p><a target='_blank' rel='noopener' class='external-link' href='https://doc.elabftw.net/api.html'>{{ 'Link to documentation'|trans }}</a></p>
   <h2 class='p-2 pl-3 section-title'>{{ 'Create new key'|trans }}</h2>
-  <div id='newKeyPlaceholder'></div>{# the newly created key will be displayed here #}
+
+  {# hidden new key block #}
+  <div hidden id='newApiKeyInputGroup'>
+    {{ "This is the only time the key will be shown! Make sure to copy it somewhere safe as you won't be able to see it again:"|trans|msg('warning', false) }}
+    <div class='input-group'>
+      <div class='input-group-prepend'>
+        <button title='{{ 'Copy to clipboard'|trans }}' class='btn btn-outline-secondary' type='button' data-action='copy-to-clipboard' data-target='newApiKeyInput'><i class='fas fa-clone'></i></button>
+      </div>
+      <input type='text' class='form-control' readonly id='newApiKeyInput' value=''>
+    </div>
+  </div>
+
   <div class='pl-3 mt-2 mb-5'>
 
     <div class='d-flex justify-content-between'>

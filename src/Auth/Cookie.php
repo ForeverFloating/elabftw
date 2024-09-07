@@ -45,7 +45,7 @@ class Cookie implements AuthInterface
             $this->validityMinutes
         );
         $req = $this->Db->prepare($sql);
-        $req->bindValue(':token', $this->Token->getToken(), PDO::PARAM_STR);
+        $req->bindValue(':token', $this->Token->getToken());
         $this->Db->execute($req);
         if ($req->rowCount() !== 1) {
             throw new UnauthorizedException();

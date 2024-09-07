@@ -35,9 +35,9 @@ class UnfinishedSteps implements RestInterface
         $this->Db = Db::getConnection();
     }
 
-    public function getPage(): string
+    public function getApiPath(): string
     {
-        return 'unfinished_steps';
+        return 'api/v2/unfinished_steps';
     }
 
     public function postAction(Action $action, array $reqBody): int
@@ -147,7 +147,7 @@ class UnfinishedSteps implements RestInterface
         );
 
         // look for teams
-        $UsersHelper = new UsersHelper((int) $this->Users->userData['userid']);
+        $UsersHelper = new UsersHelper($this->Users->userData['userid']);
         $teamsOfUser = $UsersHelper->getTeamsIdFromUserid();
         foreach ($teamsOfUser as $team) {
             $sql .= sprintf(

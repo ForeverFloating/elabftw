@@ -16,7 +16,6 @@ use Elabftw\AuditEvent\SignatureKeysCreated;
 use Elabftw\Elabftw\Db;
 use Elabftw\Elabftw\MinisignKeys;
 use Elabftw\Enums\Action;
-use Elabftw\Enums\ApiEndpoint;
 use Elabftw\Enums\State;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\RestInterface;
@@ -48,8 +47,8 @@ class SigKeys implements RestInterface
         $this->destroy();
         $sql = 'INSERT INTO sig_keys (pubkey, privkey, userid) VALUES (:pubkey, :privkey, :userid)';
         $req = $this->Db->prepare($sql);
-        $req->bindValue(':pubkey', $key->serializePk(), PDO::PARAM_STR);
-        $req->bindValue(':privkey', $key->serializeSk(), PDO::PARAM_STR);
+        $req->bindValue(':pubkey', $key->serializePk());
+        $req->bindValue(':privkey', $key->serializeSk());
         $req->bindParam(':userid', $this->userid, PDO::PARAM_INT);
         $res = $req->execute();
         $keyId = $this->Db->lastInsertId();
@@ -68,9 +67,9 @@ class SigKeys implements RestInterface
         return $this->readOne();
     }
 
-    public function getPage(): string
+    public function getApiPath(): string
     {
-        return sprintf('api/v2/%s/', ApiEndpoint::SigKeys->value);
+        return sprintf('api/v2/users/%d/sig_keys/%d', $this->Users->userData['userid'], $this->id ?? '');
     }
 
     /**

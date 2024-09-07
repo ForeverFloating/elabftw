@@ -33,11 +33,11 @@ use Elabftw\Models\Users;
  */
 class Populate
 {
-    /** @var string DEFAULT_PASSWORD the password to use if none are provided */
-    private const DEFAULT_PASSWORD = 'totototototo';
+    // the password to use if none are provided
+    private const string DEFAULT_PASSWORD = 'totototototo';
 
-    /** @var int TEMPLATES_ITER number of templates to generate */
-    private const TEMPLATES_ITER = 5;
+    // number of templates to generate
+    private const int TEMPLATES_ITER = 5;
 
     private \Faker\Generator $faker;
 
@@ -61,6 +61,9 @@ class Populate
         } else {
             $Category = new ItemsTypes($Entity->Users);
             $Category->bypassWritePermission = true;
+            if (empty($Category->readAll())) {
+                $Category->create();
+            }
             $Status = new ItemsStatus($Teams);
             $tpl = (int) $Category->readAll()[0]['id'];
         }
@@ -130,7 +133,7 @@ class Populate
         );
 
         for ($i = 0; $i <= $this->iter; $i++) {
-            $id = $Entity->create($tpl);
+            $id = $Entity->create(template: $tpl);
             $Entity->setId($id);
             // variable tag number
             $Tags = new Tags($Entity);
@@ -154,6 +157,8 @@ class Populate
             }
 
             // CATEGORY
+            // blank the custom_id first or we might run into an issue when changing the category because another entry has the same custom_id
+            $Entity->patch(Action::Update, array('custom_id' => ''));
             $category = $this->faker->randomElement($categoryArr);
             $Entity->patch(Action::Update, array('category' => (string) $category['id']));
 
@@ -194,13 +199,28 @@ class Populate
         // use yopmail.com instead of safeEmail() so we don't hard bounce on example.tld domains when testing mass emails
         $email = $user['email'] ?? sprintf('elabuser-%d@yopmail.com', $this->faker->randomNumber(6));
 
-        $userid = $Teams->Users->createOne($email, array($user['team']), $firstname, $lastname, $passwordHash, null, true, false, null, $orgid);
-        $team = $Teams->getTeamsFromIdOrNameOrOrgidArray(array($user['team']));
+        $userid = $Teams->Users->createOne(
+            email: $email,
+            teams: array($user['team']),
+            firstname: $firstname,
+            lastname: $lastname,
+            passwordHash: $passwordHash,
+            usergroup: null,
+            automaticValidationEnabled: true,
+            alertAdmin: false,
+            validUntil: null,
+            orgid: $orgid
+        );
+        $team = $Teams->getTeamsFromIdOrNameOrOrgidArray(array($user['team']), true);
         $Requester = new Users(1, 1);
-        $Users = new Users($userid, (int) $team[0]['id'], $Requester);
+        $Users = new Users($userid, $team[0]['id'], $Requester);
 
         if ($user['is_sysadmin'] ?? false) {
             $Users->patch(Action::Update, array('is_sysadmin' => 1));
+        }
+
+        if (isset($user['validated']) && !$user['validated']) {
+            $Users->patch(Action::Update, array('validated' => 0));
         }
 
         if ($user['create_mfa_secret'] ?? false) {
@@ -226,9 +246,7 @@ class Populate
         if ($user['create_templates'] ?? false) {
             $Templates = new Templates($Users);
             for ($i = 0; $i <= self::TEMPLATES_ITER; $i++) {
-                $id = $Templates->create($this->faker->sentence());
-                $Templates->setId($id);
-                $Templates->patch(Action::Update, array('body' => $this->faker->realText(1000)));
+                $Templates->create(title: $this->faker->sentence(), body: $this->faker->realText(1000));
             }
         }
     }

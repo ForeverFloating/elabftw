@@ -5,7 +5,16 @@
  * @license AGPL-3.0
  * @package elabftw
  */
-import { getEntity, notif, updateCatStat, escapeRegExp, notifError, reloadElement, updateEntityBody } from './misc';
+import {
+  escapeRegExp,
+  getEntity,
+  getNewIdFromPostRequest,
+  notif,
+  notifError,
+  reloadElements,
+  updateCatStat,
+  updateEntityBody,
+} from './misc';
 import { getTinymceBaseConfig } from './tinymce';
 import { EntityType, Target, Upload, Model, Action } from './interfaces';
 import './doodle';
@@ -19,22 +28,16 @@ import { Api } from './Apiv2.class';
 import { ChemDoodle } from '@deltablot/chemdoodle-web-mini/dist/chemdoodle.min.js';
 import { Uploader } from './uploader';
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (!document.getElementById('info')) {
-    return;
-  }
-
-  // holds info about the page through data attributes
-  const about = document.getElementById('info').dataset;
-
+document.addEventListener('DOMContentLoaded', async () => {
   // only run in edit mode
-  if (about.page !== 'edit') {
+  if (document.getElementById('info')?.dataset.page !== 'edit') {
     return;
   }
+
+  const ApiC = new Api();
 
   const entity = getEntity();
   const EntityC = new EntityClass(entity.type);
-  const ApiC = new Api();
 
   // Which editor are we using? md or tiny
   const editor = getEditor();
@@ -189,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'real_name': realName,
         'content': content,
       };
-      ApiC.post(`${entity.type}/${entity.id}/${Model.Upload}`, params).then(() => reloadElement('uploadsDiv'));
+      ApiC.post(`${entity.type}/${entity.id}/${Model.Upload}`, params).then(() => reloadElements(['uploadsDiv']));
 
     // ANNOTATE IMAGE
     } else if (el.matches('[data-action="annotate-image"]')) {
@@ -246,6 +249,29 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       editor.setContent(content);
 
+    // INSERT VIDEO AT CURSOR POSITION IN TEXT
+    } else if (el.matches('[data-action="insert-video-in-body"]')) {
+      // link to the video
+      const url = `app/download.php?name=${encodeURIComponent(el.dataset.name)}&f=${encodeURIComponent(el.dataset.link)}&storage=${encodeURIComponent(el.dataset.storage)}`;
+      // no syntax for video in markdown; use plain html in both cases
+      const video = document.createElement('video');
+      const source = document.createElement('source');
+      source.src = url;
+      video.width = 640;
+      video.controls = true;
+      video.appendChild(source);
+      editor.setContent(video.outerHTML);
+
+    // INSERT AUDIO AT CURSOR POSITION IN TEXT
+    } else if (el.matches('[data-action="insert-audio-in-body"]')) {
+      // link to the video
+      const url = `app/download.php?name=${encodeURIComponent(el.dataset.name)}&f=${encodeURIComponent(el.dataset.link)}&storage=${encodeURIComponent(el.dataset.storage)}`;
+      // no syntax for audio in markdown; use plain html in both cases
+      const audio = document.createElement('audio');
+      audio.src = url;
+      audio.controls = true;
+      editor.setContent(audio.outerHTML);
+
     // ADD CONTENT OF PLAIN TEXT FILES AT CURSOR POSITION IN TEXT
     } else if (el.matches('[data-action="insert-plain-text"]')) {
       fetch(`app/download.php?storage=${el.dataset.storage}&f=${el.dataset.path}`).then(response => {
@@ -259,35 +285,21 @@ document.addEventListener('DOMContentLoaded', () => {
         // wrap in pre element to retain whitespace, html encode '<' and '>'
         editor.setContent('<pre>' + fileContent.replace(/[<>]/g, char => specialChars[char]) + '</pre>');
       });
+    // REQUEST EXCLUSIVE EDIT MODE REMOVAL
+    } else if (el.matches('[data-action="request-exclusive-edit-mode-removal"]')) {
+      ApiC.post(`${entity.type}/${entity.id}/request_actions`, {
+        action: Action.Create,
+        target_action: 60,
+        target_userid: el.dataset.targetUser,
+      }).then(() => reloadElements(['requestActionsDiv']))
+        // the request gets rejected if repeated
+        .catch(error => console.error(error.message));
     }
   });
 
   // CATEGORY SELECT
   $(document).on('change', '.catstatSelect', function() {
     updateCatStat($(this).data('target'), entity, String($(this).val()));
-  });
-
-  // TITLE STUFF
-  const titleInput = document.getElementById('title_input') as HTMLInputElement;
-  // add the title in the page name (see #324)
-  document.title = titleInput.value + ' - eLabFTW';
-
-  // If the title is 'Untitled', clear it on focus
-  titleInput.addEventListener('focus', event => {
-    const el = event.target as HTMLInputElement;
-    if (el.value === i18next.t('entity-default-title')) {
-      el.value = '';
-    }
-  });
-
-  titleInput.addEventListener('blur', () => {
-    if (titleInput.value !== titleInput.defaultValue) {
-      const content = titleInput.value;
-      titleInput.defaultValue = content;
-      EntityC.update(entity.id, Target.Title, content);
-      // update the page's title
-      document.title = content + ' - eLabFTW';
-    }
   });
 
   // no tinymce stuff when md editor is selected
@@ -326,15 +338,14 @@ document.addEventListener('DOMContentLoaded', () => {
             method: 'POST',
             body: formData,
           }).then(resp => {
-            const location = resp.headers.get('location').split('/');
-            const newId = location[location.length -1];
+            const newId = getNewIdFromPostRequest(resp);
             // fetch info about the newly created upload
-            return ApiC.getJson(`${entity.type}/${entity.id}/${Model.Upload}/${newId}`).then(json => {
-              resolve(`app/download.php?f=${json.long_name}&storage=${json.storage}`);
-              // save here because using the old real_name will not return anything from the db (status is archived now)
-              updateEntityBody();
-              reloadElement('uploadsDiv');
-            });
+            return ApiC.getJson(`${entity.type}/${entity.id}/${Model.Upload}/${newId}`);
+          }).then(json => {
+            resolve(`app/download.php?f=${json.long_name}&storage=${json.storage}`);
+            // save here because using the old real_name will not return anything from the db (status is archived now)
+            updateEntityBody();
+            reloadElements(['uploadsDiv']);
           });
         } else {
           // Revert changes if confirm is cancelled
@@ -432,7 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         body: formData,
       }).then(resp => {
-        reloadElement('uploadsDiv');
+        reloadElements(['uploadsDiv']);
         // return early if longName is not found in body
         if ((editorCurrentContent.indexOf(searchPrefixSrc + formElement.dataset.longName) === -1)
           && (editorCurrentContent.indexOf(searchPrefixMd + formElement.dataset.longName) === -1)
@@ -440,26 +451,25 @@ document.addEventListener('DOMContentLoaded', () => {
           return true;
         }
         // now replace all occurrence of the old file in the body with the long_name of the new file
-        const location = resp.headers.get('location').split('/');
-        const newId = location[location.length -1];
+        const newId = getNewIdFromPostRequest(resp);
         // fetch info about the newly created upload
-        ApiC.getJson(`${entity.type}/${entity.id}/${Model.Upload}/${newId}`).then(json => {
-          // use regExp in replace to find all occurrence
-          // images are identified by 'src="app/download.php?f=' (html) and '![image](app/download.php?f=' (md)
-          // '.', '?', '[' and '(' need to be escaped in js regex
-          const editorNewContent = editorCurrentContent.replace(
-            new RegExp(escapeRegExp(searchPrefixSrc + formElement.dataset.longName), 'g'),
-            searchPrefixSrc + json.long_name,
-          ).replace(
-            new RegExp(escapeRegExp(searchPrefixMd + formElement.dataset.longName), 'g'),
-            searchPrefixMd + json.long_name,
-          );
-          editor.replaceContent(editorNewContent);
+        return ApiC.getJson(`${entity.type}/${entity.id}/${Model.Upload}/${newId}`);
+      }).then(json => {
+        // use regExp in replace to find all occurrence
+        // images are identified by 'src="app/download.php?f=' (html) and '![image](app/download.php?f=' (md)
+        // '.', '?', '[' and '(' need to be escaped in js regex
+        const editorNewContent = editorCurrentContent.replace(
+          new RegExp(escapeRegExp(searchPrefixSrc + formElement.dataset.longName), 'g'),
+          searchPrefixSrc + json.long_name,
+        ).replace(
+          new RegExp(escapeRegExp(searchPrefixMd + formElement.dataset.longName), 'g'),
+          searchPrefixMd + json.long_name,
+        );
+        editor.replaceContent(editorNewContent);
 
-          // status of previous file is archived now
-          // save because using the old file will not return an id from the db
-          updateEntityBody();
-        });
+        // status of previous file is archived now
+        // save because using the old file will not return an id from the db
+        updateEntityBody();
       });
     }
   });

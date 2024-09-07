@@ -14,12 +14,13 @@ import {
   escapeExtendedQuery,
   generateMetadataLink,
   getEntity,
+  getNewIdFromPostRequest,
   listenTrigger,
   makeSortableGreatAgain,
   notifError,
   permissionsToJson,
   relativeMoment,
-  reloadElement,
+  reloadElements,
   replaceWithTitle,
   togglePlusIcon,
   TomSelect,
@@ -107,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // the button is an up arrow
   btn.innerHTML = '<i class="fas fa-arrow-up"></i>';
   // give it an id so we can remove it easily
-  btn.setAttribute('id', 'backToTopButton');
+  btn.id = 'backToTopButton';
   btn.setAttribute('aria-label', 'Back to top');
   btn.title = 'Back to top';
 
@@ -148,12 +149,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Listen for malleable columns
   new Malle({
+    after: (original, _, value) => {
+      // special case for title: update the page title on update
+      if (original.id === 'documentTitle') {
+        document.title = value;
+      }
+      return true;
+    },
     onEdit: (original, _, input) => {
       if (original.innerText === 'unset') {
         input.value = '';
         original.classList.remove('font-italic');
       }
       if (original.dataset.inputType === 'number') {
+        // use setAttribute here because type is readonly property
         input.setAttribute('type', 'number');
       }
       return true;
@@ -175,8 +184,8 @@ document.addEventListener('DOMContentLoaded', () => {
     tooltip: i18next.t('click-to-edit'),
   }).listen();
 
-  // tom-select for team selection on login and register page
-  ['init_team_select', 'team'].forEach(id =>{
+  // tom-select for team selection on login and register page, and idp selection
+  ['init_team_select', 'team', 'idp_login_select'].forEach(id =>{
     if (document.getElementById(id)) {
       new TomSelect(`#${id}`, {
         plugins: [
@@ -210,10 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
    */
   document.querySelectorAll('input[data-filter-target]').forEach((input: HTMLInputElement) => {
     const target = document.getElementById(input.dataset.filterTarget);
-    let targetType = 'tr';
-    if (input.dataset.targetType === 'li') {
-      targetType = 'li';
-    }
+    const targetType = input.dataset.targetType;
     // FIRST LISTENER is to filter the rows
     input.addEventListener('keyup', () => {
       target.querySelectorAll(`#${input.dataset.filterTarget} ${targetType}`).forEach((row: HTMLTableRowElement|HTMLUListElement) => {
@@ -221,7 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (row.innerText.toLowerCase().includes(input.value)) {
           row.removeAttribute('hidden');
         } else {
-          row.setAttribute('hidden', '');
+          row.hidden = true;
         }
       });
     });
@@ -293,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
         $('#policiesModal').modal('toggle');
       });
     } else if (el.matches('[data-reload-on-click]')) {
-      reloadElement(el.dataset.reloadOnClick).then(() => relativeMoment());
+      reloadElements([el.dataset.reloadOnClick]).then(() => relativeMoment());
 
     } else if (el.matches('[data-action="add-query-filter"]')) {
       const params = new URLSearchParams(document.location.search.substring(1));
@@ -327,6 +333,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // this option is necessary or the autocomplete box will get lost under the permissions modal
         appendTo: el.dataset.identifier ? `#autocompleteAnchorDiv_${el.dataset.identifier}` : '',
         source: function(request: Record<string, string>, response: (data: Array<string>) => void): void {
+          if (request.term.length < 3) {
+            return;
+          }
           if (['experiments', 'items'].includes(el.dataset.completeTarget)) {
             request.term = escapeExtendedQuery(request.term);
           }
@@ -420,10 +429,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // create a new key and delete the old one
         params[paramKey] = params[el.dataset.rw];
         delete params[el.dataset.rw];
-        ApiC.patch(`${Model.User}/me`, params).then(() => reloadElement(el.dataset.identifier + 'Div'));
+        ApiC.patch(`${Model.User}/me`, params).then(() => reloadElements([el.dataset.identifier + 'Div']));
       } else {
         const entity = getEntity();
-        ApiC.patch(`${entity.type}/${entity.id}`, params).then(() => reloadElement(el.dataset.identifier + 'Div'));
+        ApiC.patch(`${entity.type}/${entity.id}`, params).then(() => reloadElements([el.dataset.identifier + 'Div']));
       }
 
     } else if (el.matches('[data-action="select-lang"]')) {
@@ -490,12 +499,12 @@ document.addEventListener('DOMContentLoaded', () => {
       icon.classList.toggle('fa-eye-slash');
 
       // toggle input type
-      const input = document.getElementById(el.dataset.target);
+      const input = document.getElementById(el.dataset.target) as HTMLInputElement;
       let attribute = 'password';
       if (input.getAttribute('type') === 'password') {
         attribute = 'text';
       }
-      input.setAttribute('type', attribute);
+      input.type = attribute;
 
     // LOGOUT
     } else if (el.matches('[data-action="logout"]')) {
@@ -509,7 +518,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (el.dataset.href) {
             window.location.href = el.dataset.href;
           } else {
-            reloadElement('navbarNotifDiv');
+            reloadElements(['navbarNotifDiv']);
           }
         });
       } else {
@@ -520,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // DESTROY (clear all) NOTIF
     } else if (el.matches('[data-action="destroy-notif"]')) {
-      ApiC.delete(`${Model.User}/me/${Model.Notification}`).then(() => reloadElement('navbarNotifDiv'));
+      ApiC.delete(`${Model.User}/me/${Model.Notification}`).then(() => reloadElements(['navbarNotifDiv']));
 
     } else if (el.matches('[data-action="export-user"]')) {
       let source: string;
@@ -548,8 +557,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(document.location.search);
       const entityC = new EntityClass(el.dataset.type as EntityType);
       entityC.create(el.dataset.tplid, urlParams.getAll('tags[]')).then(resp => {
-        const location = resp.headers.get('location').split('/');
-        window.location.href = `${entityC.getPage()}.php?mode=edit&id=${location[location.length -1]}`;
+        const newId = getNewIdFromPostRequest(resp);
+        window.location.href = `${entityC.getPage()}.php?mode=edit&id=${newId}`;
       });
 
     } else if (el.matches('[data-action="report-bug"]')) {

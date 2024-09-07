@@ -12,13 +12,10 @@ declare(strict_types=1);
 
 namespace Elabftw\Make;
 
-use Elabftw\Elabftw\DisplayParams;
-use Elabftw\Elabftw\Tools;
 use Elabftw\Interfaces\MpdfProviderInterface;
-use Elabftw\Models\AbstractEntity;
 use Elabftw\Models\Config;
+use Elabftw\Models\Users;
 use Elabftw\Traits\TwigTrait;
-use Symfony\Component\HttpFoundation\Request;
 
 /**
  * Make a PDF from several experiments or db items showing only minimal info with QR codes
@@ -27,11 +24,10 @@ class MakeQrPdf extends AbstractMakePdf
 {
     use TwigTrait;
 
-    public function __construct(MpdfProviderInterface $mpdfProvider, AbstractEntity $entity, private array $idArr)
+    public function __construct(MpdfProviderInterface $mpdfProvider, protected Users $requester, private array $entityArr)
     {
         parent::__construct(
             mpdfProvider: $mpdfProvider,
-            entity: $entity,
             includeChangelog: false
         );
     }
@@ -46,10 +42,15 @@ class MakeQrPdf extends AbstractMakePdf
 
     public function getFileContent(): string
     {
+        // add view URL to entities
+        $siteUrl = Config::fromEnv('SITE_URL');
+        foreach ($this->entityArr as &$entity) {
+            $entity->entityData['url'] = sprintf('%s/%s?mode=view&id=%d', $siteUrl, $entity->entityType->toPage(), $entity->id);
+        }
         $renderArr = array(
             'css' => $this->getCss(),
-            'entityArr' => $this->readAll(),
-            'useCjk' => $this->Entity->Users->userData['cjk_fonts'],
+            'entityArr' => $this->entityArr,
+            'useCjk' => $this->requester->userData['cjk_fonts'],
         );
         $Config = Config::getConfig();
         $html = $this->getTwig((bool) $Config->configArr['debug'])->render('qr-pdf.html', $renderArr);
@@ -57,20 +58,5 @@ class MakeQrPdf extends AbstractMakePdf
         $output = $this->mpdf->OutputBinaryData();
         $this->contentSize = strlen($output);
         return $output;
-    }
-
-    /**
-     * Get all the entity data from the id array
-     */
-    private function readAll(): array
-    {
-        $DisplayParams = new DisplayParams($this->Entity->Users, Request::createFromGlobals(), $this->Entity->entityType);
-        $DisplayParams->limit = 9001;
-        $this->Entity->idFilter = Tools::getIdFilterSql($this->idArr);
-        $entityArr = $this->Entity->readShow($DisplayParams, true);
-        foreach ($entityArr as &$entity) {
-            $entity['url'] = $this->getUrl((int) $entity['id']);
-        }
-        return $entityArr;
     }
 }

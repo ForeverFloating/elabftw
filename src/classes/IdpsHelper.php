@@ -76,7 +76,7 @@ class IdpsHelper
             'baseurl' => $this->Config->configArr['saml_baseurl'],
 
             // Save IdP id
-            'idp_id' => (int) $idp['id'],
+            'idp_id' => $idp['id'],
 
             // Service Provider Data that we are deploying
             'sp' => array(
@@ -100,25 +100,31 @@ class IdpsHelper
                     'serviceDescription' => 'Electronic Lab Notebook',
                     'requestedAttributes' => array(
                         array(
-                            'name' => 'urn:oid:0.9.2342.19200300.100.1.3',
+                            'name' => $idp['email_attr'] ?? 'urn:oid:0.9.2342.19200300.100.1.3',
                             'isRequired' => true,
                             'nameFormat' => 'urn:oasis:names:tc:SAML:2.0:attrname-format:uri',
                             'friendlyName' => 'mail',
                         ),
                         array(
-                            'name' => 'urn:oid:2.5.4.42',
+                            'name' => $idp['fname_attr'] ?? 'urn:oid:2.5.4.42',
                             'isRequired' => false,
                             'nameFormat' => 'urn:oasis:names:tc:SAML:2.0:attrname-format:uri',
                             'friendlyName' => 'givenName',
                         ),
                         array(
-                            'name' => 'urn:oid:2.5.4.4',
+                            'name' => $idp['lname_attr'] ?? 'urn:oid:2.5.4.4',
                             'isRequired' => false,
                             'nameFormat' => 'urn:oasis:names:tc:SAML:2.0:attrname-format:uri',
                             'friendlyName' => 'sn',
                         ),
                         array(
-                            'name' => 'urn:oid:0.9.2342.19200300.100.1.1',
+                            'name' => $idp['team_attr'] ?? 'urn:oid:1.3.6.1.4.1.5923.1.1.1.7',
+                            'isRequired' => false,
+                            'nameFormat' => 'urn:oasis:names:tc:SAML:2.0:attrname-format:uri',
+                            'friendlyName' => 'team',
+                        ),
+                        array(
+                            'name' => $idp['orgid_attr'] ?? 'urn:oid:0.9.2342.19200300.100.1.1',
                             'isRequired' => false,
                             'nameFormat' => 'urn:oasis:names:tc:SAML:2.0:attrname-format:uri',
                             'friendlyName' => 'uid',
