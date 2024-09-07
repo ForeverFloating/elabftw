@@ -59,8 +59,6 @@ try {
 
     $ProcurementRequests = new ProcurementRequests($Teams);
 
-    $ProcurementRequests = new ProcurementRequests($Teams);
-
     $template = 'team.html';
     $renderArr = array(
         'bookableItemData' => $bookableItemData,

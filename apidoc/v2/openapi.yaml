@@ -564,7 +564,6 @@ components:
         format:
           type: string
           example: "pdf"
->>>>>>> 56c1658f67da50f8ff7734f4a865f7bac9c5f71e
     idp:
       type: object
       properties:

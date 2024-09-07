@@ -163,16 +163,6 @@ a:hover,
   vertical-align: text-top;
 }
 
-/* add arrow going out of square icon after external links */
-.external-link::after {
-    content: '\f08e'; // arrow-up-right-from-square
-    font-family: 'Font Awesome 6 Free';
-    font-size: 0.6em;
-    font-weight: 700;
-    padding-left: 3px;
-    vertical-align: text-top;
-}
-
 .underlined {
   text-decoration: underline !important;
 }
@@ -719,15 +709,6 @@ tr:nth-child(odd) {
   }
 }
 
-.btn-ghost {
-    border : 1px solid $firstlevel;
-
-    &:hover {
-        background-color: $firstlevel;
-        border-color: $secondlevel;
-    }
-}
-
 /* SIDE PANEL */
 .sidepanel-btn {
   border-radius: 0 5px 5px 0;
@@ -902,10 +883,6 @@ the form-control fails to do that so we do the border ourselves */
   background-color: $superlight;
 }
 
-.hl-hover-superlight:hover {
-    background-color: $superlight;
-}
-
 .hl-hover-gray:focus-visible {
   background-color: $firstlevel;
   outline: none;
@@ -960,10 +937,6 @@ the form-control fails to do that so we do the border ourselves */
 
 .color-blue {
   color: $elabblue !important;
-}
-
-.color-blue {
-    color: $elabblue !important;
 }
 
 .color-success {

@@ -270,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
       ApiC.patch(`${Model.IdpsSources}/${el.dataset.id}`, {action: Action.Finish}).then(() => reloadElements(['idpsSourcesDiv', 'idpsDiv']));
     } else if (el.matches('[data-action="delete-idps-source"]')) {
       ApiC.delete(`${Model.IdpsSources}/${el.dataset.id}`).then(() => reloadElements(['idpsSourcesDiv', 'idpsDiv']));
->>>>>>> 56c1658f67da50f8ff7734f4a865f7bac9c5f71e
     }
   });
 

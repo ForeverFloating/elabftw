@@ -217,10 +217,6 @@ abstract class AbstractEntity implements RestInterface
             $RequestActions->remove(RequestableAction::Lock);
         }
 
-        // clear any request action
-        $RequestActions = new RequestActions($this->Users, $this);
-        $RequestActions->remove(RequestableAction::Lock);
-
         return $this->readOne();
     }
 

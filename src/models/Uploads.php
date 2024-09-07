@@ -13,7 +13,6 @@ declare(strict_types=1);
 namespace Elabftw\Models;
 
 use Elabftw\Controllers\DownloadController;
-use Elabftw\Elabftw\CreateImmutableArchivedUpload;
 use Elabftw\Elabftw\CreateUpload;
 use Elabftw\Elabftw\CreateUploadFromS3;
 use Elabftw\Elabftw\Db;

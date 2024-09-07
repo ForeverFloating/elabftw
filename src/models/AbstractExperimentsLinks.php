@@ -24,11 +24,6 @@ abstract class AbstractExperimentsLinks extends AbstractLinks
         return EntityType::Experiments;
     }
 
-    protected function getTargetPage(): string
-    {
-        return 'experiments';
-    }
-
     protected function getCatTable(): string
     {
         return 'experiments_categories';

@@ -328,16 +328,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ApiC.delete(`teams/current/procurement_requests/${el.dataset.id}`).then(() => el.parentElement.parentElement.remove());
       }
 
-    // RECEIVE PROCUREMENT REQUEST
-    } else if (el.matches('[data-action="receive-procurement-request"]')) {
-      ApiC.patch(`teams/current/procurement_requests/${el.dataset.id}`);
-
-    // CANCEL PROCUREMENT REQUEST
-    } else if (el.matches('[data-action="cancel-procurement-request"]')) {
-      if (confirm(i18next.t('generic-delete-warning'))) {
-        ApiC.delete(`teams/current/procurement_requests/${el.dataset.id}`).then(() => el.parentElement.parentElement.remove());
-      }
-
     // CANCEL EVENT ACTION
     } else if (el.matches('[data-action="cancel-event"]')) {
       ApiC.delete(`event/${el.dataset.id}`).then(() => calendar.refetchEvents()).catch();

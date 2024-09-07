@@ -190,8 +190,6 @@ abstract class AbstractLinks implements RestInterface
 
     abstract protected function getTargetType(): EntityType;
 
-    abstract protected function getTargetPage(): string;
-
     abstract protected function getCatTable(): string;
 
     abstract protected function getStatusTable(): string;

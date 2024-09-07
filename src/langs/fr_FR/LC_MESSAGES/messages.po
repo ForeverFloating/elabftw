@@ -4605,17 +4605,17 @@ msgstr "Utiliser TLS"
 msgid "Username"
 msgstr "Nom d'utilisateur"
 
-#: src/templates/sysconfig.html:908
+#: src/templates/sysconfig.html:902
 msgid "eLabFTW LDAP configuration"
 msgstr "Configuration LDAP eLabFTW"
 
-#: src/templates/sysconfig.html:912
+#: src/templates/sysconfig.html:906
 msgid "By which LDAP attribute the user will be found (default is 'mail')."
 msgstr ""
 "Par quel attribut LDAP l’utilisateur sera trouvé (la valeur par défaut est "
 "'mail')."
 
-#: src/templates/sysconfig.html:915
+#: src/templates/sysconfig.html:909
 msgid ""
 "You can search for several attributes by separating them with a comma (e.g. "
 "uid,mail)."
@@ -4623,31 +4623,31 @@ msgstr ""
 "Vous pouvez rechercher plusieurs attributs en les séparant par une virgule "
 "(par exemple : uid, mail)."
 
-#: src/templates/sysconfig.html:919
+#: src/templates/sysconfig.html:913
 msgid "What attribute to look for the team name"
 msgstr "Quel attribut rechercher pour le nom de l’équipe"
 
-#: src/templates/sysconfig.html:924 src/templates/sysconfig.html:1030
+#: src/templates/sysconfig.html:918 src/templates/sysconfig.html:1024
 msgid "Create team sent by server if it doesn't exist already"
 msgstr "Créer une équipe envoyée par le serveur si elle n’existe pas déjà"
 
-#: src/templates/sysconfig.html:948
+#: src/templates/sysconfig.html:942
 msgid "What attribute to look for the email"
 msgstr "Quel attribut rechercher pour l’e-mail"
 
-#: src/templates/sysconfig.html:954
+#: src/templates/sysconfig.html:948
 msgid "What attribute to look for the firstname"
 msgstr "Quel attribut rechercher pour le prénom"
 
-#: src/templates/sysconfig.html:960
+#: src/templates/sysconfig.html:954
 msgid "What attribute to look for the lastname"
 msgstr "Quel attribut rechercher pour le nom de famille"
 
-#: src/templates/sysconfig.html:969
+#: src/templates/sysconfig.html:963
 msgid "External authentication mapping"
 msgstr "Configuration de l'authentification externe"
 
-#: src/templates/sysconfig.html:971
+#: src/templates/sysconfig.html:965
 msgid ""
 "If authentication is handled by an upstream server, configure here the "
 "request headers mappings and behaviors."
@@ -4655,11 +4655,11 @@ msgstr ""
 "Si l'authentification est gérée par un serveur en amont, configurez ici les "
 "correspondances des en-têtes et comportements."
 
-#: src/templates/sysconfig.html:974
+#: src/templates/sysconfig.html:968
 msgid "Remote user"
 msgstr "Utilisateur distant"
 
-#: src/templates/sysconfig.html:977
+#: src/templates/sysconfig.html:971
 msgid ""
 "Use this to detect if the user is logged in from upstream server (value is "
 "not used, only presence)."
@@ -4667,7 +4667,7 @@ msgstr ""
 "Utilisez cette valeur pour décecter si l'utilisateur est authentifié par le "
 "serveur en amont (la valeur n'est pas utilisée, seulement sa présence)."
 
-#: src/templates/sysconfig.html:1005
+#: src/templates/sysconfig.html:999
 msgid "Logout URL"
 msgstr "Déconnexion URL"
 

@@ -52,18 +52,6 @@ try {
 } catch (InvalidArgumentException $e) {
     $logger->critical("It seems your SMTP configuration is wrong. Try setting the 'smtp_address' value to a valid hostname: update config set conf_value = 'example.com' where conf_name = 'smtp_address';\nError message:\n" . $e->getMessage() . "\n");
     exit;
-} catch (RfcComplianceException $e) {
-    echo "ERROR:\n";
-    echo "It seems the configured sending email address is wrong. Try setting the 'mail_from' value to a valid email address: update config set conf_value = 'example@example.com' where conf_name = 'mail_from';\n";
-    echo "Error message:\n";
-    echo $e->getMessage() . "\n";
-    exit;
-} catch (InvalidArgumentException $e) {
-    echo "ERROR:\n";
-    echo "It seems your SMTP configuration is wrong. Try setting the 'smtp_address' value to a valid hostname: update config set conf_value = 'example.com' where conf_name = 'smtp_address';\n";
-    echo "Error message:\n";
-    echo $e->getMessage() . "\n";
-    exit;
 }
 
 $cacheFs = new Cache();

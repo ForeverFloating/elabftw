@@ -388,19 +388,6 @@ class Eln extends AbstractZip
         }
     }
 
-    private function authorToHtml(array $node): string
-    {
-        $html = sprintf('<h1>%s</h1><ul>', _('Author'));
-        $fullNode = $this->getNodeFromId($node['@id']);
-        $html .= sprintf(
-            '<li>%s %s %s</li>',
-            $this->transformIfNecessary($fullNode['givenName'] ?? ''),
-            $this->transformIfNecessary($fullNode['familyName'] ?? ''),
-            $this->transformIfNecessary($fullNode['identifier'] ?? ''),
-        );
-        return $html . '</ul>';
-    }
-
     private function attrToHtml(array $attr, string $title): string
     {
         $html = sprintf('<h1>%s</h1><ul>', $title);

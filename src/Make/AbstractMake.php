@@ -14,8 +14,6 @@ namespace Elabftw\Make;
 
 use Elabftw\Elabftw\Db;
 
-use function dirname;
-
 /**
  * Mother class of the Make* services
  */

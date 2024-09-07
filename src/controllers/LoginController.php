@@ -184,13 +184,6 @@ class LoginController implements ControllerInterface
             return new RedirectResponse('/login.php');
         }
 
-        // user exists but no team was found so user must select one
-        if ($AuthResponse->teamRequestSelectionRequired) {
-            $this->App->Session->set('team_request_selection_required', true);
-            $this->App->Session->set('teaminit_userid', $AuthResponse->initTeamUserInfo['userid']);
-            return new RedirectResponse('/login.php');
-        }
-
         // send a helpful message if account requires validation, needs to be after team selection
         if ($AuthResponse->isValidated === false) {
             throw new ImproperActionException(_('Your account is not validated. An admin of your team needs to validate it!'));

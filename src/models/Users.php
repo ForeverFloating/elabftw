@@ -700,19 +700,4 @@ class Users implements RestInterface
             }
         }
     }
-
-    private function sendOnboardingEmailsAfterValidation(): void
-    {
-        // do we send an eamil for the instance
-        if (Config::getConfig()->configArr['onboarding_email_active'] === '1') {
-            (new OnboardingEmail(-1, $this->isAdmin))->create($this->userData['userid']);
-        }
-
-        // Check setting for each team individually
-        foreach (array_column($this->userData['teams'], 'id') as $teamId) {
-            if ((new Teams($this))->readOne()['onboarding_email_active'] === 1) {
-                (new OnboardingEmail($teamId))->create($this->userData['userid']);
-            }
-        }
-    }
 }

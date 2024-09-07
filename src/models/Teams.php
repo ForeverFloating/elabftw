@@ -334,13 +334,4 @@ class Teams implements RestInterface
             (new OnboardingEmail($this->id))->create($userid);
         }
     }
-
-    private function sendOnboardingEmails(array $userids): void
-    {
-        // validate that userid is part of team and active
-        foreach(array_intersect(array_column($this->Users->readAllActiveFromTeam(), 'userid'), $userids) as $userid) {
-            /** @psalm-suppress PossiblyNullArgument */
-            (new OnboardingEmail($this->id))->create($userid);
-        }
-    }
 }
