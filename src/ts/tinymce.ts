@@ -206,7 +206,7 @@ export function getTinymceBaseConfig(page: string): object {
             .then(() => reloadElements(['linksExpDiv']));
         }
         const category = selected.category_title ? `${selected.category_title} - `: '';
-        return `<span><a href='${selected.page}?mode=view&id=${selected.id}'>${category}${selected.title}</a></span>`;
+        return `<span><a href='${selected.page}?mode=view&id=${selected.id}'>${selected.title}</a></span>`;
       },
     },
     mobile: {
