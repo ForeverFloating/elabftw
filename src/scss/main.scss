@@ -437,12 +437,17 @@ button:disabled {
 }
 
 /* color one row every other row */
-tr:nth-child(even) {
-  background-color: $white;
-}
+/* tr:nth-child(even) { */
+/*  background-color: $white; */
+/* } */
 
-tr:nth-child(odd) {
-  background-color: $mainbackground;
+/* tr:nth-child(odd) { */
+/*  background-color: $mainbackground; */
+/* } */
+
+/* custom row colors */
+tr {
+  background-color: $white;
 }
 
 /* responsive tables, with a threshold width pretty high */
