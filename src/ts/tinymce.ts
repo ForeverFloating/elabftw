@@ -30,7 +30,6 @@ import 'tinymce/plugins/link';
 import 'tinymce/plugins/lists';
 import 'tinymce/plugins/media';
 import 'tinymce/plugins/pagebreak';
-// adding preview plugin
 import 'tinymce/plugins/preview';
 import 'tinymce/plugins/save';
 import 'tinymce/plugins/searchreplace';
@@ -63,7 +62,6 @@ import { EntityType } from './interfaces';
 import { getEntity, reloadElements, escapeExtendedQuery, updateEntityBody } from './misc';
 import { Api } from './Apiv2.class';
 import { isSortable } from './TableSorting.class';
-// MathJax
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
 declare const MathJax: MathJaxObject;
 
@@ -110,7 +108,7 @@ function doneTyping(): void {
 // options for tinymce to pass to tinymce.init()
 export function getTinymceBaseConfig(page: string): object {
   let plugins = 'accordion advlist anchor autolink autoresize table searchreplace code fullscreen insertdatetime charmap lists save image media link pagebreak codesample template mention visualblocks visualchars emoticons preview';
-  let toolbar1 = 'custom-save preview | undo redo | styles fontsize bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap emoticons adddate | codesample | link | sort-table';
+  let toolbar1 = 'custom-save preview | undo redo | styles fontsize bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | small superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap emoticons adddate | codesample | link | sort-table';
   let removedMenuItems = 'newdocument, image, anchor';
   if (page === 'edit') {
     plugins += ' autosave';
@@ -139,8 +137,13 @@ export function getTinymceBaseConfig(page: string): object {
     toolbar1: toolbar1,
     // this addresses CVE-2024-29881, it defaults to true in 7.0, so can be removed in tiny 7.0 TODO
     convert_unsafe_embeds: true,
+    formats: {
+      small: { inline: 'small' }
+    },
     // disable automatic h1 when using #
-    text_patterns: false,
+    text_patterns: [
+      { start: '<small>', end: '</small>', format: 'small' }
+    ],
     removed_menuitems: removedMenuItems,
     image_caption: true,
     images_reuse_filename: false, // if set to true the src url gets a date appended
@@ -227,6 +230,8 @@ export function getTinymceBaseConfig(page: string): object {
 
       // floppy disk icon from COLLECTION: Zest Interface Icons LICENSE: MIT License AUTHOR: zest
       editor.ui.registry.addIcon('customSave', '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 5a1 1 0 0 1 1-1h2v3a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4h.172a1 1 0 0 1 .707.293l2.828 2.828a1 1 0 0 1 .293.707V19a1 1 0 0 1-1 1h-1v-7a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v7H5a1 1 0 0 1-1-1V5Zm4 15h8v-6H8v6Zm6-16H9v2h5V4ZM5 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7.828a3 3 0 0 0-.879-2.12l-2.828-2.83A3 3 0 0 0 16.172 2H5Z" /></svg>'),
+      // small text icon from COLLECTION: Unicode Line Icons LICENSE: Apache License AUTHOR: Iconscout
+      editor.ui.registry.addIcon('smallIcon', '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" strokeWidth="0.6" viewBox="0 0 24 24" transform="scale(-1 1)"><path d="M9 11H3a1 1 0 000 2h2v5a1 1 0 002 0v-5h2a1 1 0 000-2zm12-6H9a1 1 0 000 2h5v11a1 1 0 002 0V7h5a1 1 0 000-2z"></path></svg>'),
 
       // add date+time button
       editor.ui.registry.addButton('adddate', {
@@ -241,6 +246,13 @@ export function getTinymceBaseConfig(page: string): object {
         tooltip: 'Save',
         onAction: function() {
           editor.execCommand('mceSave');
+        },
+      });
+      editor.ui.registry.addButton('small', {
+        icon: 'smallIcon',
+        tooltip: 'Small',
+        onAction: function() {
+          editor.formatter.toggle('small');
         },
       });
       // some shortcuts
@@ -343,8 +355,8 @@ export function getTinymceBaseConfig(page: string): object {
     table_column_resizing: 'resizetable',
     init_instance_callback: (editor) => {
       editor.on('ExecCommand', (e) => {
-        if (e.command == "mcePreview") {
-          const iframe = (document.querySelector("iframe.tox-dialog__iframe") as HTMLIFrameElement);
+        if (e.command == 'mcePreview') {
+          const iframe = (document.querySelector('iframe.tox-dialog__iframe') as HTMLIFrameElement);
           if (iframe) {
             const htmlString = iframe.srcdoc;
             const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
@@ -357,5 +369,20 @@ export function getTinymceBaseConfig(page: string): object {
       });
     },
     content_style: 'mjx-assistive-mml { position: absolute !important; top: 0px; left: 0px; clip: rect(1px, 1px, 1px, 1px); padding: 1px 0px 0px 0px !important; border: 0px !important; display: block !important; width: auto !important; overflow: hidden !important; user-select: none; } g[data-mml-node="merror"] > rect[data-background] { fill: yellow; stroke: none; } g[data-mml-node="merror"] > g { fill: red; stroke: red; }',
+    invalid_styles: {
+      'col': 'width height',
+      'table': 'width height',
+      'td': 'width height',
+      'th': 'width height',
+      'tr': 'width height',
+    },
+    images_file_types: 'apng,avif,gif,jpg,jpeg,jfif,pjpeg,pjp,png,svg,webp',
+    schema: 'html5-strict',
+    object_resizing: 'img',
+    table_resize_bars: false,
+    table_toolbar: 'tableprops tablecaption tabledelete | tablerowprops tablerowheader tableinsertrowbefore tableinsertrowafter tabledeleterow | tablecolheader tableinsertcolbefore tableinsertcolafter tabledeletecol',
+    details_serialized_state: 'collapsed',
+    advlist_bullet_styles: 'default,circle,disc,square',
+    a11y_advanced_options: true,
   };
 }
