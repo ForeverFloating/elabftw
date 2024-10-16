@@ -58,6 +58,7 @@ import '../js/tinymce-langs/sk_SK.js';
 import '../js/tinymce-langs/sl_SI.js';
 import '../js/tinymce-langs/zh_CN.js';
 import '../js/tinymce-plugins/mention/plugin.js';
+import '../js/tinymce-plugins/a11ychecker/plugin.min.js';
 import { EntityType } from './interfaces';
 import { getEntity, reloadElements, escapeExtendedQuery, updateEntityBody } from './misc';
 import { Api } from './Apiv2.class';
@@ -107,8 +108,8 @@ function doneTyping(): void {
 
 // options for tinymce to pass to tinymce.init()
 export function getTinymceBaseConfig(page: string): object {
-  let plugins = 'accordion advlist anchor autolink autoresize table searchreplace code fullscreen insertdatetime charmap lists save image media link pagebreak codesample template mention visualblocks visualchars emoticons preview';
-  let toolbar1 = 'custom-save preview | undo redo | styles fontsize bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | small superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap emoticons adddate | codesample | link | sort-table';
+  let plugins = 'a11ychecker accordion advlist anchor autolink autoresize table searchreplace code fullscreen insertdatetime charmap lists save image media link pagebreak codesample template mention visualblocks visualchars emoticons preview';
+  let toolbar1 = 'a11ycheck custom-save preview | undo redo | styles fontsize bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | small superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap emoticons adddate | codesample | link | sort-table';
   let removedMenuItems = 'newdocument, image, anchor';
   if (page === 'edit') {
     plugins += ' autosave';
@@ -124,7 +125,11 @@ export function getTinymceBaseConfig(page: string): object {
     browser_spellcheck: true,
     // location of the skin directory
     skin_url: '/assets/tinymce_skins',
-    content_css: '/assets/tinymce_content.min.css',
+    content_css: [
+      '/assets/tinymce_content.min.css',
+      '/assets/elabftw.min.css'
+    ],
+    body_class: 'margin=1rem',
     emoticons_database_url: 'assets/tinymce_emojis.js',
     // remove the "Upgrade" button
     promotion: false,
@@ -226,7 +231,11 @@ export function getTinymceBaseConfig(page: string): object {
       // holds the timer setTimeout function
       let typingTimer;
       // make the edges round
-      editor.on('init', () => editor.getContainer().className += ' rounded');
+      editor.on('init', () => {
+        let doc = editor.getDoc();
+        editor.getContainer().className += ' rounded';
+        doc.documentElement.setAttribute('lang', 'en');
+      });
 
       // floppy disk icon from COLLECTION: Zest Interface Icons LICENSE: MIT License AUTHOR: zest
       editor.ui.registry.addIcon('customSave', '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 5a1 1 0 0 1 1-1h2v3a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4h.172a1 1 0 0 1 .707.293l2.828 2.828a1 1 0 0 1 .293.707V19a1 1 0 0 1-1 1h-1v-7a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v7H5a1 1 0 0 1-1-1V5Zm4 15h8v-6H8v6Zm6-16H9v2h5V4ZM5 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7.828a3 3 0 0 0-.879-2.12l-2.828-2.83A3 3 0 0 0 16.172 2H5Z" /></svg>'),
@@ -359,16 +368,20 @@ export function getTinymceBaseConfig(page: string): object {
           const iframe = (document.querySelector('iframe.tox-dialog__iframe') as HTMLIFrameElement);
           if (iframe) {
             const htmlString = iframe.srcdoc;
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-            iframeDoc.open();
-            iframeDoc.write(htmlString);
-            iframeDoc.close();
-            MathJax.typeset([iframeDoc.body]);
+            iframe.srcdoc = '';
+            iframe.srcdoc = htmlString;
+            iframe.onload = () => {
+              if (iframe.contentDocument && iframe.contentDocument.body) {
+                MathJax.typesetPromise([iframe.contentDocument.body]);
+              }
+            };
           }
         }
       });
     },
-    content_style: 'mjx-assistive-mml { position: absolute !important; top: 0px; left: 0px; clip: rect(1px, 1px, 1px, 1px); padding: 1px 0px 0px 0px !important; border: 0px !important; display: block !important; width: auto !important; overflow: hidden !important; user-select: none; } g[data-mml-node="merror"] > rect[data-background] { fill: yellow; stroke: none; } g[data-mml-node="merror"] > g { fill: red; stroke: red; }',
+    content_style: 'mjx-assistive-mml { position: absolute !important; top: 0px; left: 0px; clip: rect(1px, 1px, 1px, 1px); padding: 1px 0px 0px 0px !important; border: 0px !important; display: block !important; width: auto !important; overflow: hidden !important; user-select: none; }' +
+    'g[data-mml-node="merror"] > rect[data-background] { fill: yellow; stroke: none; }' +
+    'g[data-mml-node="merror"] > g { fill: red; stroke: red; }',
     invalid_styles: {
       'col': 'width height',
       'table': 'width height',
@@ -384,5 +397,7 @@ export function getTinymceBaseConfig(page: string): object {
     details_serialized_state: 'collapsed',
     advlist_bullet_styles: 'default,circle,disc,square',
     a11y_advanced_options: true,
+    a11ychecker_level: 'aaa',
+    toolbar_mode: 'floating',
   };
 }

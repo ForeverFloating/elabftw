@@ -425,10 +425,6 @@ button:disabled {
   th {
     border-top: 0;
     white-space: nowrap;
-
-    &:not(:last-child) {
-      border-right: $firstlevel 1px solid;
-    }
   }
 
   .no-wrap {
@@ -1555,24 +1551,59 @@ input:checked + .slider::before {
   }
 }
 
-/* Custom scss */
-#body_view {
-    table {
-    	border: solid;
-        margin: 0.75rem auto;
+/* custom scss */
+#body_view, #tinymce {
+    table,
+    tbody,
+    thead {
+        border: solid;
     }
 
-    br {
+    td,
+    th[scope='row'] {
+        border-top: thin solid;
+        border-bottom: thin solid;
+    }
+
+    th[scope='col'] {
+        border-bottom: solid;
+    }
+
+    table:has(thead > tr:only-of-type) > tbody > tr > td:not(:last-of-type),
+    tr:first-of-type > th[scope='col']:not(:last-of-type),
+    th[scope='row'] {
+        border-right: solid;
+    }
+
+    table:has(thead > tr:not(:only-of-type)) > tbody > tr > td:not(:last-of-type),
+    thead > tr:not(:first-of-type) > th[scope='col']:not(:first-of-type) {
+        border-right: thin solid;
+    }
+
+    br:not(li > br) {
         margin-bottom: 0.75rem;
+    }
+
+    table {
+        margin: 0.75rem;
     }
 
     li {
         margin: 0.75rem auto;
     }
 
+    caption,
     li,
     p {
         color: $strongest;
+    }
+
+    a {
+        color: $darkblue;
+    }
+
+    caption {
+        border: 0;
     }
 }
 
@@ -1591,4 +1622,8 @@ input:checked + .slider::before {
 
 .text-dark {
     color: $strongest;
+}
+
+body#tinymce {
+    margin: 1rem;
 }
