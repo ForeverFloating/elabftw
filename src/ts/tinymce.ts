@@ -58,7 +58,6 @@ import '../js/tinymce-langs/sk_SK.js';
 import '../js/tinymce-langs/sl_SI.js';
 import '../js/tinymce-langs/zh_CN.js';
 import '../js/tinymce-plugins/mention/plugin.js';
-import '../js/tinymce-plugins/a11ychecker/plugin.min.js';
 import { EntityType } from './interfaces';
 import { getEntity, reloadElements, escapeExtendedQuery, updateEntityBody } from './misc';
 import { Api } from './Apiv2.class';
@@ -108,8 +107,8 @@ function doneTyping(): void {
 
 // options for tinymce to pass to tinymce.init()
 export function getTinymceBaseConfig(page: string): object {
-  let plugins = 'a11ychecker accordion advlist anchor autolink autoresize table searchreplace code fullscreen insertdatetime charmap lists save image media link pagebreak codesample template mention visualblocks visualchars emoticons preview';
-  let toolbar1 = 'a11ycheck custom-save preview | undo redo | styles fontsize bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | small superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap emoticons adddate | codesample | link | sort-table';
+  let plugins = 'accordion advlist anchor autolink autoresize table searchreplace code fullscreen insertdatetime charmap lists save image media link pagebreak codesample template mention visualblocks visualchars emoticons preview';
+  let toolbar1 = 'custom-save preview | undo redo | styles fontsize bold italic underline strikethrough | alignleft aligncenter alignright alignjustify | small superscript subscript | bullist numlist outdent indent | forecolor backcolor | charmap emoticons adddate | codesample | link | sort-table';
   let removedMenuItems = 'newdocument, image, anchor';
   if (page === 'edit') {
     plugins += ' autosave';
@@ -128,7 +127,7 @@ export function getTinymceBaseConfig(page: string): object {
     content_css: [
       '/assets/tinymce_content.min.css',
       '/assets/elabftw.min.css',
-      '/assets/plugins/a11ychecker/css/annotations.css'
+      '/assets/annotations.css'
     ],
     body_class: 'margin=1rem',
     emoticons_database_url: 'assets/tinymce_emojis.js',
@@ -372,8 +371,9 @@ export function getTinymceBaseConfig(page: string): object {
             iframe.srcdoc = '';
             iframe.srcdoc = htmlString;
             iframe.onload = () => {
-              if (iframe.contentDocument && iframe.contentDocument.body) {
-                MathJax.typesetPromise([iframe.contentDocument.body]);
+              const iframeDoc = iframe.contentDocument;
+              if (iframeDoc && iframeDoc.body && typeof MathJax !== 'undefined') {
+                MathJax.typesetPromise([iframeDoc.body]);
               }
             };
           }
