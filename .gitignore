@@ -21,6 +21,7 @@ web/assets/*.svg
 web/assets/*.ttf
 web/assets/tinymce_emojis.js
 src/node/*.LICENSE.txt
+src/js/tinymce-plugins/a11ychecker
 tests/_output/*
 tests/_support/_generated*
 tests/cypress/screenshots

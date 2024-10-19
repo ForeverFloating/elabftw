@@ -26,6 +26,7 @@ use function mb_strlen;
 use function strlen;
 use function trim;
 
+
 /**
  * When values need to be filtered
  */
@@ -169,7 +170,7 @@ class Filter
         // create base config for html5
         $config = HTMLPurifier_HTML5Config::createDefault();
         // allow only certain elements
-        $config->set('HTML.Allowed', 'div[class|style],br,p[class|style],sub,img[src|class|style|width|height|alt],sup,strong,b,em,u[style],a[href],s,span[style],ul[style],li[style|value],ol[style|reversed|start|type],dl,dt,dd,blockquote[cite],h1[class|style],h2[class|style],h3[class|style],h4[class|style],h5[class|style],h6[class|style],hr[style],table[style|data-table-sort|border],tr[style],td[style|colspan|rowspan|headers],th[style|colspan|rowspan|abbr|headers|scope],code,video[src|controls|style|height|width],audio[src|controls],pre[class|style],details[open],summary,caption[style],figure,figcaption[style],abbr[title],aside,bdi,cite,col[span|style],data[value],del[cite|datetime],dfn[title|id],ins[cite|datetime],kbd,mark,q[cite],samp,tbody[style],tfoot[style],thead[style],time[datetime],var,wbr');
+        $config->set('HTML.Allowed', 'div[class|id|style],br[class|id|style],p[class|id|style],sub[class|id|style],img[src|id|class|style|width|height|alt],sup[class|id|style],strong[class|id|style],b[class|id|style],em[class|id|style],u[class|id|style],a[href|hreflang|class|id|style|rel|type],s[class|id|style],span[class|id|style],ul[class|id|style],li[class|id|style|value],ol[class|id|style|reversed|start|type],dl[class|id|style],dt[class|id|style],dd[class|id|style],blockquote[class|id|style|cite],h1[class|id|style],h2[class|id|style],h3[class|id|style],h4[class|id|style],h5[class|id|style],h6[class|id|style],hr[class|id|style],table[class|id|style],tr[class|id|style],td[class|id|style|colspan|rowspan|headers],th[class|id|style|colspan|rowspan|abbr|headers|scope],code[class|id|style],video[class|id|src|controls|controlslist|style|height|width|disablepictureinpicture|disableremoteplayback|loop|muted|poster|preload],audio[class|id|style|src|controls|autoplay|controlslist|disableremoteplayback|loop|muted|preload],pre[class|id|style],details[class|id|style|open|name],summary[class|id|style],caption[class|id|style],figure[class|id|style],figcaption[class|id|style],abbr[|class|id|style|title],aside[class|id|style],bdi[class|id|style|dir],cite[class|id|style],col[class|id|span|style],data[class|id|style|value],del[class|id|style|cite|datetime],dfn[class|style|title|id],ins[class|id|style|cite|datetime],kbd[class|id|style],mark[class|id|style],q[class|id|style|cite],samp[class|id|style],tbody[class|id|style],tfoot[class|id|style],thead[class|id|style],time[class|id|style|datetime],var[class|id|style],wbr[class|id|style],small[class|id|style]');
         $config->set('HTML.TargetBlank', true);
         // configure the cache for htmlpurifier
         $tmpDir = FsTools::getCacheFolder('purifier');

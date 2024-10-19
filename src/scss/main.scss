@@ -1560,23 +1560,30 @@ input:checked + .slider::before {
     }
 
     td,
-    th[scope='row'] {
+    th[scope='row'],
+    th[scope='rowgroup'] {
         border-top: thin solid;
         border-bottom: thin solid;
     }
 
-    th[scope='col'] {
-        border-bottom: solid;
+    th {
+        &[scope='col'],
+        &[scope='colgroup'] {
+            border-bottom: solid;
+        }
     }
 
-    table:has(thead > tr:only-of-type) > tbody > tr > td:not(:last-of-type),
-    tr:first-of-type > th[scope='col']:not(:last-of-type),
+    table:has(thead > tr:only-of-type) > tbody > tr > td,
+    tr:first-of-type > th[scope='col'],
+    tr:first-of-type > th[scope='colgroup'],
     th[scope='row'] {
+        border-left: solid;
         border-right: solid;
     }
 
-    table:has(thead > tr:not(:only-of-type)) > tbody > tr > td:not(:last-of-type),
-    thead > tr:not(:first-of-type) > th[scope='col']:not(:first-of-type) {
+    table:has(thead > tr:not(:only-of-type)) > tbody > tr > td,
+    thead > tr:not(:first-of-type) > th[scope='col'],
+    thead > tr:not(:first-of-type) > th[scope='colgroup'] {
         border-right: thin solid;
     }
 

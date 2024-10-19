@@ -127,7 +127,8 @@ export function getTinymceBaseConfig(page: string): object {
     skin_url: '/assets/tinymce_skins',
     content_css: [
       '/assets/tinymce_content.min.css',
-      '/assets/elabftw.min.css'
+      '/assets/elabftw.min.css',
+      '/assets/plugins/a11ychecker/css/annotations.css'
     ],
     body_class: 'margin=1rem',
     emoticons_database_url: 'assets/tinymce_emojis.js',
@@ -397,7 +398,6 @@ export function getTinymceBaseConfig(page: string): object {
     details_serialized_state: 'collapsed',
     advlist_bullet_styles: 'default,circle,disc,square',
     a11y_advanced_options: true,
-    a11ychecker_level: 'aaa',
     toolbar_mode: 'floating',
   };
 }
