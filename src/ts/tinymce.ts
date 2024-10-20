@@ -126,8 +126,7 @@ export function getTinymceBaseConfig(page: string): object {
     skin_url: '/assets/tinymce_skins',
     content_css: [
       '/assets/tinymce_content.min.css',
-      '/assets/elabftw.min.css',
-      '/assets/annotations.css'
+      '/assets/elabftw.min.css'
     ],
     body_class: 'margin=1rem',
     emoticons_database_url: 'assets/tinymce_emojis.js',
@@ -372,8 +371,8 @@ export function getTinymceBaseConfig(page: string): object {
             iframe.srcdoc = htmlString;
             iframe.onload = () => {
               const iframeDoc = iframe.contentDocument;
-              if (iframeDoc && iframeDoc.body && typeof MathJax !== 'undefined') {
-                MathJax.typesetPromise([iframeDoc.body]);
+              if (iframeDoc) {
+                MathJax.typesetPromise([iframeDoc.documentElement]);
               }
             };
           }
