@@ -1612,6 +1612,15 @@ input:checked + .slider::before {
     caption {
         border: 0;
     }
+
+    small {
+        font-size: .8rem;
+        font-weight: inherit;
+    }
+
+    dd {
+        margin-left: 1rem;
+    }
 }
 
 #documentTitle {
