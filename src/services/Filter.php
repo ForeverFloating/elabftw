@@ -17,6 +17,8 @@ use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Models\Config;
 use HTMLPurifier;
 use HTMLPurifier_HTML5Config;
+use RecursiveIteratorIterator;
+use RecursiveDirectoryIterator;
 
 use function checkdate;
 use function filter_var;
@@ -167,11 +169,13 @@ class Filter
         if (strlen($input) > self::MAX_BODY_SIZE) {
             throw new ImproperActionException('Content is too big! Cannot save!');
         }
+        // get blacklist IDs from HTML files
+        $blacklistIds = self::getBlacklistIdsFromHtmlFiles('/elabftw/src/templates');
         // create base config for html5
         $config = HTMLPurifier_HTML5Config::createDefault();
         // enable ids
         $config->set('Attr.EnableID', true);
-        $config->set('Attr.IDPrefix', 'user_');
+        $config->set('Attr.IDBlacklist', $blacklistIds);
         // allow only certain elements
         $config->set('HTML.Allowed', 'div[class|id|style],br[class|id|style],p[class|id|style],sub[class|id|style],img[src|id|class|style|width|height|alt],sup[class|id|style],strong[class|id|style],b[class|id|style],em[class|id|style],u[class|id|style],a[href|hreflang|class|id|style|rel|type],s[class|id|style],span[class|id|style],ul[class|id|style],li[class|id|style|value],ol[class|id|style|reversed|start|type],dl[class|id|style],dt[class|id|style],dd[class|id|style],blockquote[class|id|style|cite],h1[class|id|style],h2[class|id|style],h3[class|id|style],h4[class|id|style],h5[class|id|style],h6[class|id|style],hr[class|id|style],table[class|id|style],tr[class|id|style],td[class|id|style|colspan|rowspan|headers],th[class|id|style|colspan|rowspan|abbr|headers|scope],code[class|id|style],video[class|id|src|controls|controlslist|style|height|width|disablepictureinpicture|disableremoteplayback|loop|muted|poster|preload],audio[class|id|style|src|controls|autoplay|controlslist|disableremoteplayback|loop|muted|preload],pre[class|id|style],details[class|id|style|open|name],summary[class|id|style],caption[class|id|style],figure[class|id|style],figcaption[class|id|style],abbr[|class|id|style|title],aside[class|id|style],bdi[class|id|style|dir],cite[class|id|style],col[class|id|span|style],data[class|id|style|value],del[class|id|style|cite|datetime],dfn[class|style|title|id],ins[class|id|style|cite|datetime],kbd[class|id|style],mark[class|id|style],q[class|id|style|cite],samp[class|id|style],tbody[class|id|style],tfoot[class|id|style],thead[class|id|style],time[class|id|style|datetime],var[class|id|style],wbr[class|id|style],small[class|id|style],input[class|id|style|alt|autocapitalize|autocomplete|checked|disabled|form|height|list|max|maxlength|min|minlength|name|pattern|placeholder|popovertarget|popovertargetaction|readonly|required|size|src|step|type|value|width],label[class|id|style|for]');
         $config->set('HTML.TargetBlank', true);
@@ -191,4 +195,25 @@ class Filter
         $purifier = new HTMLPurifier($config);
         return $purifier->purify($input);
     }
+/**
+ * Recursively scan HTML files in the directory to get a list of unique IDs for blacklist
+ *
+ * @param string $directory The path to the directory containing HTML files
+ * @return array List of IDs to blacklist
+ */
+private static function getBlacklistIdsFromHtmlFiles(string $directory): array
+{
+    $ids = [];
+    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
+    foreach ($iterator as $file) {
+        if ($file->isFile() && strtolower($file->getExtension()) === 'html') {
+            $content = file_get_contents($file->getRealPath());
+            preg_match_all('/id\s*=\s*"([^"]+)"/i', $content, $matches);
+            if (!empty($matches[1])) {
+                $ids = array_merge($ids, $matches[1]);
+            }
+        }
+    }
+    return array_values(array_unique($ids)); // Remove duplicates and reindex
+}
 }
