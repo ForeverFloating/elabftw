@@ -49,6 +49,7 @@ insert(
     },
     options: {
       ignoreHtmlClass: 'mathjax-ignore',
+      enableMenu: false,
     },
     startup: {
       pageReady(): Promise<void> {

@@ -195,25 +195,26 @@ class Filter
         $purifier = new HTMLPurifier($config);
         return $purifier->purify($input);
     }
-/**
- * Recursively scan HTML files in the directory to get a list of unique IDs for blacklist
- *
- * @param string $directory The path to the directory containing HTML files
- * @return array List of IDs to blacklist
- */
-private static function getBlacklistIdsFromHtmlFiles(string $directory): array
-{
-    $ids = [];
-    $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
-    foreach ($iterator as $file) {
-        if ($file->isFile() && strtolower($file->getExtension()) === 'html') {
-            $content = file_get_contents($file->getRealPath());
-            preg_match_all('/id\s*=\s*"([^"]+)"/i', $content, $matches);
-            if (!empty($matches[1])) {
-                $ids = array_merge($ids, $matches[1]);
+
+    /**
+     * Recursively scan HTML files in the directory to get a list of unique IDs for blacklist
+     *
+     * @param string $directory The path to the directory containing HTML files
+     * @return array List of IDs to blacklist
+     */
+    private static function getBlacklistIdsFromHtmlFiles(string $directory): array
+    {
+        $ids = [];
+        $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
+        foreach ($iterator as $file) {
+            if ($file->isFile() && strtolower($file->getExtension()) === 'html') {
+                $content = file_get_contents($file->getRealPath());
+                preg_match_all('/id\s*=\s*"([^"]+)"/i', $content, $matches);
+                if (!empty($matches[1])) {
+                    $ids = array_merge($ids, $matches[1]);
+                }
             }
         }
+        return array_values(array_unique($ids)); // Remove duplicates and reindex
     }
-    return array_values(array_unique($ids)); // Remove duplicates and reindex
-}
 }
