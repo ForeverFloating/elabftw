@@ -62,6 +62,7 @@ import { EntityType } from './interfaces';
 import { getEntity, reloadElements, escapeExtendedQuery, updateEntityBody } from './misc';
 import { Api } from './Apiv2.class';
 import { isSortable } from './TableSorting.class';
+import { mathJs } from './mathjs';
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
 declare const MathJax: MathJaxObject;
 
@@ -368,7 +369,7 @@ export function getTinymceBaseConfig(page: string): object {
           if (iframe) {
             const htmlString = iframe.srcdoc;
             iframe.srcdoc = '';
-            iframe.srcdoc = htmlString;
+            iframe.srcdoc = mathJs(htmlString);
             iframe.onload = () => {
               const iframeDoc = iframe.contentDocument;
               if (iframeDoc) {
