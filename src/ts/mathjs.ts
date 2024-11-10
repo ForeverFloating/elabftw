@@ -23,19 +23,22 @@ math.Unit.isValidAlpha = function (c:string): boolean {
 math.createUnit({
   θ: {
     definition: '1 rad',
-    aliases: ['rad', 'radian'],
   },
   Da: {
-    definition: 'atomicMass',
+    definition: '1.66053892173e-27 kg',
     prefixes: 'short',
     aliases: ['Daltons', 'Dalton'],
   },
+},
+{
+  override: true,
 })
 
-export function mathJs(htmlString: string): string {
+export function mathJs(inputString: string): string {
+  const htmlString = inputString.replace(/^(<[\s\S]+><body(?: [^\/!<>]+)?>|)((?:<\/?[^\/!<>]+>[\s\S]*)*)(?:<\/body><\/html>|\1)/g, '<!DOCTYPE html><html><head></head><body>$2</body></html>');
   const parser = new DOMParser();
   const inputDOM = parser.parseFromString(htmlString, 'text/html');
-  return htmlString.replace(/{{\s*(.*?)\s*}}/g, (match, expression) => {
+  return inputString.replace(/{{\s*(.*?)\s*}}/g, (match, expression) => {
     const evaluatedId = expression.replace(/#(\w+)/g, (idMatch, expressionId) => {
       const element = inputDOM.querySelector(`#${expressionId}`);
       return element.textContent;

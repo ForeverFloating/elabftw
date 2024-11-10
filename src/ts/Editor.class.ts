@@ -11,6 +11,7 @@ import { marked } from 'marked';
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
 import { Entity, Target } from './interfaces';
 import {Api} from './Apiv2.class';
+import { mathJs } from './mathjs';
 declare const MathJax: MathJaxObject;
 
 interface EditorInterface {
@@ -70,7 +71,8 @@ export class MdEditor extends Editor implements EditorInterface {
           MathJax.typeset();
         }, 1);
         // parse with marked and return the html
-        return marked(ed.$textarea.val());
+        const htmlOutput: string = marked(ed.$textarea.val()) as string;
+        return mathJs(htmlOutput);
       },
     });
   }
