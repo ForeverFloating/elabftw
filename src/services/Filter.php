@@ -190,6 +190,8 @@ class Filter
         // allow 'data-table-sort' attribute to indicate that a table shall be sortable by js
         if ($def = $config->maybeGetRawHTMLDefinition()) {
             $def->addAttribute('table', 'data-table-sort', 'Enum#true');
+            $def->addAttribute('td', 'headers', 'NMTOKENS');
+            $def->addAttribute('th', 'headers', 'NMTOKENS');
         }
 
         $purifier = new HTMLPurifier($config);
