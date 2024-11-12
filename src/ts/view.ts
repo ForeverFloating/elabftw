@@ -10,6 +10,9 @@ import { InputType, Malle, SelectOptions } from '@deltablot/malle';
 import { Api } from './Apiv2.class';
 import { getEntity, updateCatStat, relativeMoment, reloadElements } from './misc';
 import { Action, EntityType, Model } from './interfaces';
+import { mathDOM } from './mathjs';
+import { MathJaxObject } from 'mathjax-full/js/components/startup';
+declare const MathJax: MathJaxObject;
 
 document.addEventListener('DOMContentLoaded', () => {
 
@@ -172,4 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
   malleableComments.listen();
   malleableStatus.listen();
   malleableCategory.listen();
+
+  mathDOM('body_view');
 });
