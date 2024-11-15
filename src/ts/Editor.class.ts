@@ -71,7 +71,7 @@ export class MdEditor extends Editor implements EditorInterface {
           MathJax.typeset();
         }, 1);
         // parse with marked and return the html
-        const htmlOutput: string = marked(ed.$textarea.val()) as string;
+        const htmlOutput = marked(ed.$textarea.val()) as string;
         return mathString(htmlOutput);
       },
     });

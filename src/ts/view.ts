@@ -176,5 +176,6 @@ document.addEventListener('DOMContentLoaded', () => {
   malleableStatus.listen();
   malleableCategory.listen();
 
-  mathDOM('body_view');
+  const docBody = document.getElementById('body_view');
+  mathDOM(docBody);
 });
