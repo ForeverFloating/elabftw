@@ -137,71 +137,90 @@ const arrayRegex = /\[?'([^\n'\[\]]*?)'\]?/g;
 const regexSelector = /\[[^\n\[\]]*\]/g;
 function mathOutput(mathMatch: string, mathExpression: string): string {
   try {
-    const mathResult = math.evaluate(mathExpression);
-    console.log(mathResult);
-    mathResult.units.forEach((units) => {
-      const mathUnit = units.unit.name;
-      if (units.prefix.name === 'u') {
-        units.prefix.name = '\u03BC';
+    let mathResult = math.evaluate(mathExpression);
+    const mathType = math.typeOf(mathResult);
+    if (mathType === 'Unit') {
+      const mathUnit = mathResult.toJSON().unit;
+      if (mathUnit === 'uL') {
+        const mathNum = mathResult.toNumber('uL');
+        switch (true) {
+          case mathNum < 2:
+            mathResult.format({notation: 'fixed', precision: 3, fraction: 'decimal',});
+            break;
+          case mathNum >= 2 && mathNum < 20:
+            mathResult.format({notation: 'fixed', precision: 2, fraction: 'decimal',});
+            break;
+          case mathNum >= 20 && mathNum < 200:
+            mathResult.format({notation: 'fixed', precision: 1, fraction: 'decimal',});
+            break;
+          case mathNum >= 200 && mathNum < 1000:
+            mathResult.format({notation: 'fixed', precision: 0, fraction: 'decimal',});
+            break;
+        }
       }
-      switch (mathUnit) {
-        case 'deg':
-          units.unit.name = '\u00B0';
-          break;
-        case 'degC':
-          units.unit.name = '\u00B0C';
-          break;
-        case 'degF':
-          units.unit.name = '\u00B0F';
-          break;
-        case 'degR':
-          units.unit.name = '\u00B0R';
-          break;
-        case 'sqch':
-          units.unit.name = 'ch<sup>2</sup>';
-          break;
-        case 'sqft':
-          units.unit.name = 'ft<sup>2</sup>';
-          break;
-        case 'cuft':
-          units.unit.name = 'ft<sup>3</sup>';
-          break;
-        case 'sqin':
-          units.unit.name = 'in<sup>2</sup>';
-          break;
-        case 'cuin':
-          units.unit.name = 'in<sup>3</sup>';
-          break;
-        case 'm2':
-          units.unit.name = 'm<sup>2</sup>';
-          break;
-        case 'm3':
-          units.unit.name = 'm<sup>3</sup>';
-          break;
-        case 'sqmil':
-          units.unit.name = 'mil<sup>2</sup>';
-          break;
-        case 'sqrd':
-          units.unit.name = 'rd<sup>2</sup>';
-          break;
-        case 'sqmi':
-          units.unit.name = 'mi<sup>2</sup>';
-          break;
-        case 'sqyd':
-          units.unit.name = 'yd<sup>2</sup>';
-          break;
-        case 'cuyd':
-          units.unit.name = 'yd<sup>3</sup>';
-          break;
-        case 'mmH2O':
-          units.unit.name = 'mmH<sub>2</sub>O';
-          break;
-        case 'cmH2O':
-          units.unit.name = 'cmH<sub>2</sub>O';
-          break;
-      }
-    });
-    console.log(mathResult);
+      mathResult.units.forEach((units) => {
+        const mathUnit = units.unit.name;
+        if (units.prefix.name === 'u') {
+          units.prefix.name = '\u03BC';
+        }
+        switch (mathUnit) {
+          case 'deg':
+            units.unit.name = '\u00B0';
+            break;
+          case 'degC':
+            units.unit.name = '\u00B0C';
+            break;
+          case 'degF':
+            units.unit.name = '\u00B0F';
+            break;
+          case 'degR':
+            units.unit.name = '\u00B0R';
+            break;
+          case 'sqch':
+            units.unit.name = 'ch<sup>2</sup>';
+            break;
+          case 'sqft':
+            units.unit.name = 'ft<sup>2</sup>';
+            break;
+          case 'cuft':
+            units.unit.name = 'ft<sup>3</sup>';
+            break;
+          case 'sqin':
+            units.unit.name = 'in<sup>2</sup>';
+            break;
+          case 'cuin':
+            units.unit.name = 'in<sup>3</sup>';
+            break;
+          case 'm2':
+            units.unit.name = 'm<sup>2</sup>';
+            break;
+          case 'm3':
+            units.unit.name = 'm<sup>3</sup>';
+            break;
+          case 'sqmil':
+            units.unit.name = 'mil<sup>2</sup>';
+            break;
+          case 'sqrd':
+            units.unit.name = 'rd<sup>2</sup>';
+            break;
+          case 'sqmi':
+            units.unit.name = 'mi<sup>2</sup>';
+            break;
+          case 'sqyd':
+            units.unit.name = 'yd<sup>2</sup>';
+            break;
+          case 'cuyd':
+            units.unit.name = 'yd<sup>3</sup>';
+            break;
+          case 'mmH2O':
+            units.unit.name = 'mmH<sub>2</sub>O';
+            break;
+          case 'cmH2O':
+            units.unit.name = 'cmH<sub>2</sub>O';
+            break;
+        }
+      });
+    }
     return `${mathResult}`;
   } catch (err) {
     console.log(mathExpression);
