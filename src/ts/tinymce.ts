@@ -367,25 +367,23 @@ export function getTinymceBaseConfig(page: string): object {
         if (e.command == 'mcePreview') {
           const iframe = (document.querySelector('iframe.tox-dialog__iframe') as HTMLIFrameElement);
           if (iframe) {
-            const htmlString = iframe.srcdoc;
-            iframe.srcdoc = '';
-            iframe.srcdoc = htmlString;
             iframe.onload = () => {
-              const iframeDoc = iframe.contentDocument;
-              if (iframeDoc) {
-                let tinyBody = iframeDoc.documentElement
-                MathJax.typesetPromise([tinyBody]).then(() => {
-                  return mathDOM(tinyBody);
-                });
-              }
+              const tinyDiv = document.createElement('div');
+              tinyDiv.setAttribute('id', 'tinymce-preview');
+              tinyDiv.setAttribute('class', 'mce-content-body');
+              iframe.contentDocument.body.childNodes.forEach((node) => {
+                tinyDiv.append(node);
+              });
+              iframe.replaceWith(tinyDiv);
+              MathJax.typesetPromise().then(() => {
+                return mathDOM(tinyDiv);
+              });
             };
           }
         }
       });
     },
-    content_style: 'mjx-assistive-mml { position: absolute !important; top: 0px; left: 0px; clip: rect(1px, 1px, 1px, 1px); padding: 1px 0px 0px 0px !important; border: 0px !important; display: block !important; width: auto !important; overflow: hidden !important; user-select: none; }' +
-    'g[data-mml-node="merror"] > rect[data-background] { fill: yellow; stroke: none; }' +
-    'g[data-mml-node="merror"] > g { fill: red; stroke: red; }',
+    content_style: document.getElementById('MJX-SVG-styles').innerText,
     invalid_styles: {
       'col': 'width height',
       'table': 'width height',

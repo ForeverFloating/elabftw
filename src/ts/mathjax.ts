@@ -49,7 +49,6 @@ insert(
     },
     options: {
       ignoreHtmlClass: 'mathjax-ignore',
-      enableMenu: false,
     },
     startup: {
       pageReady(): Promise<void> {
@@ -64,6 +63,7 @@ insert(
         };
         return MathJax.startup.defaultPageReady();
       },
+      invalidOption: 'warn',
     },
   },
   false,
