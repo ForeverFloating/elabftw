@@ -1666,7 +1666,11 @@ body#tinymce,
 }
 
 .tox-dialog__body-content {
-    padding: 0px 16px 16px !important;
+    padding: 0 16px 16px !important;
+}
+
+.tox-dialog__content-js {
+    height: 0 !important;
 }
 
 body#tinymce:not([contenteditable="true"]) * {

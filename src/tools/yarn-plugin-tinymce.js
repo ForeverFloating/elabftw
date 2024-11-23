@@ -44,8 +44,19 @@ module.exports = {
                 ? targetName
                 : sourceName;
               const requestedFile = `${locatorPath}/node_modules/${nodeModulesPath}${sourceName}`;
-              const fileContent = crossFs.readFileSync(requestedFile);
-              crossFs.writeFileSync(pathToAssets + targetName, fileContent, 'utf8');
+              let fileContent = crossFs.readFileSync(requestedFile);
+
+              if (Buffer.isBuffer(fileContent)) {
+                fileContent = fileContent.toString('utf8');
+              }
+
+              // only modify skin.min.css
+              if (sourceName === 'skin.min.css') {
+                const modifiedContent = fileContent.replace(/(\.tox[^,{]*) ?(?={|,)/gm,'$1:not(.mce-preview-body *)');
+                crossFs.writeFileSync(pathToAssets + targetName, modifiedContent, 'utf8');
+              } else {
+                crossFs.writeFileSync(pathToAssets + targetName, fileContent, 'utf8');
+              }
             };
 
             crossFs.mkdirSync(`${pathToAssets}tinymce_skins`, { recursive: true });
