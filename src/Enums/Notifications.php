@@ -22,6 +22,7 @@ enum Notifications: int
     case SelfNeedValidation = 20;
     case SelfIsValidated = 30;
     case MathjaxFailed = 40;
+    case MathJsFailed = 45;
     case PdfAppendmentFailed = 50;
     case PdfGenericError = 60;
     case NewVersionInstalled = 70;

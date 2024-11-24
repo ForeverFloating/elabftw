@@ -23,9 +23,11 @@ use Elabftw\Models\AbstractEntity;
 use Elabftw\Models\Changelog;
 use Elabftw\Models\Config;
 use Elabftw\Models\Notifications\MathjaxFailed;
+use Elabftw\Models\Notifications\MathJsFailed;
 use Elabftw\Models\Notifications\PdfAppendmentFailed;
 use Elabftw\Models\Notifications\PdfGenericError;
 use Elabftw\Models\Users;
+use Elabftw\Services\EvalMathJs;
 use Elabftw\Services\Filter;
 use Elabftw\Services\Tex2Svg;
 use Elabftw\Traits\TwigTrait;
@@ -185,7 +187,16 @@ class MakePdf extends AbstractMakePdf
             /** @psalm-suppress PossiblyNullArgument */
             $this->errors[] = new MathjaxFailed($this->Entity->id, $this->Entity->entityType->toPage());
         }
-        return $content;
+
+        // implement rendering with math.js
+        $EvalMathJs = new EvalMathJs($this->log, $this->mpdf, $content);
+        $contentWithMathJs = $EvalMathJs->getContent();
+        if ($EvalMathJs->mathJsFailed) {
+          $this->errors[] = new MathJsFailed($this->Entity->id, $this->Entity->entityType->toPage());
+        }
+        //log math.js output
+        $this->log->info('EvalMathJs processed content:', ['contentWithMathJs' => $contentWithMathJs]);
+        return $contentWithMathJs;
     }
 
     /**

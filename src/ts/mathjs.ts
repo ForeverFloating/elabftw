@@ -131,11 +131,11 @@ math.createUnit({
   override: true,
 })
 
-const expressionRegex = /{{\s*(.*?)\s*}}/g;
-const idRegex = /#([a-zA-z][a-zA-z\d-_.]*)/g;
-const arrayRegex = /\[?'([^\n'\[\]]*?)'\]?/g;
-const regexSelector = /\[[^\n\[\]]*\]/g;
-function mathOutput(mathMatch: string, mathExpression: string): string {
+export const expressionRegex = /{{\s*(.*?)\s*}}/g;
+export const idRegex = /#([a-zA-z][a-zA-z\d-_.]*)/g;
+export const arrayRegex = /\[?'([^\n'\[\]]*?)'\]?/g;
+export const regexSelector = /\[[^\n\[\]]*\]/g;
+export function mathOutput(mathMatch: string, mathExpression: string): string {
   try {
     let mathResult = math.evaluate(mathExpression);
     const mathType = math.typeOf(mathResult);
