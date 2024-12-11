@@ -3,10 +3,9 @@
 declare(strict_types=1);
 
 namespace Elabftw\Services;
+
 use Elabftw\Elabftw\FsTools;
-use Mpdf\Mpdf;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 use Symfony\Component\Process\Exception\ProcessFailedException as SymfonyProcessFailedException;
 use Symfony\Component\Process\Process;
 
@@ -20,7 +19,7 @@ class EvalMathJs
 
     private string $contentWithMathJs = '';
 
-    public function __construct(private LoggerInterface $log, private Mpdf $mpdf, private string $source) {}
+    public function __construct(private LoggerInterface $log, private string $source) {}
 
     public function getContent(): string
     {
@@ -52,7 +51,6 @@ class EvalMathJs
         unlink($tmpFile);
 
         if (!$process->isSuccessful()) {
-            //$process->clearErrorOutput();
             $this->log->warning('PDF generation failed during math.js processing.', array('Error', new SymfonyProcessFailedException($process)));
 
             $this->mathJsFailed = true;

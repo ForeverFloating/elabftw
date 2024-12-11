@@ -111,7 +111,7 @@ body {
 }
 
 /* little shadow on top of the screen for no reasons */
-body:not(#tinymce:not([contenteditable="true"]))::before {
+body:not(#tinymce:not([contenteditable='true']))::before {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
   content: '';
   height: 10px;
@@ -1552,127 +1552,143 @@ input:checked + .slider::before {
 }
 
 /* custom scss */
-#body_view, #tinymce, #tinymce-preview {
-    table,
-    tbody,
-    thead {
-        border: solid;
-    }
+#body_view,
+#tinymce,
+#tinymce-preview {
+  table,
+  tbody,
+  thead {
+    border: solid;
+  }
 
-    td,
-    th[scope='row'],
-    th[scope='rowgroup'] {
-        border-top: thin solid;
-        border-bottom: thin solid;
-    }
+  td,
+  [scope='row'],
+  [scope='rowgroup'] {
+    border-top: thin solid;
+    border-bottom: thin solid;
+  }
 
-    th {
-        &[scope='col'],
-        &[scope='colgroup'] {
-            border-bottom: solid;
-        }
-    }
+  [scope='col'],
+  [scope='colgroup'] {
+    border-bottom: solid;
+  }
 
-    table:has(thead > tr:only-of-type) > tbody > tr > td,
-    tr:first-of-type > th[scope='col'],
-    tr:first-of-type > th[scope='colgroup'],
-    th[scope='row'] {
-        border-left: solid;
-        border-right: solid;
-    }
+  table:has(thead > tr:only-of-type) td,
+  tr:first-of-type [scope='col'],
+  tr:first-of-type [scope='colgroup'],
+  [scope='row'] {
+    border-left: solid;
+    border-right: solid;
+  }
 
-    table:has(thead > tr:not(:only-of-type)) > tbody > tr > td,
-    thead > tr:not(:first-of-type) > th[scope='col'],
-    thead > tr:not(:first-of-type) > th[scope='colgroup'] {
-        border-right: thin solid;
-    }
+  table:has(thead > tr:not(:only-of-type)) td,
+  tr:not(:first-of-type) [scope='col'],
+  tr:not(:first-of-type) [scope='colgroup'] {
+    border-right: thin solid;
+  }
 
-    br:not(li > br) {
-        margin-bottom: 0.75rem;
-    }
+  br:not(li > br) {
+    margin-bottom: 0.75rem;
+  }
 
-    table {
-        margin: 0.75rem;
-    }
+  table {
+    margin: 0.75rem;
+  }
 
-    li {
-        margin: 0.75rem auto;
-    }
+  li {
+    margin: 0.75rem auto;
+  }
 
-    caption,
-    li,
-    p {
-        color: $strongest;
-    }
+  li div:has([type='checkbox']) {
+    display: table;
+  }
 
-    a {
-        color: $darkblue;
-    }
+  li [type='checkbox'],
+  li label {
+    display: table-cell;
+  }
 
-    caption {
-        border: 0;
-    }
+  li [type='checkbox'] {
+    margin-right: 0.5rem;
+  }
 
-    small {
-        font-size: .8rem;
-        font-weight: inherit;
-    }
+  caption,
+  li,
+  p {
+    color: $strongest;
+  }
 
-    dd {
-        margin-left: 1rem;
-    }
+  a {
+    color: $darkblue;
+  }
+
+  caption {
+    border: 0;
+  }
+
+  small {
+    font-size: 0.8rem;
+    font-weight: inherit;
+  }
+
+  dd {
+    margin-left: 1rem;
+  }
 }
 
 #documentTitle {
-    color: $strongest;
+  color: $strongest;
 }
 
 .form-inline,
 .form-control {
-    width: 100%;
+  width: 100%;
 }
 
 .nav-link {
-    text-align: left;
+  text-align: left;
 }
 
 .text-dark {
-    color: $strongest;
+  color: $strongest;
 }
 
-body#tinymce,
+#tinymce,
 #tinymce-preview {
-    margin: 1rem;
+  margin: 1rem;
 }
 
 #tinymce-preview {
-    overflow-y: hidden;
-    padding-left: 1px;
-    padding-right: 1px;
+  overflow-y: hidden;
+  padding-left: 1px;
+  padding-right: 1px;
 }
 
-#tinymce-preview:before {
-    box-shadow: 0 0 10px rgba(0,0,0,.8);
-    content: "";
-    height: 4rem;
-    left: 0;
-    position: absolute;
-    top: -10px;
-    width:100%;
+#tinymce-preview::before {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+  content: '';
+  height: 4rem;
+  left: 0;
+  position: absolute;
+  top: -10px;
+  width: 100%;
 }
 
-.tox-dialog__header {
-    padding: 8px 16px 16px !important;
+/* stylelint-disable-next-line selector-class-pattern */
+.tox-dialog__header:has(+ .tox-dialog__content-js .mce-preview-body) {
+  padding: 8px 16px 16px !important;
 }
 
-.tox-dialog__body-content {
-    padding: 0 16px 16px !important;
+/* stylelint-disable-next-line selector-class-pattern */
+.tox-dialog__body-content:has(.mce-preview-body) {
+  padding: 0 16px 16px !important;
 }
 
-.tox-dialog__content-js {
-    height: 0 !important;
+/* stylelint-disable-next-line selector-class-pattern */
+.tox-dialog__content-js:has(.mce-preview-body) {
+  height: 0 !important;
 }
 
-body#tinymce:not([contenteditable="true"]) * {
-    color: rgba(0,0,0,0);
+#tinymce:not([contenteditable='true']) * {
+  color: rgba(0, 0, 0, 0);
 }

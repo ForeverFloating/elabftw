@@ -3,24 +3,12 @@ const math = create(all);
 
 // add support for Greek and Unicode letters
 const isAlphaOriginal = math.Unit.isValidAlpha;
-const isGreekChar = (c: string): boolean => {
+const isCustomChar = (c: string): boolean => {
   const charCode = c.charCodeAt(0);
-  return charCode >= 913 && charCode <= 969;
+  return (charCode >= 913 && charCode <= 969) || charCode == 8211 || charCode == 60 || charCode == 62 || charCode == 176 || charCode == 181 || charCode == 197 || charCode == 47;
 };
-const isPunctuationChar = (c: string): boolean => {
-  const charCode = c.charCodeAt(0);
-  return charCode >=32 && charCode <=64;
-}
-const isSymbolChar = (c: string): boolean => {
-  const charCode = c.charCodeAt(0);
-  return charCode >= 161 && charCode <= 197;
-};
-const isUnicodeChar = (c: string): boolean => {
-  const charCode = c.charCodeAt(0);
-  return charCode == 8211
-};
-math.Unit.isValidAlpha = function (c:string): boolean {
-  return isAlphaOriginal(c) || isGreekChar(c) || isPunctuationChar(c) || isSymbolChar(c) || isUnicodeChar(c);
+math.Unit.isValidAlpha = function(c:string): boolean {
+  return isAlphaOriginal(c) || isCustomChar(c);
 };
 
 //correct mu prefix
@@ -38,47 +26,46 @@ function addMu(prefixObj) {
 
 addMu(math.Unit.PREFIXES);
 
-//define custom units
 math.createUnit({
 // formatting existing short unit definitions
-  'm<sup>2</sup>': {
-    definition: '1 m2',
-    prefixes: 'short',
-  },
-  'in<sup>2</sup>': {
-    definition: '1 sqin',
-  },
-  'ft<sup>2</sup>': {
-    definition: '1 sqft',
-  },
-  'yd<sup>2</sup>': {
-    definition: '1 sqyd',
-  },
-  'mi<sup>2</sup>': {
-    definition: '1 sqmi',
-  },
-  'rd<sup>2</sup>': {
-    definition: '1 sqrd',
-  },
-  'ch<sup>2</sup>': {
-    definition: '1 sqch',
-  },
-  'mil<sup>2</sup>': {
-    definition: '1 sqmil',
-  },
-  'm<sup>3</sup>': {
-    definition: '1 m3',
-    prefixes: 'short',
-  },
-  'in<sup>3</sup>': {
-    definition: '1 cuin',
-  },
-  'ft<sup>3</sup>': {
-    definition: '1 cuft',
-  },
-  'yd<sup>3</sup>': {
-    definition: '1 cuyd',
-  },
+//  'm<sup>2</sup>': {
+//    definition: '1 m2',
+//    prefixes: 'short',
+//  },
+//  'in<sup>2</sup>': {
+//    definition: '1 sqin',
+//  },
+//  'ft<sup>2</sup>': {
+//    definition: '1 sqft',
+//  },
+//  'yd<sup>2</sup>': {
+//    definition: '1 sqyd',
+//  },
+//  'mi<sup>2</sup>': {
+//    definition: '1 sqmi',
+//  },
+//  'rd<sup>2</sup>': {
+//    definition: '1 sqrd',
+//  },
+//  'ch<sup>2</sup>': {
+//    definition: '1 sqch',
+//  },
+//  'mil<sup>2</sup>': {
+//    definition: '1 sqmil',
+//  },
+//  'm<sup>3</sup>': {
+//    definition: '1 m3',
+//    prefixes: 'short',
+//  },
+//  'in<sup>3</sup>': {
+//    definition: '1 cuin',
+//  },
+//  'ft<sup>3</sup>': {
+//    definition: '1 cuft',
+//  },
+//  'yd<sup>3</sup>': {
+//    definition: '1 cuyd',
+//  },
   '\u00B0': {
     definition: '1 deg',
   },
@@ -126,101 +113,93 @@ math.createUnit({
     prefixes: 'short',
     aliases: ['Daltons', 'Dalton'],
   },
+  'kat': {
+    definition: `${math.divide(math.unit('1 mol'), math.unit('1 s'))}`,
+    prefixes: 'short',
+    aliases: ['katal', 'katals'],
+  },
+  'M': {
+    definition: `${math.divide(math.unit('1 mol'), math.unit('1 L'))}`,
+    prefixes: 'short',
+    aliases: ['molar', 'molars'],
+  },
+  'U': {
+    definition: `${math.divide(math.unit('1 umol'), math.unit('1 min'))}`,
+  },
 },
 {
   override: true,
-})
+});
 
 export const expressionRegex = /{{\s*(.*?)\s*}}/g;
 export const idRegex = /#([a-zA-z][a-zA-z\d-_.]*)/g;
-export const arrayRegex = /\[?'([^\n'\[\]]*?)'\]?/g;
-export const regexSelector = /\[[^\n\[\]]*\]/g;
+export const arrayRegex = /\[?'([^\n'[\]]*?)'\]?/g;
+export const regexSelector = /\['?([^\n'[\]]*)'?\]/g;
 export function mathOutput(mathMatch: string, mathExpression: string): string {
   try {
-    let mathResult = math.evaluate(mathExpression);
-    const mathType = math.typeOf(mathResult);
-    if (mathType === 'Unit') {
-      const mathUnit = mathResult.toJSON().unit;
-      if (mathUnit === 'uL') {
-        const mathNum = mathResult.toNumber('uL');
-        switch (true) {
-          case mathNum < 2:
-            mathResult.format({notation: 'fixed', precision: 3, fraction: 'decimal',});
-            break;
-          case mathNum >= 2 && mathNum < 20:
-            mathResult.format({notation: 'fixed', precision: 2, fraction: 'decimal',});
-            break;
-          case mathNum >= 20 && mathNum < 200:
-            mathResult.format({notation: 'fixed', precision: 1, fraction: 'decimal',});
-            break;
-          case mathNum >= 200 && mathNum < 1000:
-            mathResult.format({notation: 'fixed', precision: 0, fraction: 'decimal',});
-            break;
-        }
+    const mathResult = math.evaluate(mathExpression);
+    mathResult.units.forEach((units) => {
+      const mathUnit = units.unit.name;
+      if (units.prefix.name === 'u') {
+        units.prefix.name = '\u03BC';
       }
-      mathResult.units.forEach((units) => {
-        const mathUnit = units.unit.name;
-        if (units.prefix.name === 'u') {
-          units.prefix.name = '\u03BC';
-        }
-        switch (mathUnit) {
-          case 'deg':
-            units.unit.name = '\u00B0';
-            break;
-          case 'degC':
-            units.unit.name = '\u00B0C';
-            break;
-          case 'degF':
-            units.unit.name = '\u00B0F';
-            break;
-          case 'degR':
-            units.unit.name = '\u00B0R';
-            break;
-          case 'sqch':
-            units.unit.name = 'ch<sup>2</sup>';
-            break;
-          case 'sqft':
-            units.unit.name = 'ft<sup>2</sup>';
-            break;
-          case 'cuft':
-            units.unit.name = 'ft<sup>3</sup>';
-            break;
-          case 'sqin':
-            units.unit.name = 'in<sup>2</sup>';
-            break;
-          case 'cuin':
-            units.unit.name = 'in<sup>3</sup>';
-            break;
-          case 'm2':
-            units.unit.name = 'm<sup>2</sup>';
-            break;
-          case 'm3':
-            units.unit.name = 'm<sup>3</sup>';
-            break;
-          case 'sqmil':
-            units.unit.name = 'mil<sup>2</sup>';
-            break;
-          case 'sqrd':
-            units.unit.name = 'rd<sup>2</sup>';
-            break;
-          case 'sqmi':
-            units.unit.name = 'mi<sup>2</sup>';
-            break;
-          case 'sqyd':
-            units.unit.name = 'yd<sup>2</sup>';
-            break;
-          case 'cuyd':
-            units.unit.name = 'yd<sup>3</sup>';
-            break;
-          case 'mmH2O':
-            units.unit.name = 'mmH<sub>2</sub>O';
-            break;
-          case 'cmH2O':
-            units.unit.name = 'cmH<sub>2</sub>O';
-            break;
-        }
-      });
-    }
+      switch (mathUnit) {
+      case 'deg':
+        units.unit.name = '\u00B0';
+        break;
+      case 'degC':
+        units.unit.name = '\u00B0C';
+        break;
+      case 'degF':
+        units.unit.name = '\u00B0F';
+        break;
+      case 'degR':
+        units.unit.name = '\u00B0R';
+        break;
+      case 'sqch':
+        units.unit.name = 'ch<sup>2</sup>';
+        break;
+      case 'sqft':
+        units.unit.name = 'ft<sup>2</sup>';
+        break;
+      case 'cuft':
+        units.unit.name = 'ft<sup>3</sup>';
+        break;
+      case 'sqin':
+        units.unit.name = 'in<sup>2</sup>';
+        break;
+      case 'cuin':
+        units.unit.name = 'in<sup>3</sup>';
+        break;
+      case 'm2':
+        units.unit.name = 'm<sup>2</sup>';
+        break;
+      case 'm3':
+        units.unit.name = 'm<sup>3</sup>';
+        break;
+      case 'sqmil':
+        units.unit.name = 'mil<sup>2</sup>';
+        break;
+      case 'sqrd':
+        units.unit.name = 'rd<sup>2</sup>';
+        break;
+      case 'sqmi':
+        units.unit.name = 'mi<sup>2</sup>';
+        break;
+      case 'sqyd':
+        units.unit.name = 'yd<sup>2</sup>';
+        break;
+      case 'cuyd':
+        units.unit.name = 'yd<sup>3</sup>';
+        break;
+      case 'mmH2O':
+        units.unit.name = 'mmH<sub>2</sub>O';
+        break;
+      case 'cmH2O':
+        units.unit.name = 'cmH<sub>2</sub>O';
+        break;
+      }
+    });
     return `${mathResult}`;
   } catch (err) {
     console.log(mathExpression);
@@ -231,8 +210,8 @@ export function mathOutput(mathMatch: string, mathExpression: string): string {
 
 function calcExpression(inputString: string, nodeObj: HTMLElement): string {
   return inputString.replace(regexSelector, (selectMatch, expressionSelect) => {
-    const selectArray = nodeObj.querySelectorAll(`${expressionSelect}`);
-    const regexMatch = arrayRegex.test(selectMatch);
+    const selectArray = nodeObj.querySelectorAll(expressionSelect);
+    const regexMatch = arrayRegex.test(`${selectMatch}`);
     if (regexMatch) {
       return Array.from(selectArray).map(arrayNode => arrayNode.textContent.trim()).join(', ');
     } else {
@@ -244,20 +223,23 @@ function calcExpression(inputString: string, nodeObj: HTMLElement): string {
 function calcId(inputString: string, nodeObj: HTMLElement): string {
   return inputString.replace(idRegex, (idMatch, expressionId) => {
     const element = nodeObj.querySelector(`#${expressionId}`);
-    return element.textContent;
+    return element.textContent.trim();
   });
 }
 
 function mathParse(inputString: string, nodeObj: HTMLElement): string {
   return inputString.replace(expressionRegex, (match, expression) => {
-    const evaluatedId = calcId(expression, nodeObj);
-    const evaluatedExpression = calcExpression(evaluatedId, nodeObj);
-    return mathOutput(match, evaluatedExpression);
+    const evaluatedExpression = calcExpression(expression, nodeObj);
+    let evaluatedId = calcId(evaluatedExpression, nodeObj);
+    if (expressionRegex.test(evaluatedId)) {
+      evaluatedId = mathParse(evaluatedId, nodeObj);
+    }
+    return mathOutput(match, evaluatedId);
   });
 }
 
 export function mathString(inputString: string): string {
-  const htmlString = inputString.replace(/^(<[\s\S]+><body(?: [^\/!<>]+)?>|)((?:<\/?[^\/!<>]+>[\s\S]*)*)(?:<\/body><\/html>|\1)/g, '<!DOCTYPE html><html><head></head><body>$2</body></html>');
+  const htmlString = inputString.replace(/^(<[\s\S]+><body(?: [^/!<>]+)?>|)((?:<\/?[^/!<>]+>[\s\S]*)*)(?:<\/body><\/html>|\1)/g, '<!DOCTYPE html><html><head></head><body>$2</body></html>');
   const parser = new DOMParser();
   const inputDOM = parser.parseFromString(htmlString, 'text/html').body;
   return mathParse(inputString, inputDOM);
@@ -267,22 +249,22 @@ export function mathDOM(rootNode: HTMLElement) {
   const nodeIterator = document.createNodeIterator(rootNode, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       return expressionRegex.test(node.textContent)
-      ? NodeFilter.FILTER_ACCEPT
-      : NodeFilter.FILTER_REJECT;
-    }
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_REJECT;
+    },
   });
   let currentNode;
-  while (currentNode = nodeIterator.nextNode()) {
+  while ((currentNode = nodeIterator.nextNode())) {
     const nodeText = currentNode.textContent;
     const nodeParse = mathParse(nodeText, rootNode);
     const htmlTag = /<([a-z]+)>[\s\S]*<\/\1>|<w?br>/g;
     if (htmlTag.test(nodeParse)) {
       currentNode.parentNode?.replaceChild(
         document.createRange().createContextualFragment(nodeParse),
-        currentNode
+        currentNode,
       );
     } else {
       currentNode.textContent = nodeParse;
     }
-  };
+  }
 }

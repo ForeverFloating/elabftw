@@ -215,7 +215,7 @@ export function getTinymceBaseConfig(page: string): object {
     skin_url: '/assets/tinymce_skins',
     content_css: [
       '/assets/tinymce_content.min.css',
-      '/assets/elabftw.min.css'
+      '/assets/elabftw.min.css',
     ],
     body_class: 'margin=1rem',
     emoticons_database_url: 'assets/tinymce_emojis.js',
@@ -231,11 +231,11 @@ export function getTinymceBaseConfig(page: string): object {
     // this addresses CVE-2024-29881, it defaults to true in 7.0, so can be removed in tiny 7.0 TODO
     convert_unsafe_embeds: true,
     formats: {
-      small: { inline: 'small' }
+      small: { inline: 'small' },
     },
     // disable automatic h1 when using #
     text_patterns: [
-      { start: '<small>', end: '</small>', format: 'small' }
+      { start: '<small>', end: '</small>', format: 'small' },
     ],
     removed_menuitems: removedMenuItems,
     image_caption: true,
@@ -320,7 +320,7 @@ export function getTinymceBaseConfig(page: string): object {
           ApiC.post(`${entity.type}/${entity.id}/experiments_links/${selected.id}`)
             .then(() => reloadElements(['linksExpDiv']));
         }
-        const category = selected.category_title ? `${selected.category_title} - `: '';
+        // const category = selected.category_title ? `${selected.category_title} - `: '';
         return `<span><a href='${selected.page}?mode=view&id=${selected.id}'>${selected.title}</a></span>`;
       },
     },
@@ -335,9 +335,21 @@ export function getTinymceBaseConfig(page: string): object {
       let typingTimer;
       // make the edges round
       editor.on('init', () => {
-        let doc = editor.getDoc();
+        const doc = editor.getDoc();
         editor.getContainer().className += ' rounded';
         doc.documentElement.setAttribute('lang', 'en');
+
+        const skinNode = document.getElementById('mce-u0') as HTMLLinkElement;
+        const skinCSS = skinNode.sheet;
+        Array.from(skinCSS.cssRules).forEach((rule, index) => {
+          if (rule instanceof CSSStyleRule) {
+            const selectors = rule.selectorText.split(',');
+            const modifiedSelectors = selectors.map((selector) => selector.trim() + ':not(.mce-preview-body *)').join(',');
+            rule.selectorText = modifiedSelectors;
+            skinCSS.deleteRule(index);
+            skinCSS.insertRule(rule.cssText, index);
+          }
+        });
       });
       // Hook into the blur event - Finalize potential changes to images if user clicks outside of editor
       editor.on('blur', () => {
@@ -413,6 +425,31 @@ export function getTinymceBaseConfig(page: string): object {
           typingTimer = setTimeout(doneTyping, doneTypingInterval);
         });
       }
+
+      // disable closing source code window when esc key is pressed
+      editor.on('execCommand', (e) => {
+        if (e.command === 'mceCodeEditor') {
+          const target = document.querySelector('.tox-dialog:has(.tox-textarea)');
+          if (target) {
+            target.addEventListener('keyup', (event: KeyboardEvent) => {
+              clearTimeout(typingTimer);
+              if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+              }
+            });
+            target.addEventListener('keydown', (event: KeyboardEvent) => {
+              clearTimeout(typingTimer);
+              typingTimer = setTimeout(doneTyping, doneTypingInterval);
+              if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+                event.preventDefault();
+                event.stopImmediatePropagation();
+                editor.execCommand('mcesave');
+              }
+            });
+          }
+        }
+      });
 
       // sort down icon from COLLECTION: Dazzle Line Icons LICENSE: CC Attribution License AUTHOR: Dazzle UI
       editor.ui.registry.addIcon('sort-amount-down-alt', '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M13 12h8m-8-4h8m-8 8h8M6 7v10m0 0-3-3m3 3 3-3" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'),

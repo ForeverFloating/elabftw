@@ -189,13 +189,14 @@ class MakePdf extends AbstractMakePdf
         }
 
         // implement rendering with math.js
-        $EvalMathJs = new EvalMathJs($this->log, $this->mpdf, $content);
+        $EvalMathJs = new EvalMathJs($this->log, $content);
         $contentWithMathJs = $EvalMathJs->getContent();
         if ($EvalMathJs->mathJsFailed) {
-          $this->errors[] = new MathJsFailed($this->Entity->id, $this->Entity->entityType->toPage());
+            /** @psalm-suppress PossiblyNullArgument */
+            $this->errors[] = new MathJsFailed($this->Entity->id, $this->Entity->entityType->toPage());
         }
         //log math.js output
-        $this->log->info('EvalMathJs processed content:', ['contentWithMathJs' => $contentWithMathJs]);
+        $this->log->info('EvalMathJs processed content:', array('contentWithMathJs' => $contentWithMathJs));
         return $contentWithMathJs;
     }
 

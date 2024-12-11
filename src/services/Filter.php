@@ -28,7 +28,6 @@ use function mb_strlen;
 use function strlen;
 use function trim;
 
-
 /**
  * When values need to be filtered
  */
@@ -187,6 +186,8 @@ class Filter
         // allow any image size, see #3800
         $config->set('CSS.MaxImgLength', null);
         $config->set('HTML.MaxImgLength', null);
+        // permit form fields
+        $config->set('HTML.Trusted', true);
         // allow 'data-table-sort' attribute to indicate that a table shall be sortable by js
         if ($def = $config->maybeGetRawHTMLDefinition()) {
             $def->addAttribute('table', 'data-table-sort', 'Enum#true');
@@ -206,14 +207,16 @@ class Filter
      */
     private static function getBlacklistIdsFromHtmlFiles(string $directory): array
     {
-        $ids = [];
+        $ids = array();
         $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory));
         foreach ($iterator as $file) {
             if ($file->isFile() && strtolower($file->getExtension()) === 'html') {
                 $content = file_get_contents($file->getRealPath());
-                preg_match_all('/id\s*=\s*"([^"]+)"/i', $content, $matches);
-                if (!empty($matches[1])) {
-                    $ids = array_merge($ids, $matches[1]);
+                if ($content != false) {
+                    preg_match_all('/id\s*=\s*"([^"]+)"/i', $content, $matches);
+                    if (!empty($matches[1])) {
+                        $ids = array_merge($ids, $matches[1]);
+                    }
                 }
             }
         }
