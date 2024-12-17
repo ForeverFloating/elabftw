@@ -1608,6 +1608,10 @@ input:checked + .slider::before {
     display: table-cell;
   }
 
+  li:has(> [checked='checked']) > label {
+    text-decoration-line: line-through;
+  }
+
   li [type='checkbox'] {
     margin-right: 0.5rem;
   }

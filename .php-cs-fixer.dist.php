@@ -15,7 +15,9 @@ $finder = PhpCsFixer\Finder::create()
     ->in(['bin', 'src', 'tests', 'web'])
 ;
 
-$config = new PhpCsFixer\Config();
+$config = (new PhpCsFixer\Config())
+    ->setParallelConfig(PhpCsFixer\Runner\Parallel\ParallelConfigFactory::detect())
+;
 
 return $config->setRules(array(
     '@PER-CS2.0' => true,
