@@ -17,10 +17,12 @@ use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\FilesystemErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Factories\LinksFactory;
 use Elabftw\Models\ExperimentsCategories;
 use Elabftw\Models\ExperimentsStatus;
 use Elabftw\Models\ItemsStatus;
 use Elabftw\Models\ItemsTypes;
+use Elabftw\Models\StorageUnits;
 use Elabftw\Models\TeamGroups;
 use Elabftw\Models\Teams;
 use Elabftw\Models\TeamTags;
@@ -37,7 +39,6 @@ use function array_filter;
  * Administration panel of a team
  */
 require_once 'app/init.inc.php';
-$App->pageTitle = _('Admin panel');
 $Response = new Response();
 $Response->prepare($App->Request);
 
@@ -64,6 +65,9 @@ try {
     if ($App->Request->query->has('templateid')) {
         $ItemsTypes->setId($App->Request->query->getInt('templateid'));
         $ItemsTypes->canOrExplode('write');
+        $ItemsTypes->ExclusiveEditMode->enforceExclusiveModeBasedOnUserSetting();
+        $ContainersLinks = LinksFactory::getContainersLinks($ItemsTypes);
+        $ItemsTypes->entityData['containers'] = $ContainersLinks->readAll();
     }
     $statusArr = $Status->readAll();
     $teamGroupsArr = $TeamGroups->readAll();
@@ -115,8 +119,7 @@ try {
     $renderArr = array(
         'Entity' => $ItemsTypes,
         'allTeamUsersArr' => $allTeamUsersArr,
-        // all the tags for the team
-        'tagsArr' => $TeamTags->readFull(),
+        'tagsArr' => $TeamTags->readAll(),
         'isSearching' => $isSearching,
         'itemsCategoryArr' => $itemsCategoryArr,
         'metadataGroups' => $metadataGroups,
@@ -124,12 +127,14 @@ try {
         'statusArr' => $statusArr,
         'experimentsCategoriesArr' => $experimentsCategoriesArr,
         'itemsStatusArr' => $ItemsStatus->readAll(),
+        'pageTitle' => _('Admin panel'),
         'passwordInputHelp' => $passwordComplexity->toHuman(),
         'passwordInputPattern' => $passwordComplexity->toPattern(),
         'teamGroupsArr' => $teamGroupsArr,
         'visibilityArr' => $PermissionsHelper->getAssociativeArray(),
         'remoteDirectoryUsersArr' => $remoteDirectoryUsersArr,
         'scopedTeamgroupsArr' => $TeamGroups->readScopedTeamgroups(),
+        'storageUnitsArr' => (new StorageUnits($App->Users))->readAllRecursive(),
         'teamsArr' => $teamsArr,
         'teamStats' => $teamStats,
         'unvalidatedUsersArr' => $unvalidatedUsersArr,

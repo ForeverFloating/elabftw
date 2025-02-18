@@ -15,27 +15,31 @@ namespace Elabftw\Models;
 use Defuse\Crypto\Crypto;
 use Defuse\Crypto\Key;
 use Elabftw\AuditEvent\ConfigModified;
-use Elabftw\Elabftw\Db;
 use Elabftw\Elabftw\TwigFilters;
 use Elabftw\Elabftw\Update;
 use Elabftw\Enums\Action;
-use Elabftw\Exceptions\ImproperActionException;
-use Elabftw\Interfaces\RestInterface;
+use Elabftw\Interfaces\QueryParamsInterface;
 use Elabftw\Services\Filter;
 use PDO;
 
 use function array_map;
 use function urlencode;
+use function apcu_fetch;
+use function apcu_store;
+use function apcu_exists;
+use function apcu_delete;
 
 /**
  * The general config table
  */
-final class Config implements RestInterface
+final class Config extends AbstractRest
 {
+    private const string CACHE_KEY = 'config_table';
+
+    private const int CACHE_TTL_SECONDS = 9001;
+
     // the array with all config
     public array $configArr = array();
-
-    protected Db $Db;
 
     // store the single instance of the class
     private static ?Config $instance = null;
@@ -47,7 +51,7 @@ final class Config implements RestInterface
      */
     private function __construct()
     {
-        $this->Db = Db::getConnection();
+        parent::__construct();
         $this->configArr = $this->readAll();
         // this should only run once: just after a fresh install
         if (empty($this->configArr)) {
@@ -56,14 +60,18 @@ final class Config implements RestInterface
         }
     }
 
+    public function bustCache(): void
+    {
+        apcu_delete(self::CACHE_KEY);
+        $this->configArr = $this->readAll();
+    }
+
     /**
      * Insert the default values in the sql config table
      * Only run once of first ever page load
      */
     public function create(): bool
     {
-        $schema = Update::getRequiredSchema();
-
         $sql = "INSERT INTO `config` (`conf_name`, `conf_value`) VALUES
             ('admin_validate', '1'),
             ('autologout_time', '0'),
@@ -193,10 +201,10 @@ final class Config implements RestInterface
             ('onboarding_email_different_for_admins', '0'),
             ('onboarding_email_admins_subject', NULL),
             ('onboarding_email_admins_body', NULL),
-            ('allow_users_change_identity', '1')";
+            ('allow_users_change_identity', '0')";
 
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':schema', $schema);
+        $req->bindValue(':schema', Update::REQUIRED_SCHEMA);
 
         return $this->Db->execute($req);
     }
@@ -221,11 +229,6 @@ final class Config implements RestInterface
         return (string) getenv($confName);
     }
 
-    public function readOne(): array
-    {
-        return $this->readAll();
-    }
-
     public static function boolFromEnv(string $confName): bool
     {
         return getenv($confName) !== 'false';
@@ -240,8 +243,14 @@ final class Config implements RestInterface
         return $this->readOne();
     }
 
-    public function readAll(): array
+    public function readAll(?QueryParamsInterface $queryParams = null): array
     {
+        // this select is executed every query, so we cache the result in memory
+        if (apcu_exists(self::CACHE_KEY)) {
+            return apcu_fetch(self::CACHE_KEY);
+        }
+
+        // cache miss, do sql query
         $sql = 'SELECT * FROM config';
         $req = $this->Db->prepare($sql);
         $this->Db->execute($req);
@@ -252,7 +261,10 @@ final class Config implements RestInterface
             $config['remote_dir_config'][0] = TwigFilters::decrypt($config['remote_dir_config'][0]);
         }
 
-        return array_map(fn($v): mixed => $v[0], $config);
+        // we want key => value array
+        $result = array_map(fn($v): mixed => $v[0], $config);
+        apcu_store(self::CACHE_KEY, $result, self::CACHE_TTL_SECONDS);
+        return $result;
     }
 
     /**
@@ -296,6 +308,7 @@ final class Config implements RestInterface
             }
         }
 
+        $this->bustCache();
         return $this->readAll();
     }
 
@@ -324,11 +337,6 @@ final class Config implements RestInterface
             $this->configArr['smtp_port'],
             $this->configArr['smtp_verify_cert'],
         );
-    }
-
-    public function postAction(Action $action, array $reqBody): int
-    {
-        throw new ImproperActionException('No POST action for Config endpoint.');
     }
 
     /**

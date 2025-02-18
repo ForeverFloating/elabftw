@@ -12,24 +12,28 @@ declare(strict_types=1);
 
 namespace Elabftw\Models;
 
-use Elabftw\Elabftw\Db;
 use Elabftw\Enums\Action;
 use Elabftw\Exceptions\IllegalActionException;
-use Elabftw\Interfaces\RestInterface;
+use Elabftw\Interfaces\QueryParamsInterface;
 use Elabftw\Services\Xml2Idps;
 use Elabftw\Traits\SetIdTrait;
+use Override;
 use PDO;
 
 /**
  * An IDP is an Identity Provider. Used in SAML2 authentication context.
  */
-class Idps implements RestInterface
+class Idps extends AbstractRest
 {
     use SetIdTrait;
 
-    public const string SSO_BINDING = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST';
+    public const string SSO_BINDING_POST = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST';
 
-    public const string SLO_BINDING = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect';
+    public const string SSO_BINDING_REDIRECT = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect';
+
+    public const string SLO_BINDING_POST = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST';
+
+    public const string SLO_BINDING_REDIRECT = 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect';
 
     private const string EMAIL_ATTR = 'urn:oid:0.9.2342.19200300.100.1.3';
 
@@ -41,12 +45,10 @@ class Idps implements RestInterface
 
     private const string ORGID_ATTR = 'urn:oid:0.9.2342.19200300.100.1.1';
 
-    protected Db $Db;
-
     public function __construct(private Users $requester, ?int $id = null)
     {
-        $this->Db = Db::getConnection();
-        $this->id = $id;
+        parent::__construct();
+        $this->setId($id);
     }
 
     public function getApiPath(): string
@@ -54,6 +56,7 @@ class Idps implements RestInterface
         return 'api/v2/idps/';
     }
 
+    #[Override]
     public function postAction(Action $action, array $reqBody): int
     {
         $this->canWriteOrExplode();
@@ -74,6 +77,7 @@ class Idps implements RestInterface
         );
     }
 
+    #[Override]
     public function readOne(): array
     {
         $sql = 'SELECT * FROM idps WHERE id = :id';
@@ -84,7 +88,8 @@ class Idps implements RestInterface
         return $this->Db->fetch($req);
     }
 
-    public function readAll(): array
+    #[Override]
+    public function readAll(?QueryParamsInterface $queryParams = null): array
     {
         $sql = 'SELECT idps.*, idps_sources.url AS source_url
             FROM idps LEFT JOIN idps_sources ON idps.source = idps_sources.id ORDER BY name';
@@ -119,6 +124,7 @@ class Idps implements RestInterface
         return $req->fetchAll();
     }
 
+    #[Override]
     public function patch(Action $action, array $params): array
     {
         $this->canWriteOrExplode();
@@ -188,6 +194,7 @@ class Idps implements RestInterface
         return $this->Db->fetch($req);
     }
 
+    #[Override]
     public function destroy(): bool
     {
         $this->canWriteOrExplode();
@@ -205,8 +212,8 @@ class Idps implements RestInterface
         string $x509,
         string $x509_new = '',
         ?string $slo_url = '',
-        string $sso_binding = self::SSO_BINDING,
-        string $slo_binding = self::SLO_BINDING,
+        string $sso_binding = self::SSO_BINDING_POST,
+        string $slo_binding = self::SLO_BINDING_REDIRECT,
         string $email_attr = self::EMAIL_ATTR,
         ?string $team_attr = self::TEAM_ATTR,
         string $fname_attr = self::FNAME_ATTR,

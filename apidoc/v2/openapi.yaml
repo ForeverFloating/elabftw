@@ -285,6 +285,7 @@ components:
         category:
           type: integer
           nullable: true
+          description: Cannot be negative nor empty string. Can be reset with "0" and null.
         category_color:
           type: string
           nullable: true
@@ -302,6 +303,8 @@ components:
           type: string
         custom_id:
           type: integer
+          description: Cannot be negative. Can be reset with "0", null or empty string.
+          nullable: true
         date:
           type: string
         elabid:
@@ -328,6 +331,7 @@ components:
             $ref: '#/components/schemas/link'
         lastchangeby:
           type: integer
+          nullable: true
         lastname:
           type: string
         locked:
@@ -371,6 +375,7 @@ components:
         status:
           type: integer
           nullable: true
+          description: Cannot be negative nor empty string. Can be reset with "0" and null.
         status_color:
           type: string
           nullable: true
@@ -459,6 +464,8 @@ components:
         category_color:
           type: string
           nullable: true
+        content_type:
+          type: integer
         exclusive_edit_mode:
           $ref: '#/components/schemas/exclusive_edit_mode'
         userid:
@@ -467,6 +474,10 @@ components:
           type: string
         canwrite:
           type: string
+        canread_is_immutable:
+          type: integer
+        canwrite_is_immutable:
+          type: integer
         locked:
           type: integer
         lockedby:
@@ -736,8 +747,14 @@ components:
       properties:
         id:
           type: integer
+        item_count:
+          type: integer
+        is_favorite:
+          type: integer
         tag:
           type: string
+        team:
+          type: integer
     team:
       type: object
       properties:
@@ -753,22 +770,10 @@ components:
           type: integer
         force_exp_tpl:
           type: integer
-        link_name:
-          type: string
-        link_href:
-          type: string
         created_at:
           type: string
         orgid:
           type: string
-        force_canread:
-          type: string
-        force_canwrite:
-          type: string
-        do_force_canread:
-          type: integer
-        do_force_canwrite:
-          type: integer
         visible:
           type: integer
         announcement:
@@ -878,6 +883,8 @@ components:
           type: string
         lastname:
           type: string
+        initials:
+          type: string
         email:
           type: string
         validated:
@@ -943,7 +950,7 @@ paths:
     post:
       tags: ['Api keys']
       summary: Create an API key
-      description: >-
+      description: |
         Create an API key. The cleartext key is sent back in the location
         header.
       operationId: post-apikeys
@@ -1057,19 +1064,72 @@ paths:
             schema:
               type: object
               properties:
-                category_id:
+                body:
+                  type: string
+                  nullable: true
+                  description: The main text content (HTML or Markdown)
+                  default: null
+                  example: "<h1>Section title</h1><p>Main text of resource</p>"
+                canread:
+                  type: string
+                  nullable: true
+                  description: JSON permissions for reading the entry
+                  default: '{"base": 20, "teams": [], "users": [1], "teamgroups": [1]}'
+                canwrite:
+                  type: string
+                  nullable: true
+                  description: JSON permissions for writing the entry
+                  default: '{"base": 20, "teams": [], "users": [1], "teamgroups": [1]}'
+                category:
                   type: integer
-                  description: >-
-                    The template id to use, or 0 to use the common team
-                    template, or -1 to have an empty body.
-                  default: -1
+                  nullable: true
+                  description: The experiment category ID
+                  default: null
+                  example: 3
+                content_type:
+                  type: integer
+                  nullable: true
+                  description: |
+                    Set the content type for main text: 1 for HTML (default) and 2 for Markdown
+                  example: 1
+                metadata:
+                  type: string
+                  nullable: true
+                  description: The metadata in JSON format
+                  default: null
+                  example: '{ "extra_fields": { "For example": { "type": "text", "value": "With a value", "required": true, "description": "An extra field of type text" } } }'
+                rating:
+                  type: integer
+                  nullable: true
+                  description: Rating value from 0 to 5
+                  default: 0
+                status:
+                  type: integer
+                  nullable: true
+                  description: The experiment status ID
+                  default: null
+                  example: 1
                 tags:
                   type: array
-                  description: >-
+                  nullable: true
+                  description: |
                     An array of tags to assign to the created entry.
                   items:
                     type: string
                   default: []
+                  example: ["test", "confidential", "replication"]
+                title:
+                  type: string
+                  nullable: true
+                  description: The title of the entry
+                  default: Untitled
+                  example: "Test replicating the results of Naomi"
+                template:
+                  type: integer
+                  description: |
+                    The template id to use, or 0 to use the common team
+                    template, or -1 to have an empty body.
+                  default: -1
 
       responses:
         '201':
@@ -1094,7 +1154,7 @@ paths:
             Search for a term in title, body or elabid.
           examples:
             first:
-              summary: Search for all experiments with the word "test".
+              summary: Search for all results with the word "test".
               value: test
         - name: extended
           in: query
@@ -1104,17 +1164,17 @@ paths:
             Extended search (advanced query).
           examples:
             first:
-              summary: Search for all items with a rating of 2.
+              summary: Search for all results with a rating of 2.
               value: "rating:2"
         - name: related
           in: query
           schema:
             type: integer
           description: |
-            Look only for entries linked to this item id.
+            Look only for entries linked to this entry id.
           examples:
             first:
-              summary: Look for entries linked to item with id 42.
+              summary: Look for entries linked to entry with id 42.
               value: 42
         - name: related_origin
           in: query
@@ -1133,9 +1193,29 @@ paths:
         - name: cat
           in: query
           schema:
-            type: integer
+            type: string
           description: |
-            The status id of the experiments.
+            Add a filter on the Category. Supports comma separated list of numbers, including "null".
+          examples:
+            first:
+              summary: Only display results with category ID 2
+              value: "2"
+            second:
+              summary: Display results with category ID 3 or 4 or not set (null)
+              value: "3,4,null"
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: |
+            Add a filter on the Status. Supports comma separated list of numbers, including "null".
+          examples:
+            first:
+              summary: Only display results with status ID 2
+              value: "2"
+            second:
+              summary: Display results with status ID 3 or 4 or not set (null)
+              value: "3,4,null"
         - name: tags[]
           in: query
           schema:
@@ -1169,13 +1249,16 @@ paths:
         - name: owner
           in: query
           schema:
-            type: integer
+            type: string
           description: |
             Filter results by author (user id)
           examples:
             first:
               summary: Only display results from user with id 2
-              value: 2
+              value: "2"
+            second:
+              summary: Only display results from user with id 2 or 3
+              value: "2,3"
         - name: scope
           in: query
           schema:
@@ -1204,6 +1287,21 @@ paths:
             enum: ["asc", "desc"]
           description: |
             Change the sorting of results: ascending or descending.
+        - name: state
+          in: query
+          schema:
+            type: string
+            default: "1"
+          examples:
+            first:
+              summary: Display only archived entries
+              value: "2"
+            second:
+              summary: Display archived and deleted entries
+              value: "2,3"
+          description: |
+            Filter results based on their state: 1 (Normal), 2 (Archived), 3 (Deleted). Supports comma separated values.
+      # END need to copy part to items/
       responses:
         '200':
           description: A list of experiments
@@ -1214,7 +1312,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/experiment'
   /experiments/{id}:
-    summary: Actions on an experiment
+    summary: Actions on a specific experiment
     parameters:
       - name: id
         in: path
@@ -1222,6 +1320,47 @@ paths:
         required: true
         schema:
           type: integer
+    post:
+      tags: ['Experiments']
+      summary: Duplicate an experiment with its ID
+      operationId: post-experiment-by-id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the experiment to duplicate.
+          schema:
+            type: integer
+      requestBody:
+        description: Parameters for duplicating an experiment
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  description: |
+                    The "duplicate" action creates a new entity based from the given entity id.
+                  default: 'duplicate'
+                copyFiles:
+                  type: boolean
+                  default: false
+                  description: |
+                    If "true", the action will import the files of the original entity.
+                linkToOriginal:
+                  type: boolean
+                  default: true
+                  description: |
+                    If "true", the action will create a link to the original entity.
+      responses:
+        '201':
+          description: The experiment has been duplicated.
+          headers:
+            location:
+              description: An URL to the experiment that was duplicated.
+              schema:
+                type: string
     get:
       tags: ['Experiments']
       summary: Read an experiment
@@ -1246,6 +1385,7 @@ paths:
           in: query
           schema:
             type: boolean
+            default: false
           description: |
             Include a full JSON export in the ZIP archive. Only applicable if format is zip(a).
           examples:
@@ -1259,6 +1399,7 @@ paths:
           in: query
           schema:
             type: boolean
+            default: true
           description: |
             Include the title in the QR code. Only applicable if format is qrpng.
           examples:
@@ -1283,6 +1424,7 @@ paths:
           in: query
           schema:
             type: boolean
+            default: false
           description: |
             Toggles if the changelog should be included in PDF exports (pdf, pdfa, zip, zipa). Changelog is by default included if the export provides PDF/A, otherwise not.
           examples:
@@ -1304,7 +1446,7 @@ paths:
       summary: Modify an experiment
       operationId: patch-experiment
       requestBody:
-        description: Parameters for patching an item
+        description: Parameters for patching an experiment
         content:
           application/json:
             schema:
@@ -1318,11 +1460,42 @@ paths:
                         'exclusiveeditmode',
                         'lock',
                         'pin',
+                        'sign',
                         'timestamp',
                         'updatemetadatafield',
                         'update',
                       ]
+                    passphrase:
+                      type: string
+                      description: The passphrase corresponding to your signature key. This parameter is required when Action is "sign"
+                      example: hunter2
+                    meaning:
+                      type: integer
+                      enum: [ 10, 20, 30, 40, 50 ]
+                      description: |
+                        Meaning of the signature. This parameter is required when Action is "sign"
+                        - 10: Approval
+                        - 20: Authorship
+                        - 30: Responsibility
+                        - 40: Review
+                        - 50: Safety
+                      example: 40
                 - $ref: '#/components/schemas/experiment'
+            examples:
+              signature:
+                summary: Sign an entry with meaning "Approval"
+                value:
+                  action: sign
+                  passphrase: hunter2
+                  meaning: 10
+              bloxberg:
+                summary: Create a Bloxberg blockchain timestamp
+                value:
+                  action: bloxberg
+              timestamp:
+                summary: Create a timestamp archive
+                value:
+                  action: timestamp
       responses:
         '200':
           description: The patched experiment
@@ -1398,6 +1571,7 @@ paths:
                     type: integer
                     description: Sum of stored filesize in MySQL for all uploads of the instance.
                     example: 25681672
+                    format: int64
                   uploads_filesize_sum_formatted:
                     type: string
                     description: Sum of stored filesize in MySQL for all uploads of the instance, formatted
@@ -1417,15 +1591,65 @@ paths:
             schema:
               type: object
               properties:
-                category_id:
+                body:
+                  type: string
+                  nullable: true
+                  description: The main text content (HTML or Markdown)
+                  default: null
+                  example: "<h1>Section title</h1><p>Main text of resource</p>"
+                canread:
+                  type: string
+                  nullable: true
+                  description: JSON permissions for reading the entry
+                  default: '{"base": 30, "teams": [], "users": [], "teamgroups": []}'
+                canwrite:
+                  type: string
+                  nullable: true
+                  description: JSON permissions for writing the entry
+                  default: '{"base": 20, "teams": [], "users": [], "teamgroups": []}'
+                content_type:
+                  type: integer
+                  nullable: true
+                  description: |
+                    Set the content type for main text: 1 for HTML (default) and 2 for Markdown
+                  example: 1
+                metadata:
+                  type: string
+                  nullable: true
+                  description: The metadata in JSON format
+                  default: null
+                  example: '{ "extra_fields": { "For example": { "type": "text", "value": "With a value", "required": true, "description": "An extra field of type text" } } }'
+                rating:
+                  type: integer
+                  nullable: true
+                  description: Rating value from 0 to 5
+                  default: 0
+                status:
+                  type: integer
+                  nullable: true
+                  description: The experiment status ID
+                  default: null
+                  example: 1
+                template:
                   type: integer
                   description: |
                     Mandatory parameter, an ID corresponding to an items_types in the team.
+                  example: 1
                 tags:
                   type: array
+                  nullable: true
+                  description: |
+                    An array of tags to assign to the created entry.
                   items:
                     type: string
                   default: []
+                  example: ["TIRF", "Nikon", "mandatory booking"]
+                title:
+                  type: string
+                  nullable: true
+                  description: The title of the entry
+                  default: Untitled
+                  example: "TIRF microscope"
 
       responses:
         '201':
@@ -1439,7 +1663,7 @@ paths:
       tags: ['Items']
       summary: Read all items that are accessible
       operationId: read-items
-      # start duplicate from GET /experiments (except related)
+      # start duplicate from GET /experiments
       parameters:
         - name: q
           in: query
@@ -1449,7 +1673,7 @@ paths:
             Search for a term in title, body or elabid.
           examples:
             first:
-              summary: Search for all items with the word "test".
+              summary: Search for all results with the word "test".
               value: test
         - name: extended
           in: query
@@ -1485,13 +1709,32 @@ paths:
             experiments:
               summary: The related entry is an experiment.
               value: experiments
-        # This one is not exactly copy paste
         - name: cat
           in: query
           schema:
-            type: integer
+            type: string
           description: |
-            The category id of the items.
+            Add a filter on the Category. Supports comma separated list of numbers, including "null".
+          examples:
+            first:
+              summary: Only display results with category ID 2
+              value: "2"
+            second:
+              summary: Display results with category ID 3 or 4 or not set (null)
+              value: "3,4,null"
+        - name: status
+          in: query
+          schema:
+            type: string
+          description: |
+            Add a filter on the Status. Supports comma separated list of numbers, including "null".
+          examples:
+            first:
+              summary: Only display results with status ID 2
+              value: "2"
+            second:
+              summary: Display results with status ID 3 or 4 or not set (null)
+              value: "3,4,null"
         - name: tags[]
           in: query
           schema:
@@ -1525,13 +1768,16 @@ paths:
         - name: owner
           in: query
           schema:
-            type: integer
+            type: string
           description: |
             Filter results by author (user id)
           examples:
             first:
               summary: Only display results from user with id 2
-              value: 2
+              value: "2"
+            second:
+              summary: Only display results from user with id 2 or 3
+              value: "2,3"
         - name: scope
           in: query
           schema:
@@ -1560,6 +1806,20 @@ paths:
             enum: ["asc", "desc"]
           description: |
             Change the sorting of results: ascending or descending.
+        - name: state
+          in: query
+          schema:
+            type: string
+            default: "1"
+          examples:
+            first:
+              summary: Display only archived entries
+              value: "2"
+            second:
+              summary: Display archived and deleted entries
+              value: "2,3"
+          description: |
+            Filter results based on their state: 1 (Normal), 2 (Archived), 3 (Deleted). Supports comma separated values.
       # end duplicate from GET /experiments
       responses:
         '200':
@@ -1571,7 +1831,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/item'
   /items/{id}:
-    summary: Actions on an item
+    summary: Actions on a specific item
     parameters:
       - name: id
         in: path
@@ -1579,6 +1839,47 @@ paths:
         required: true
         schema:
           type: integer
+    post:
+      tags: ['Items']
+      summary: Duplicate an item with its ID
+      operationId: post-item-by-id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the item to duplicate.
+          schema:
+            type: integer
+      requestBody:
+        description: Parameters for duplicating an item
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  description: |
+                    The "duplicate" action creates a new item based from the given item id.
+                  default: 'duplicate'
+                copyFiles:
+                  type: boolean
+                  default: false
+                  description: |
+                    If "true", the action will import the files of the original item.
+                linkToOriginal:
+                  type: boolean
+                  default: true
+                  description: |
+                    If "true", the action will create a link to the original item.
+      responses:
+        '201':
+          description: The item has been duplicated.
+          headers:
+            location:
+              description: An URL to the item that was duplicated.
+              schema:
+                type: string
     get:
       tags: ['Items']
       summary: Read an item
@@ -1604,6 +1905,7 @@ paths:
           in: query
           schema:
             type: boolean
+            default: false
           description: |
             Include a full JSON export in the ZIP archive. Only applicable if format is zip(a).
           examples:
@@ -1617,6 +1919,7 @@ paths:
           in: query
           schema:
             type: boolean
+            default: true
           description: |
             Include the title in the QR code. Only applicable if format is qrpng.
           examples:
@@ -1641,6 +1944,7 @@ paths:
           in: query
           schema:
             type: boolean
+            default: false
           description: |
             Toggles if the changelog should be included in PDF exports (pdf, pdfa, zip, zipa). Changelog is by default included if the export provides PDF/A, otherwise not.
           examples:
@@ -1673,13 +1977,46 @@ paths:
                     action:
                       type: string
                       enum: [
+                        'bloxberg',
                         'exclusiveeditmode',
                         'lock',
                         'pin',
+                        'sign',
                         'updatemetadatafield',
                         'update',
                       ]
+                      example: sign
+                    passphrase:
+                      type: string
+                      description: The passphrase corresponding to your signature key. This parameter is required when Action is "sign"
+                      example: hunter2
+                    meaning:
+                      type: integer
+                      enum: [ 10, 20, 30, 40, 50 ]
+                      description: |
+                        Meaning of the signature. This parameter is required when Action is "sign"
+                        - 10: Approval
+                        - 20: Authorship
+                        - 30: Responsibility
+                        - 40: Review
+                        - 50: Safety
+                      example: 40
                 - $ref: '#/components/schemas/item'
+            examples:
+              signature:
+                summary: Sign an entry with meaning "Approval"
+                value:
+                  action: sign
+                  passphrase: hunter2
+                  meaning: 10
+              bloxberg:
+                summary: Create a Bloxberg blockchain timestamp
+                value:
+                  action: bloxberg
+              timestamp:
+                summary: Create a timestamp archive
+                value:
+                  action: timestamp
       responses:
         '200':
           description: The patched item
@@ -1834,6 +2171,14 @@ paths:
                   type: string
                   example: "on"
                   description: Set to "on" to create PDF files with the PDF/A specification
+      responses:
+        '201':
+          description: The export request was successful
+          headers:
+            location:
+              description: API URL for export record
+              schema:
+                type: string
   /exports/{id}:
     summary: An export request
     parameters:
@@ -2160,6 +2505,7 @@ paths:
   # EXPERIMENTS_TEMPLATES
   /experiments_templates:
     summary: Actions on experiments_templates
+    # POST EXPERIMENTS TEMPLATES
     post:
       tags: ['Experiments templates']
       summary: Create an experiment template
@@ -2171,10 +2517,83 @@ paths:
             schema:
               type: object
               properties:
+                body:
+                  type: string
+                  nullable: true
+                  description: The main text content (HTML or Markdown)
+                  default: null
+                  example: "<h1>Section title</h1><p>Main text of template</p>"
+                canread:
+                  type: string
+                  nullable: true
+                  description: JSON permissions for reading the entry
+                  default: '{"base": 30, "teams": [], "users": [], "teamgroups": []}'
+                canwrite:
+                  type: string
+                  nullable: true
+                  description: JSON permissions for writing the entry
+                  default: '{"base": 20, "teams": [], "users": [], "teamgroups": []}'
+                canread_is_immutable:
+                  type: integer
+                  nullable: true
+                  description: Set to 1 to prevent further changes to the permissions setting for read access
+                  default: 0
+                canwrite_is_immutable:
+                  type: integer
+                  nullable: true
+                  description: Set to 1 to prevent further changes to the permissions setting for write access
+                  default: 0
+                category:
+                  type: integer
+                  nullable: true
+                  description: The experiment category ID
+                  default: null
+                  example: 3
+                content_type:
+                  type: integer
+                  nullable: true
+                  description: |
+                    Set the content type for main text: 1 for HTML (default) and 2 for Markdown
+                  example: 1
+                metadata:
+                  type: string
+                  nullable: true
+                  description: The metadata in JSON format
+                  default: null
+                  example: '{ "extra_fields": { "For example": { "type": "text", "value": "With a value", "required": true, "description": "An extra field of type text" } } }'
+                rating:
+                  type: integer
+                  nullable: true
+                  description: Rating value from 0 to 5
+                  default: 0
+                status:
+                  type: integer
+                  nullable: true
+                  description: The experiment status ID
+                  default: null
+                  example: 1
+                template:
+                  type: integer
+                  nullable: true
+                  description: |
+                    The template id to use, or 0 to use the common team
+                    template, or -1 to have an empty body.
+                  default: -1
+                tags:
+                  type: array
+                  nullable: true
+                  description: |
+                    An array of tags to assign to the created entry.
+                  items:
+                    type: string
+                  default: []
+                  example: ["Project OSCARS", "Austria", "FAIR"]
                 title:
                   type: string
-                  description: A title for the template.
+                  nullable: true
+                  description: The title of the entry
                   default: Untitled
+                  example: "Protocol for extraction of DNA from Xenopus oocytes"
       responses:
         '201':
           description: The experiment template has been created.
@@ -2183,6 +2602,9 @@ paths:
               description: An URL to the experiment template that was created.
               schema:
                 type: string
+    # END POST EXPERIMENTS TEMPLATES
+
+    # GET EXPERIMENTS TEMPLATES
     get:
       tags: ['Experiments templates']
       summary: Read all experiments_templates that are accessible
@@ -2197,7 +2619,7 @@ paths:
                 items:
                   $ref: '#/components/schemas/experiment_template'
   /experiments_templates/{id}:
-    summary: Actions on an experiment template
+    summary: Actions on a specific experiment template
     parameters:
       - name: id
         in: path
@@ -2205,6 +2627,42 @@ paths:
         required: true
         schema:
           type: integer
+    post:
+      tags: ['Experiments templates']
+      summary: Duplicate an experiment template with its ID
+      operationId: post-experiment_template-by-id
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique identifier of the experiment template to duplicate.
+          schema:
+            type: integer
+      requestBody:
+        description: Parameters for duplicating an experiment template
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  description: |
+                    The "duplicate" action creates a new entity based from the given entity id.
+                  default: 'duplicate'
+                copyFiles:
+                  type: boolean
+                  default: false
+                  description: |
+                    If "true", the action will import the files of the original entity.
+      responses:
+        '201':
+          description: The experiment template has been duplicated.
+          headers:
+            location:
+              description: An URL to the experiment template that was duplicated.
+              schema:
+                type: string
     get:
       tags: ['Experiments templates']
       summary: Read an experiment template
@@ -2265,10 +2723,67 @@ paths:
             schema:
               type: object
               properties:
+                body:
+                  type: string
+                  nullable: true
+                  description: The main text content (HTML or Markdown)
+                  default: null
+                  example: "<h1>Section title</h1><p>Main text of resource category</p>"
+                canread:
+                  type: string
+                  nullable: true
+                  description: JSON permissions for reading the entry
+                  default: '{"base": 30, "teams": [], "users": [], "teamgroups": []}'
+                canwrite:
+                  type: string
+                  nullable: true
+                  description: JSON permissions for writing the entry
+                  default: '{"base": 20, "teams": [], "users": [], "teamgroups": []}'
+                canread_is_immutable:
+                  type: integer
+                  nullable: true
+                  description: Set to 1 to prevent further changes to the permissions setting for read access
+                  default: 0
+                canwrite_is_immutable:
+                  type: integer
+                  nullable: true
+                  description: Set to 1 to prevent further changes to the permissions setting for write access
+                  default: 0
+                color:
+                  type: string
+                  description: Hexadecimal color code for the category
+                  nullable: true
+                  default: A random suitable color
+                  example: 29AEB9
+                content_type:
+                  type: integer
+                  nullable: true
+                  description: |
+                    Set the content type for main text: 1 for HTML (default) and 2 for Markdown
+                  example: 1
+                metadata:
+                  type: string
+                  nullable: true
+                  description: The metadata in JSON format
+                  default: null
+                  example: '{ "extra_fields": { "For example": { "type": "text", "value": "With a value", "required": true, "description": "An extra field of type text" } } }'
+                rating:
+                  type: integer
+                  nullable: true
+                  description: Rating value from 0 to 5
+                  default: 0
+                status:
+                  type: integer
+                  nullable: true
+                  description: Status of the created resource from that category
+                  default: null
+                  example: 1
                 title:
                   type: string
-                  description: A name for this items type.
-                  default: Untitled
+                  nullable: true
+                  description: Name of the category
+                  default: Default
+                  example: "Microscope"
       responses:
         '201':
           description: The items type has been created.
@@ -2539,6 +3054,60 @@ paths:
         '204':
           description: The favorite tag was removed.
 
+  # REPORTS
+  /reports:
+    summary: Generate usage reports
+    get:
+      tags: ['Reports']
+      summary: Get usage reports
+      description: Get usage reports at the instance or team level.
+      operationId: get-reports
+      parameters:
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: ['csv', 'json']
+            default: json
+          description: |
+            Select the output format
+          examples:
+            csv:
+              summary: Generate a CSV
+              value: csv
+        - name: scope
+          in: query
+          schema:
+            type: string
+            enum: ['instance', 'team']
+            default: json
+          description: |
+            Select the scope. Instance is for sysadmins only. Team will generate report for the current team.
+          examples:
+            instance:
+              summary: Get instance level report
+              value: instance
+            team:
+              summary: Get team level report
+              value: team
+      responses:
+        '200':
+          description: Get usage reports
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query_parameters:
+                    type: object
+                    properties:
+                      format:
+                        type: array
+                      scope:
+                        type: array
+            text/csv:
+              schema:
+                type: string
   # TEAM TAGS
   /teams/{id}/tags:
     summary: Manage tags at the team level.
@@ -2559,14 +3128,9 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  tag:
-                    type: string
-                  id:
-                    type: integer
-                  item_count:
-                    type: integer
+                type: array
+                items:
+                  $ref: '#/components/schemas/tag'
     post:
       tags: ['Team tags']
       summary: Create a tag in the team.
@@ -2589,31 +3153,6 @@ paths:
               description: An URL ending with 0 if the tag was already here, or an URL to the newly created tag.
               schema:
                 type: string
-    patch:
-      tags: ['Team tags']
-      summary: |
-        Actions on tags.
-      operationId: patch-tags
-      requestBody:
-        description: Parameters for modifying team tags.
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                action:
-                  type: string
-                  enum: ['deduplicate']
-              description: Find all duplicate tags and deduplicate them.
-      responses:
-        '200':
-          description: The team tag has been modified.
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/tag'
   /teams/{id}/tags/{subid}:
     summary: Retrieve a tag from its id.
     parameters:
@@ -2639,12 +3178,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  tag:
-                    type: string
-                  id:
-                    type: integer
+                $ref: '#/components/schemas/tag'
     patch:
       tags: ['Team tags']
       summary: |

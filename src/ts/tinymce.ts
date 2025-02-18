@@ -210,6 +210,12 @@ export function getTinymceBaseConfig(page: string): object {
 
   return {
     selector: '.mceditable',
+    table_default_styles: {
+      'min-width':'25%',
+      'width':'auto',
+    },
+    // The table width is changed when manipulating columns, the size of other columns is maintained.
+    table_column_resizing: 'resizetable',
     browser_spellcheck: true,
     // location of the skin directory
     skin_url: '/assets/tinymce_skins',
@@ -282,6 +288,7 @@ export function getTinymceBaseConfig(page: string): object {
       {text: 'Python', value: 'python'},
       {text: 'R', value: 'r'},
       {text: 'Ruby', value: 'ruby'},
+      {text: 'Rust', value: 'rust'},
       {text: 'SQL', value: 'sql'},
       {text: 'Tcl', value: 'tcl'},
       {text: 'VHDL', value: 'vhdl'},
@@ -333,13 +340,14 @@ export function getTinymceBaseConfig(page: string): object {
     setup: (editor: Editor): void => {
       // holds the timer setTimeout function
       let typingTimer;
-      // make the edges round
       editor.on('init', () => {
-        const doc = editor.getDoc();
+        // make the edges round
         editor.getContainer().className += ' rounded';
+        // set language attribute
+        const doc = editor.getDoc();
         doc.documentElement.setAttribute('lang', 'en');
-
-        const skinNode = document.getElementById('mce-u0') as HTMLLinkElement;
+        // prevent skin.min.css from changing appearance of .mce-preview-body element
+        const skinNode = document.querySelector('[rel=stylesheet][href$="/skin.min.css"]') as HTMLLinkElement;
         const skinCSS = skinNode.sheet;
         Array.from(skinCSS.cssRules).forEach((rule, index) => {
           if (rule instanceof CSSStyleRule) {
@@ -529,27 +537,23 @@ export function getTinymceBaseConfig(page: string): object {
       },
     ],
     toolbar_sticky: true,
-    // custom settings
-    table_default_attributes: {},
-    table_default_styles: {},
-    table_header_type: 'sectionCells',
-    table_use_colgroups: false,
-    table_column_resizing: 'resizetable',
+    // render MathJax for TinyMCE preview
     init_instance_callback: (editor) => {
       editor.on('ExecCommand', (e) => {
         if (e.command == 'mcePreview') {
+          // declaration as iFrame element required to avoid errors with getting srcdoc property
           const iframe = (document.querySelector('iframe.tox-dialog__iframe') as HTMLIFrameElement);
           if (iframe) {
             iframe.onload = () => {
               const tinyDiv = document.createElement('div');
-              tinyDiv.setAttribute('id', 'tinymce-preview');
               tinyDiv.setAttribute('class', 'mce-content-body mce-preview-body');
               iframe.contentDocument.body.childNodes.forEach((node) => {
                 tinyDiv.append(node);
               });
+              // iframe replaced with div element because MathJax otherwise doesn't render menus properly; see #5295
               iframe.replaceWith(tinyDiv);
               MathJax.typesetPromise().then(() => {
-                const observer = new MutationObserver(() => {
+                const observer = new MutationObserver (() => {
                   observer.disconnect();
                   return mathDOM(tinyDiv);
                 });
@@ -564,6 +568,12 @@ export function getTinymceBaseConfig(page: string): object {
         }
       });
     },
+    // custom settings
+    table_default_attributes: {},
+    table_default_styles: {},
+    table_header_type: 'sectionCells',
+    table_use_colgroups: false,
+    table_column_resizing: 'resizetable',
     invalid_styles: {
       'col': 'width height',
       'table': 'width height',

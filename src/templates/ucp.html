@@ -3,9 +3,8 @@
 <ul class='tabbed-menu'>
   <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='1'>{{ 'General'|trans }}</button></li>
   <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='2'>{{ 'Account'|trans }}</button></li>
-  <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='3'>{{ 'Templates'|trans }}</button></li>
-  <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='4'>{{ 'API keys'|trans }}</button></li>
-  <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='5'>{{ 'Notifications'|trans }}</button></li>
+  <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='3'>{{ 'API keys'|trans }}</button></li>
+  <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='4'>{{ 'Notifications'|trans }}</button></li>
 </ul>
 
 {# loading spinner #}
@@ -110,9 +109,14 @@
         <option value='3' {{ App.Users.userData.entrypoint == '3' ? ' selected' }}>{{ 'Scheduler'|trans }}</option>
       </select>
     </div>
-    <hr>
+  </div>
 
+  {# SCHEDULER SETTINGS #}
+  <h2 id='schedulerSettings' class='p-2 pl-3 section-title'>{{ 'Scheduler'|trans }}</h2>
 
+  <div class='pl-3 mt-2 mb-5'>
+    {# setting to toggle the display of week-ends on teams scheduler tab https://fullcalendar.io/docs/weekends #}
+    {% include 'binary-setting.html' with {'label': 'Show weekends'|trans, 'model': 'users/me', 'slug': 'show_weekends', 'src': App.Users.userData} %}
   </div>
 
   {# KEYBOARD SHORTCUTS #}
@@ -278,6 +282,15 @@
     <hr>
 
     <div class='d-flex justify-content-between'>
+      <label for='enforce_exclusive_edit_mode' class='col-form-label'>{{ 'Enforce exclusive edit mode: each entry you start editing will be in exclusive edit mode.'|trans }}</label>
+      <label class='switch ucp-align'>
+        <input type='checkbox' data-trigger='change' data-model='users/me' data-target='enforce_exclusive_edit_mode' {{ App.Users.userData.enforce_exclusive_edit_mode == 1 ? 'checked="checked"' }} id='enforce_exclusive_edit_mode'>
+        <span class='slider'></span>
+      </label>
+    </div>
+    <hr>
+
+    <div class='d-flex justify-content-between'>
       <div>
         <label for='scope_teamgroups' class='col-form-label'>{{ 'Select the scope for teamgroups'|trans }}</label>
         <p class='smallgray'>{{ 'This setting controls which teamgroups will be listed in the permission settings window.'|trans }}</p>
@@ -419,19 +432,8 @@
   </div>
 </div>
 
-{# TAB 3 - USER TEMPLATES #}
-<div data-tabcontent='3' hidden>
-  <h2 class='p-2 pl-3 section-title'><i class='fas fa-layer-group'></i> {{ 'Experiments Templates'|trans }}</h2>
-
-  {% if App.Request.query.has('templateid') %}
-    {% include 'view-edit-template.html' %}
-  {% else %}
-    {% include 'show-templates-select.html' %}
-  {% endif %}
-</div>
-
 {# TAB 4 - API KEYS #}
-<div data-tabcontent='4' hidden>
+<div data-tabcontent='3' hidden>
   <p><a target='_blank' rel='noopener' class='external-link' href='https://doc.elabftw.net/api.html'>{{ 'Link to documentation'|trans }}</a></p>
   <h2 class='p-2 pl-3 section-title'>{{ 'Create new key'|trans }}</h2>
 
@@ -497,7 +499,7 @@
 </div>
 
 {# TAB 5 - NOTIFICATIONS SETTINGS #}
-<div data-tabcontent='5' hidden>
+<div data-tabcontent='4' hidden>
   <h2 class='p-2 pl-3 section-title mb-3' id='notificationsSettings'>{{ 'Notifications settings'|trans }}</h2>
   <div class='pl-3'>
   {% for notif in notificationsSettings %}

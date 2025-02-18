@@ -30,7 +30,6 @@ use Symfony\Component\HttpFoundation\Response;
  * Display profile of current user
  */
 require_once 'app/init.inc.php';
-$App->pageTitle = _('Profile');
 
 /** @psalm-suppress UncaughtThrowInGlobalScope */
 $Response = new Response();
@@ -54,7 +53,7 @@ try {
     $ExperimentsCategories = new ExperimentsCategories(new Teams($App->Users));
 
     // get the exported files
-    $Export = new Exports($App->Users, Storage::CACHE->getStorage());
+    $Export = new Exports($App->Users, Storage::EXPORTS->getStorage());
 
     $UserUploads = new UserUploads($App->Users);
     $PermissionsHelper = new PermissionsHelper();
@@ -65,6 +64,7 @@ try {
         'exportedFiles' => $Export->readAll(),
         'experimentsCategoryArr' => $ExperimentsCategories->readAll(),
         'maxUploadSizeRaw' => ini_get('post_max_size'),
+        'pageTitle' => _('Profile'),
         'pieData' => $UserStats->getPieData(),
         'pieDataCss' => $UserStats->getFormattedPieData(),
         'teamGroupsArr' => $teamGroupsArr,

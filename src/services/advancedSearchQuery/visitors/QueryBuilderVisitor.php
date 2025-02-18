@@ -51,6 +51,12 @@ class QueryBuilderVisitor implements Visitor
             '(entity.title LIKE %1$s
                 OR entity.date LIKE %1$s
                 OR entity.elabid LIKE %1$s
+                OR compounds.cas_number LIKE %1$s
+                OR compounds.ec_number LIKE %1$s
+                OR compounds.name LIKE %1$s
+                OR compounds.iupac_name LIKE %1$s
+                OR compounds.inchi_key LIKE %1$s
+                OR compounds.molecular_formula LIKE %1$s
                 OR entity.body LIKE %2$s
                 OR entity.custom_id = %3$s)',
             $param,
@@ -239,6 +245,7 @@ class QueryBuilderVisitor implements Visitor
         // ELabID:       entity.elabid
         // Id:           entity.id
         // Locked:       entity.locked
+        // Owner:        CONCAT(users.firstname, ' ', users.lastname)
         // Rating:       entity.rating
         // Status:       statust.title
         // Timestamped:  entity.timestamped, if entity == experiment
@@ -375,6 +382,14 @@ class QueryBuilderVisitor implements Visitor
     }
 
     private function visitFieldAuthor(string $searchTerm, string $affix, VisitorParameters $parameters): WhereCollector
+    {
+        return $this->getWhereCollector(
+            "CONCAT(users.firstname, ' ', users.lastname) LIKE ",
+            $affix . $searchTerm . $affix,
+        );
+    }
+
+    private function visitFieldOwner(string $searchTerm, string $affix, VisitorParameters $parameters): WhereCollector
     {
         return $this->getWhereCollector(
             "CONCAT(users.firstname, ' ', users.lastname) LIKE ",

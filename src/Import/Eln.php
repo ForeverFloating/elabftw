@@ -14,8 +14,6 @@ namespace Elabftw\Import;
 
 use DateTimeImmutable;
 use Elabftw\Elabftw\CreateUpload;
-use Elabftw\Elabftw\EntityParams;
-use Elabftw\Elabftw\TagParam;
 use Elabftw\Enums\Action;
 use Elabftw\Enums\EntityType;
 use Elabftw\Enums\FileFromString;
@@ -28,6 +26,8 @@ use Elabftw\Models\Experiments;
 use Elabftw\Models\ItemsTypes;
 use Elabftw\Models\Uploads;
 use Elabftw\Models\Users;
+use Elabftw\Params\EntityParams;
+use Elabftw\Params\TagParam;
 use JsonException;
 use League\Flysystem\FilesystemOperator;
 use League\Flysystem\UnableToReadFile;
@@ -38,6 +38,7 @@ use function basename;
 use function hash_file;
 use function json_decode;
 use function sprintf;
+use function strtr;
 
 /**
  * Import a .eln file.
@@ -60,6 +61,8 @@ class Eln extends AbstractZip
 
     private AbstractEntity $Entity;
 
+    private int $count;
+
     public function __construct(
         protected Users $requester,
         // TODO nullable and have it in .eln export so it is not lost on import
@@ -69,7 +72,6 @@ class Eln extends AbstractZip
         protected FilesystemOperator $fs,
         protected LoggerInterface $logger,
         protected ?EntityType $entityType = null,
-        private bool $dryRun = false,
         protected ?int $category = null,
         private bool $verifyChecksum = true,
     ) {
@@ -78,28 +80,25 @@ class Eln extends AbstractZip
             $UploadedFile,
             $fs,
         );
-        if ($dryRun) {
-            $this->logger->info('Running in dry-mode: nothing will be imported.');
-        }
+        $this->count = $this->preProcess();
         // we might have been forced to cast to int a null value, so bring it back to null
         if ($this->category === 0) {
             $this->category = null;
         }
     }
 
+    public function getCount(): int
+    {
+        return $this->count;
+    }
+
     public function import(): int
     {
-        $count = $this->preProcess();
-        $this->logger->info(sprintf('Crate is composed of %d parts', $count));
-        if ($this->dryRun) {
-            return $count;
-        }
-
         // loop over each hasPart of the root node
         // this is the main import loop
         $current = 1;
         foreach ($this->crateNodeHasPart as $part) {
-            $this->logger->debug(sprintf('Processing Dataset %d/%d', $current, $count));
+            $this->logger->debug(sprintf('Processing Dataset %d/%d', $current, $this->count));
             $this->importRootDataset($this->getNodeFromId($part['@id']));
             $current++;
         }
@@ -110,20 +109,35 @@ class Eln extends AbstractZip
         foreach ($this->linksToCreate as $link) {
             foreach ($this->insertedEntities as $entity) {
                 if ($link['link_@id'] === $entity['item_@id']) {
-                    $result[] = array('origin_entity_type' => $link['origin_entity_type'], 'origin_id' => $link['origin_id'], 'link_id' => $entity['id'], 'link_entity_type' => $entity['entity_type']);
+                    // grab the link node so we can get its url
+                    $linkNode = $this->getNodeFromId($link['link_@id']);
+                    $result[] = array(
+                        'origin_entity_type' => $link['origin_entity_type'],
+                        'origin_id' => $link['origin_id'],
+                        'link_id' => $entity['id'],
+                        'link_previous_url' => $linkNode['url'],
+                        'link_entity_type' => $entity['entity_type'],
+                        'link_original_id' => $link['link_@id'],
+                    );
                     break;
                 }
             }
         }
 
         foreach ($result as $linkToCreate) {
-            $entity = $linkToCreate['origin_entity_type']->toInstance($this->Entity->Users, $linkToCreate['origin_id'], true);
+            $entity = $linkToCreate['origin_entity_type']->toInstance($this->Entity->Users, $linkToCreate['origin_id'], true, true);
             if ($linkToCreate['link_entity_type'] === EntityType::Experiments) {
                 $entity->ExperimentsLinks->setId($linkToCreate['link_id']);
                 $entity->ExperimentsLinks->postAction(Action::Create, array());
             } else {
                 $entity->ItemsLinks->setId($linkToCreate['link_id']);
                 $entity->ItemsLinks->postAction(Action::Create, array());
+            }
+            // now update the body with links to old id that should now point to the new id
+            $linkPreviousId = $this->grabIdFromUrl($linkToCreate['link_previous_url'] ?? '');
+            if ($linkPreviousId) {
+                $body = preg_replace(sprintf('/(?:experiments|database)\.php\?mode=view&amp;id=(%d)/', $linkPreviousId), $linkToCreate['link_entity_type']->toPage() . '?mode=view&amp;id=' . $linkToCreate['link_id'], $entity->entityData['body'] ?? '');
+                $entity->update(new EntityParams('body', (string) $body));
             }
         }
         return $this->getInserted();
@@ -164,6 +178,23 @@ class Eln extends AbstractZip
         $this->logger->notice('Could not find entity type (genre), falling back to Resource');
         return EntityType::Items;
 
+    }
+
+    private function grabIdFromUrl(string $url): ?int
+    {
+        if (!filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+        $parsedUrl = parse_url($url);
+        if (!isset($parsedUrl['query'])) {
+            return null;
+        }
+        $queryParams = array();
+        parse_str($parsedUrl['query'], $queryParams);
+        if ($queryParams['id']) {
+            return (int) $queryParams['id'];
+        }
+        return null;
     }
 
     private function preProcess(): int
@@ -335,7 +366,11 @@ class Eln extends AbstractZip
                         // after 5.1 the "mention" will point to a Dataset contained in the .eln
                         if (count($mention) === 1) {
                             // store a reference for the link to create. We cannot create it now as link might or might not exist yet.
-                            $this->linksToCreate[] = array('origin_entity_type' => $this->Entity->entityType, 'origin_id' => $this->Entity->id, 'link_@id' => $mention['@id']);
+                            $this->linksToCreate[] = array(
+                                'origin_entity_type' => $this->Entity->entityType,
+                                'origin_id' => $this->Entity->id,
+                                'link_@id' => $mention['@id'],
+                            );
                         }
                     }
                     break;
@@ -445,6 +480,8 @@ class Eln extends AbstractZip
     {
         // note: path transversal vuln is detected and handled by flysystem
         $filepath = $this->tmpPath . '/' . basename($this->root) . '/' . $file['@id'];
+        // fix for bloxberg attachments containing : character
+        $filepath = strtr($filepath, ':', '_');
 
         // CHECKSUM
         if ($this->verifyChecksum) {

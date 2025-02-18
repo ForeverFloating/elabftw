@@ -20,7 +20,6 @@ use Elabftw\Auth\Local;
 use Elabftw\Elabftw\App;
 use Elabftw\Elabftw\Db;
 use Elabftw\Elabftw\Tools;
-use Elabftw\Elabftw\UserParams;
 use Elabftw\Enums\Action;
 use Elabftw\Enums\BasePermissions;
 use Elabftw\Enums\State;
@@ -29,12 +28,13 @@ use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Exceptions\InvalidCredentialsException;
 use Elabftw\Exceptions\ResourceNotFoundException;
-use Elabftw\Interfaces\RestInterface;
+use Elabftw\Interfaces\QueryParamsInterface;
 use Elabftw\Models\Notifications\OnboardingEmail;
 use Elabftw\Models\Notifications\SelfIsValidated;
 use Elabftw\Models\Notifications\SelfNeedValidation;
 use Elabftw\Models\Notifications\UserCreated;
 use Elabftw\Models\Notifications\UserNeedValidation;
+use Elabftw\Params\UserParams;
 use Elabftw\Services\EmailValidator;
 use Elabftw\Services\Filter;
 use Elabftw\Services\MfaHelper;
@@ -50,7 +50,7 @@ use function trim;
 /**
  * Users
  */
-class Users implements RestInterface
+class Users extends AbstractRest
 {
     public bool $needValidation = false;
 
@@ -60,11 +60,9 @@ class Users implements RestInterface
 
     public bool $isAdmin = false;
 
-    protected Db $Db;
-
     public function __construct(public ?int $userid = null, public ?int $team = null, ?self $requester = null)
     {
-        $this->Db = Db::getConnection();
+        parent::__construct();
         if ($team !== null && $userid !== null) {
             $TeamsHelper = new TeamsHelper($this->team ?? 0);
             $this->isAdmin = $TeamsHelper->isAdmin($userid);
@@ -236,6 +234,10 @@ class Users implements RestInterface
             users.firstname, users.lastname, users.created_at, users.orgid, users.email, users.mfa_secret IS NOT NULL AS has_mfa_enabled,
             users.validated, users.archived, users.last_login, users.valid_until, users.is_sysadmin,
             CONCAT(users.firstname, ' ', users.lastname) AS fullname,
+            CONCAT(
+                LEFT(IFNULL(users.firstname, 'Anonymous'), 1),
+                LEFT(IFNULL(users.lastname, 'Anonymous'), 1)
+            ) AS initials,
             users.orcid, users.auth_service, sig_keys.pubkey AS sig_pubkey
             FROM users
             LEFT JOIN sig_keys ON (sig_keys.userid = users.userid AND state = :state)
@@ -273,7 +275,7 @@ class Users implements RestInterface
     /**
      * This can be called from api and only contains "safe" values
      */
-    public function readAll(): array
+    public function readAll(?QueryParamsInterface $queryParams = null): array
     {
         $Request = Request::createFromGlobals();
         return $this->readFromQuery(
@@ -308,7 +310,8 @@ class Users implements RestInterface
         if (empty($idArr)) {
             return array();
         }
-        $sql = "SELECT CONCAT(users.firstname, ' ', users.lastname) AS fullname, userid, email FROM users WHERE userid IN (" . implode(',', $idArr) . ') ORDER BY fullname ASC';
+        $onlyIds = array_map('intval', $idArr);
+        $sql = "SELECT CONCAT(users.firstname, ' ', users.lastname) AS fullname, userid, email FROM users WHERE userid IN (" . implode(',', $onlyIds) . ') ORDER BY fullname ASC';
         $req = $this->Db->prepare($sql);
         $this->Db->execute($req);
 
@@ -361,14 +364,18 @@ class Users implements RestInterface
             Action::Disable2fa => $this->disable2fa(),
             Action::PatchUser2Team => (new Users2Teams($this->requester))->PatchUser2Team($params),
             Action::Unreference => (new Users2Teams($this->requester))->destroy($this->userData['userid'], (int) $params['team']),
-            Action::Lock, Action::Archive => (new UserArchiver($this->requester, $this))->toggleArchive((bool) $params['with_exp']),
+            Action::Lock, Action::Archive => (new UserArchiver($this->requester, $this))->toggleArchive((bool) ($params['with_exp'] ?? false)),
             Action::UpdatePassword => $this->updatePassword($params),
             Action::Update => (
                 function () use ($params) {
+                    // only a sysadmin can edit anything about another sysadmin
+                    if ($this->requester->userData['is_sysadmin'] === 0 && $this->userid !== $this->requester->userid) {
+                        throw new IllegalActionException('A sysadmin level account is required to edit another sysadmin account.');
+                    }
                     $Config = Config::getConfig();
                     foreach ($params as $target => $content) {
                         // prevent modification of identity fields if we are not sysadmin
-                        if (in_array($target, array('email', 'firstname', 'lastname'), true)
+                        if (in_array($target, array('email', 'firstname', 'lastname', 'orgid'), true)
                             && $Config->configArr['allow_users_change_identity'] === '0'
                             && $this->requester->userData['is_sysadmin'] === 0
                         ) {
@@ -512,8 +519,9 @@ class Users implements RestInterface
             if (($this->requester->userData['userid'] !== $this->userData['userid']) && ($this->requester->userData['is_sysadmin'] !== 1)) {
                 throw new IllegalActionException('User tried to edit email of another user but is not sysadmin.');
             }
-            Filter::email($params->getContent());
+            Filter::email($params->getStringContent());
         }
+
         // special case for is_sysadmin: only a sysadmin can affect this column
         if ($params->getTarget() === 'is_sysadmin') {
             if ($this->requester->userData['is_sysadmin'] === 0) {
@@ -533,6 +541,8 @@ class Users implements RestInterface
         $res = $this->Db->execute($req);
 
         $auditLoggableTargets = array(
+            'archived',
+            'valid_until',
             'email',
             'orgid',
             'is_sysadmin',
@@ -544,7 +554,7 @@ class Users implements RestInterface
                 $this->userid ?? 0,
                 $params->getTarget(),
                 (string) $this->userData[$params->getTarget()],
-                $params->getContent(),
+                $params->getStringContent(),
             ));
         }
         return $res;
@@ -578,7 +588,11 @@ class Users implements RestInterface
     protected function readOneFull(): array
     {
         $sql = "SELECT users.*, sig_keys.privkey AS sig_privkey, sig_keys.pubkey AS sig_pubkey,
-            CONCAT(users.firstname, ' ', users.lastname) AS fullname
+            CONCAT(users.firstname, ' ', users.lastname) AS fullname,
+            CONCAT(
+                LEFT(IFNULL(users.firstname, 'Anonymous'), 1),
+                LEFT(IFNULL(users.lastname, 'Anonymous'), 1)
+            ) AS initials
             FROM users
             LEFT JOIN sig_keys ON (sig_keys.userid = users.userid AND state = :state)
             WHERE users.userid = :userid";
