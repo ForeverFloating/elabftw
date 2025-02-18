@@ -134,7 +134,7 @@ math.createUnit({
 export const expressionRegex = /{{\s*(.*?)\s*}}/g;
 export const idRegex = /#([a-zA-z][a-zA-z\d-_.]*)/g;
 export const arrayRegex = /\[?'([^\n'[\]]*?)'\]?/g;
-export const regexSelector = /\['?([^\n'[\]]*)'?\]/g;
+export const regexSelector = /(?<!\[')\[(?:'([^\n']*)'|([^\n'[\]]*))\](?!]')/g;
 export function mathOutput(mathMatch: string, mathExpression: string): string {
   try {
     const mathResult = math.evaluate(mathExpression);
@@ -211,8 +211,14 @@ export function mathOutput(mathMatch: string, mathExpression: string): string {
 }
 
 function calcExpression(inputString: string, nodeObj: HTMLElement): string {
-  return inputString.replace(regexSelector, (selectMatch, expressionSelect) => {
-    const selectArray = nodeObj.querySelectorAll(expressionSelect);
+  return inputString.replace(regexSelector, (selectMatch, expressionSelect1, expressionSelect2) => {
+    if (expressionSelect1 === undefined) {
+      expressionSelect1 = '';
+    }
+    if (expressionSelect2 === undefined) {
+      expressionSelect2 = '';
+    }
+    const selectArray = nodeObj.querySelectorAll(expressionSelect1 + expressionSelect2);
     const regexMatch = arrayRegex.test(`${selectMatch}`);
     if (regexMatch) {
       return Array.from(selectArray).map(arrayNode => arrayNode.textContent.trim()).join(', ');

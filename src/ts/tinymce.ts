@@ -549,7 +549,15 @@ export function getTinymceBaseConfig(page: string): object {
               });
               iframe.replaceWith(tinyDiv);
               MathJax.typesetPromise().then(() => {
-                return mathDOM(tinyDiv);
+                const observer = new MutationObserver(() => {
+                  observer.disconnect();
+                  return mathDOM(tinyDiv);
+                });
+                observer.observe(tinyDiv, {childList: true, subtree: true});
+                setTimeout(() => {
+                  observer.disconnect();
+                  return mathDOM(tinyDiv);
+                }, 100);
               });
             };
           }
