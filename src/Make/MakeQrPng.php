@@ -108,7 +108,7 @@ class MakeQrPng extends AbstractMake implements StringMakerInterface
         $newImage->setImageFormat('png');
 
         $blob = $newImage->getImageBlob();
-        if ($blob === '') {
+        if ($blob === '' || $blob === null) {
             throw new RuntimeException('Error generating the QR code image :/');
         }
         // use strlen for binary data, not mb_strlen
