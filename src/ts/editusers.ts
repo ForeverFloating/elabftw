@@ -23,10 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const el = (event.target as HTMLElement);
     // CREATE USER
     if (el.matches('[data-action="create-user"]')) {
-      ApiC.post('users', collectForm(el.closest('div.form-group'))).then(() => {
-        el.closest('div.form-group').querySelectorAll('input').forEach(input => {
-          input.value = '';
-        });
+      event.preventDefault();
+      const form = el.closest('form.form-group') as HTMLFormElement;
+      ApiC.post('users', collectForm(form)).then(() => {
+        // use form.reset() so user-invalid pseudo-class isn't present
+        form.reset();
         reloadElements(['editUsersBox']);
       });
 
@@ -69,6 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ADD TO TEAM
     } else if (el.matches('[data-action="add-user-to-team"]')) {
       ApiC.patch(`${Model.User}/${el.dataset.userid}`, {'action': Action.Add, 'team': el.dataset.team}).then(() => reloadElements(['editUsersBox']));
+    // REMOVE FROM TEAM
+    } else if (el.matches('[data-action="rm-user-from-team"]')) {
+      ApiC.patch(`${Model.User}/${el.dataset.userid}`, {action: Action.Unreference, team: el.dataset.team}).then(() => reloadElements(['editUsersBox']));
 
     // ARCHIVE USER TOGGLE
     } else if (el.matches('[data-action="toggle-archive-user"]')) {
@@ -76,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (document.getElementById(`lockSwitch_${el.dataset.userid}`)) {
         lockExp = (document.getElementById(`lockSwitch_${el.dataset.userid}`) as HTMLInputElement).checked;
       }
-      ApiC.patch(`users/${el.dataset.userid}`, {action: Action.Archive, with_exp: lockExp}).then(() => reloadElements(['editUsersBox']));
+      ApiC.patch(`users/${el.dataset.userid}`, {action: Action.Archive, with_exp: lockExp}).then(() => reloadElements(['editUsersBox', `archiveUserModal_${el.dataset.userid}`]));
 
     // VALIDATE USER
     } else if (el.matches('[data-action="validate-user"]')) {

@@ -34,6 +34,7 @@ use Elabftw\Traits\TwigTrait;
 use League\Flysystem\Filesystem;
 use Psr\Log\LoggerInterface;
 use setasign\Fpdi\FpdiException;
+use Override;
 
 use function date;
 use function implode;
@@ -101,6 +102,7 @@ class MakePdf extends AbstractMakePdf
     /**
      * Generate pdf and return it as string
      */
+    #[Override]
     public function getFileContent(): string
     {
         $this->loopOverEntries();
@@ -117,6 +119,7 @@ class MakePdf extends AbstractMakePdf
     /**
      * Replace weird characters by underscores
      */
+    #[Override]
     public function getFileName(): string
     {
         $now = (new DateTimeImmutable())->format('Y-m-d');

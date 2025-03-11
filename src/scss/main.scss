@@ -113,7 +113,7 @@ body {
 /* TinyMCE selector for body in preview excluded to prevent flashing */
 body::before,
 .mce-preview-body::before {
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
   content: '';
   left: 0;
   top: -10px;
@@ -642,14 +642,19 @@ tr {
 
 /* ENTITIES */
 .entity {
+  min-width: 100%;
+  max-width: 100%;
   background-color: $white;
   border: 1px solid $firstlevel;
   border-left: 6px solid var(--left-color);
   border-radius: 5px;
   margin: 5px auto;
-  min-width: 100%;
   opacity: var(--opacity);
   padding: 5px 10px 5px 5px;
+
+  img {
+    max-width: 100%;
+  }
 
   p {
     margin-bottom: 0;

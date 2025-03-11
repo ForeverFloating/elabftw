@@ -13,7 +13,7 @@ use function dirname;
 use function file_put_contents;
 use function unlink;
 
-class EvalMathJs
+final class EvalMathJs
 {
     public bool $mathJsFailed = false;
 

@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Elabftw\Models;
 
 use Elabftw\Elabftw\Compound;
+use Elabftw\Elabftw\Db;
 use Elabftw\Elabftw\Permissions;
 use Elabftw\Elabftw\Tools;
 use Elabftw\Enums\AccessType;
@@ -20,6 +21,7 @@ use Elabftw\Enums\Action;
 use Elabftw\Enums\BasePermissions;
 use Elabftw\Enums\Orderby;
 use Elabftw\Enums\State;
+use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\QueryParamsInterface;
@@ -36,7 +38,7 @@ use Symfony\Component\HttpFoundation\InputBag;
 /**
  * Compounds are chemical entities stored in the `compounds` SQL table
  */
-class Compounds extends AbstractRest
+final class Compounds extends AbstractRest
 {
     use SetIdTrait;
 
@@ -46,6 +48,7 @@ class Compounds extends AbstractRest
         $this->setId($id);
     }
 
+    #[Override]
     public function getApiPath(): string
     {
         return 'api/v2/compounds/';
@@ -165,6 +168,7 @@ class Compounds extends AbstractRest
                 iupacName: $reqBody['iupac_name'] ?? null,
                 pubchemCid: $reqBody['pubchem_cid'] ?? null,
                 isCorrosive: (bool) ($reqBody['is_corrosive'] ?? false),
+                isSeriousHealthHazard: (bool) ($reqBody['is_serious_health_hazard'] ?? false),
                 isExplosive: (bool) ($reqBody['is_explosive'] ?? false),
                 isFlammable: (bool) ($reqBody['is_flammable'] ?? false),
                 isGasUnderPressure: (bool) ($reqBody['is_gas_under_pressure'] ?? false),
@@ -194,6 +198,7 @@ class Compounds extends AbstractRest
         ?string $iupacName = null,
         ?int $pubchemCid = null,
         bool $isCorrosive = false,
+        bool $isSeriousHealthHazard = false,
         bool $isExplosive = false,
         bool $isFlammable = false,
         bool $isGasUnderPressure = false,
@@ -209,13 +214,13 @@ class Compounds extends AbstractRest
             inchi, inchi_key,
             smiles, molecular_formula, molecular_weight,
             cas_number, iupac_name, pubchem_cid, userid, team,
-            is_corrosive, is_explosive, is_flammable, is_gas_under_pressure, is_hazardous2env, is_hazardous2health, is_oxidising, is_toxic
+            is_corrosive, is_serious_health_hazard, is_explosive, is_flammable, is_gas_under_pressure, is_hazardous2env, is_hazardous2health, is_oxidising, is_toxic
             ) VALUES (
             :requester, :requester, :name,
             :inchi, :inchi_key,
             :smiles, :molecular_formula, :molecular_weight,
             :cas_number, :iupac_name, :pubchem_cid, :requester, :team,
-            :is_corrosive, :is_explosive, :is_flammable, :is_gas_under_pressure, :is_hazardous2env, :is_hazardous2health, :is_oxidising, :is_toxic)';
+            :is_corrosive, :is_serious_health_hazard, :is_explosive, :is_flammable, :is_gas_under_pressure, :is_hazardous2env, :is_hazardous2health, :is_oxidising, :is_toxic)';
 
         $req = $this->Db->prepare($sql);
         $req->bindParam(':requester', $this->requester->userid);
@@ -230,6 +235,7 @@ class Compounds extends AbstractRest
         $req->bindParam(':iupac_name', $iupacName);
         $req->bindParam(':pubchem_cid', $pubchemCid);
         $req->bindParam(':is_corrosive', $isCorrosive, PDO::PARAM_INT);
+        $req->bindParam(':is_serious_health_hazard', $isSeriousHealthHazard, PDO::PARAM_INT);
         $req->bindParam(':is_explosive', $isExplosive, PDO::PARAM_INT);
         $req->bindParam(':is_flammable', $isFlammable, PDO::PARAM_INT);
         $req->bindParam(':is_gas_under_pressure', $isGasUnderPressure, PDO::PARAM_INT);
@@ -238,7 +244,14 @@ class Compounds extends AbstractRest
         $req->bindParam(':is_oxidising', $isOxidising, PDO::PARAM_INT);
         $req->bindParam(':is_toxic', $isToxic, PDO::PARAM_INT);
 
-        $this->Db->execute($req);
+        try {
+            $this->Db->execute($req);
+            // catch the duplicate constraint error to display a better error message
+        } catch (DatabaseErrorException $e) {
+            if ($e->getErrorCode() === Db::DUPLICATE_CONSTRAINT_ERROR) {
+                throw new ImproperActionException(sprintf('Cannot add the same compound twice! %s', $e->getErrorMessage()));
+            }
+        }
 
         $compoundId = $this->Db->lastInsertId();
 

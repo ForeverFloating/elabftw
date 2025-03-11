@@ -15,7 +15,7 @@ namespace Elabftw\Models;
 use Elabftw\AuditEvent\ApiKeyCreated;
 use Elabftw\AuditEvent\ApiKeyDeleted;
 use Elabftw\Enums\Action;
-use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Exceptions\WithMessageException;
 use Elabftw\Interfaces\QueryParamsInterface;
 use Elabftw\Services\Filter;
 use Elabftw\Traits\SetIdTrait;
@@ -30,7 +30,7 @@ use function random_bytes;
 /**
  * Api keys CRUD class
  */
-class ApiKeys extends AbstractRest
+final class ApiKeys extends AbstractRest
 {
     use SetIdTrait;
 
@@ -50,6 +50,7 @@ class ApiKeys extends AbstractRest
         return $this->create($reqBody['name'] ?? 'RTFM', $reqBody['canwrite'] ?? 0);
     }
 
+    #[Override]
     public function getApiPath(): string
     {
         return sprintf('%d-%s', $this->keyId, $this->key);
@@ -112,7 +113,7 @@ class ApiKeys extends AbstractRest
                 return $key;
             }
         }
-        throw new ImproperActionException('No corresponding API key found!');
+        throw new WithMessageException(_('Unauthorized'), 401, description: _('No corresponding API key found!'));
     }
 
     #[Override]

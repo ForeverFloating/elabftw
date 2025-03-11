@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
-      right: 'timeGridWeek,listWeek,dayGridMonth',
+      right: 'timeGridDay,timeGridWeek,listWeek,dayGridMonth',
     },
     themeSystem: 'bootstrap',
     // i18n
@@ -296,11 +296,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   ['schedulerSelectCat', 'itemSelect'].forEach(id => {
-    new TomSelect(`#${id}`, {
-      plugins: [
-        'dropdown_input',
-        'remove_button',
-      ],
-    });
+    if (document.getElementById(id)) {
+      new TomSelect(`#${id}`, {
+        plugins: [
+          'dropdown_input',
+          'remove_button',
+        ],
+      });
+    }
   });
 });

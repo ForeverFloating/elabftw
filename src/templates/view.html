@@ -13,7 +13,7 @@
           {% if Entity.entityData.custom_id %}
             <span title='{{ 'Custom ID'|trans }}' class='custom-id-badge'>{{ Entity.entityData.custom_id }}</span>
           {% endif %}
-          <span id='documentTitle' class='breakable malleableColumn hl-hover-gray rounded py-1' data-target='title' data-endpoint='{{ Entity.entityType.value }}' data-id='{{ Entity.id }}'>{{ Entity.entityData.title }}</span>
+          <span id='documentTitle' class='breakable {{ not Entity.isReadOnly ? 'malleableTitle hl-hover-gray' }} rounded py-1' data-target='title' data-endpoint='{{ Entity.entityType.value }}' data-id='{{ Entity.id }}'>{{ Entity.entityData.title }}</span>
         </h1>
       </div>
       <div class='ml-auto'>
@@ -29,7 +29,7 @@
 {# Exclusive edit mode notification #}
 <div id='exclusiveEditModeInfo'>
 {% if Entity.ExclusiveEditMode.isActive %}
-  {% if App.Request.query.has('openedInExclusiveEditMode') and Entity.ExclusiveEditMode.dataArr.locked_by != Entity.Users.userData.userid %}
+  {% if Entity.ExclusiveEditMode.dataArr.locked_by != Entity.Users.userData.userid %}
     {% set writeLockNotice = 'This entry is opened by %s in exclusive edit mode since %s. You cannot edit it before %s. %sRequest exclusive edit mode removal%s'|trans|format(
         Entity.ExclusiveEditMode.dataArr.fullname,
         Entity.ExclusiveEditMode.dataArr.locked_at,

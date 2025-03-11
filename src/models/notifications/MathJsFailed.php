@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace Elabftw\Models\Notifications;
 
 use Elabftw\Enums\Notifications;
+use Override;
 
-class MathJsFailed extends WebOnlyNotifications
+/**
+ * When there was an error during pdf generation because of math.js
+ */
+final class MathJsFailed extends WebOnlyNotifications
 {
     protected Notifications $category = Notifications::MathJsFailed;
 
@@ -15,6 +19,10 @@ class MathJsFailed extends WebOnlyNotifications
         parent::__construct();
     }
 
+    #[Override]
+    /**
+     * @psalm-suppress MissingOverrideAttribute
+     */
     protected function getBody(): array
     {
         return array(

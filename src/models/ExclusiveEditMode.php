@@ -29,7 +29,7 @@ use function sprintf;
 /**
  * For dealing with exclusive edit mode aka write lock
  */
-class ExclusiveEditMode
+final class ExclusiveEditMode
 {
     /** timeout in minutes after which the lock is automatically released */
     // ToDo?: make it a configuration on team/instance level
@@ -93,7 +93,7 @@ class ExclusiveEditMode
         ) {
             /** @psalm-suppress PossiblyNullArgument */
             return new RedirectResponse(sprintf(
-                '%s%sid=%d&openedInExclusiveEditMode',
+                '%s%sid=%d',
                 $this->Entity->entityType->toPage(),
                 $this->Entity->entityType === EntityType::Templates
                     ? '&mode=view&template'

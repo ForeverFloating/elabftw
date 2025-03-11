@@ -14,6 +14,7 @@ namespace Elabftw\Models;
 
 use Elabftw\Enums\Action;
 use Elabftw\Enums\Storage;
+use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Services\HttpGetter;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
@@ -23,12 +24,17 @@ use Symfony\Component\HttpFoundation\Request;
 
 class CompoundsTest extends \PHPUnit\Framework\TestCase
 {
+    private const string CAFFEINE_CAS = '58-08-2';
+
     private Compounds $Compounds;
 
     private HttpGetter $httpGetter;
 
     // the smiles of cid 3345
     private string $smiles = 'CCC(=O)N(C1CCN(CC1)CCC2=CC=CC=C2)C3=CC=CC=C3';
+
+    // smiles for cid 2519
+    private string $smilesCaf = 'CN1C=NC2=C1C(=O)N(C(=O)N2C)C';
 
     // the json response of fingerprinter for the smiles of cid 3345
     private string $fpResponse = '{"data": [128, 67108864, 0, 524288, 2148007936, 4194304, 0, 2, 16, 35840, 512, 0, 1, 0, 0, 4194304, 0, 1, 0, 67272704, 1073745920, 0, 1048576, 64, 1024, 64, 0, 0, 32, 0, 16777216, 0]}';
@@ -47,9 +53,9 @@ class CompoundsTest extends \PHPUnit\Framework\TestCase
     public function testCreateSearchAndDestroy(): void
     {
         $compoundId = $this->Compounds->create(
-            casNumber: '438-38-7',
-            pubchemCid: 3345,
-            smiles: $this->smiles,
+            casNumber: '58-08-2',
+            pubchemCid: 2519,
+            smiles: $this->smilesCaf,
             withFingerprint: false,
         );
         $this->Compounds->setId($compoundId);
@@ -91,6 +97,10 @@ class CompoundsTest extends \PHPUnit\Framework\TestCase
         $this->assertEquals('PJMPHNIQZUBGLI-UHFFFAOYSA-N', $compound['inchi_key']);
         $this->assertEquals($this->smiles, $compound['smiles']);
         $this->assertEquals('437-38-7', $compound['cas_number']);
+
+        // now try to add the same compound again
+        $this->expectException(ImproperActionException::class);
+        $Compounds->create(casNumber: self::CAFFEINE_CAS);
     }
 
     public function testGetApiPath(): void
