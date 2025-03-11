@@ -202,7 +202,7 @@ export function mathOutput(mathMatch: string, mathExpression: string): string {
         }
       });
     }
-    return `${mathResult}`;
+    return math.format(mathResult, {precision: 15});
   } catch (err) {
     console.log(mathExpression);
     console.error('Math.js evaluation error:', err);

@@ -1652,7 +1652,7 @@ input:user-invalid {
 /* custom scss */
 #body_view,
 #tinymce,
-#tinymce-preview {
+.mce-preview-body {
   table,
   tbody,
   thead {
@@ -1756,17 +1756,17 @@ input:user-invalid {
 }
 
 #tinymce,
-#tinymce-preview {
+.mce-preview-body {
   margin: 1rem;
 }
 
-#tinymce-preview {
+.mce-preview-body {
   overflow-y: hidden;
   padding-left: 1px;
   padding-right: 1px;
 }
 
-#tinymce-preview::before {
+.mce-preview-body::before {
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
   content: '';
   height: 4rem;

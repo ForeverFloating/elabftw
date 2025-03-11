@@ -398,7 +398,7 @@ export function getTinymceBaseConfig(page: string): object {
       editor.ui.registry.addIcon('smallIcon', '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" strokeWidth="0.6" viewBox="0 0 24 24" transform="scale(-1 1)"><path d="M9 11H3a1 1 0 000 2h2v5a1 1 0 002 0v-5h2a1 1 0 000-2zm12-6H9a1 1 0 000 2h5v11a1 1 0 002 0V7h5a1 1 0 000-2z"></path></svg>'), // eslint-disable-line
 
       // floppy disk icon from COLLECTION: Zest Interface Icons LICENSE: MIT License AUTHOR: zest
-      editor.ui.registry.addIcon('customSave', '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 5a1 1 0 0 1 1-1h2v3a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4h.172a1 1 0 0 1 .707.293l2.828 2.828a1 1 0 0 1 .293.707V19a1 1 0 0 1-1 1h-1v-7a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v7H5a1 1 0 0 1-1-1V5Zm4 15h8v-6H8v6Zm6-16H9v2h5V4ZM5 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7.828a3 3 0 0 0-.879-2.12l-2.828-2.83A3 3 0 0 0 16.172 2H5Z" /></svg>'), // eslint-disable-line
+      editor.ui.registry.addIcon('customSave', '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 5a1 1 0 0 1 1-1h2v3a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4h.172a1 1 0 0 1 .707.293l2.828 2.828a1 1 0 0 1 .293.707V19a1 1 0 0 1-1 1h-1v-7a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v7H5a1 1 0 0 1-1-1V5Zm4 15h8v-6H8v6Zm6-16H9v2h5V4ZM5 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7.828a3 3 0 0 0-.879-2.12l-2.828-2.83A3 3 0 0 0 16.172 2H5Z" /></svg>'),
 
       // add date+time button
       editor.ui.registry.addButton('adddate', {
