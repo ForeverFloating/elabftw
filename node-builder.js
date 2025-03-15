@@ -9,6 +9,7 @@
  *
  */
 const path = require('path');
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 
 module.exports = (env) => {
   return {
@@ -44,5 +45,12 @@ module.exports = (env) => {
         },
       ],
     },
+    plugins: [
+      new ForkTsCheckerWebpackPlugin({
+        typescript: {
+          configFile: './src/ts/tsconfig.json',
+        },
+      }),
+    ],
   }
 };

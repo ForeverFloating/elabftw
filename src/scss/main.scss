@@ -30,10 +30,10 @@ $text-muted: $medium;
 @import 'jquery-ui/themes/base/sortable';
 @import 'jquery-ui/themes/base/theme';
 
-@import './fontawesome/fontawesome';
-@import './fontawesome/solid';
-@import './fontawesome/brands';
-@import './fontawesome/regular';
+@import '@fortawesome/fontawesome-free/scss/fontawesome';
+@import '@fortawesome/fontawesome-free/scss/solid';
+@import '@fortawesome/fontawesome-free/scss/brands';
+@import '@fortawesome/fontawesome-free/scss/regular';
 
 @import 'animations';
 @import 'autocomplete';

@@ -15,6 +15,7 @@ const path = require('path');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
+const ForkTsCheckerWebpackPlugin = require('fork-ts-checker-webpack-plugin');
 const webpack = require('webpack');
 
 module.exports = (env) => {
@@ -85,6 +86,17 @@ module.exports = (env) => {
     // makes the build slower
     //devtool: 'inline-source-map',
     mode: 'production',
+    cache: {
+      type: 'filesystem',
+      cacheDirectory: path.resolve(__dirname, '.webpack_cache'),
+      buildDependencies: {
+        config: [__filename],
+      },
+      managedPaths: [
+        path.resolve(__dirname, 'node_modules'),
+      ],
+      compression: 'brotli',
+    },
     output: {
       filename: '[name].bundle.js',
       path: path.resolve(__dirname, 'web/assets')
@@ -101,6 +113,13 @@ module.exports = (env) => {
       ],
     },
     plugins: [
+      new ForkTsCheckerWebpackPlugin(
+        {
+          typescript: {
+            configFile: './src/ts/tsconfig.json',
+          },
+        },
+      ),
       new MiniCssExtractPlugin(
         {
           filename: 'vendor.min.css',
@@ -139,8 +158,13 @@ module.exports = (env) => {
           ],
         },
         {
-        test: /\.jsx?$/,
-        use: ["babel-loader"]
+          test: /\.jsx?$/,
+          use: {
+            loader: 'babel-loader',
+            options: {
+              cacheDirectory: true,
+            },
+          },
         },
         { // SASS loader
           test: /\.scss$/,
