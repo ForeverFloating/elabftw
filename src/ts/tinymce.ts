@@ -66,7 +66,19 @@ import { Api } from './Apiv2.class';
 import { isSortable } from './TableSorting.class';
 import { mathDOM } from './mathjs';
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
+// CodeMirror imports
+import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
+import { defaultKeymap, history, historyKeymap, indentSelection, indentWithTab } from '@codemirror/commands';
+import { html } from '@codemirror/lang-html';
+import { markdown } from '@codemirror/lang-markdown';
+import { bracketMatching, defaultHighlightStyle, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
+import { EditorState } from '@codemirror/state';
+import { search } from '@codemirror/search';
+import { drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, lineNumbers, keymap, rectangularSelection } from '@codemirror/view';
 declare const MathJax: MathJaxObject;
+
+// set codeEditor variable to null
+let codeEditor = null;
 
 // AUTOSAVE
 const doneTypingInterval = 7000;  // time in ms between end of typing and save
@@ -353,7 +365,7 @@ export function getTinymceBaseConfig(page: string): object {
         Array.from(skinCSS.cssRules).forEach((rule, index) => {
           if (rule instanceof CSSStyleRule) {
             const selectors = rule.selectorText.split(',');
-            const modifiedSelectors = selectors.map((selector) => selector.trim() + ':not(.mce-preview-body *)').join(',');
+            const modifiedSelectors = selectors.map((selector) => selector.trim() + ':not(.mce-preview-body *, .mce-codemirror, .mce-codemirror *)').join(',');
             rule.selectorText = modifiedSelectors;
             skinCSS.deleteRule(index);
             skinCSS.insertRule(rule.cssText, index);
@@ -394,13 +406,88 @@ export function getTinymceBaseConfig(page: string): object {
         }
       });
 
+      // miscellaneous custom commands
+      editor.addCommand('codemirror', () => {
+        editor.windowManager.open({
+          title: 'Source Code',
+          body: {
+            type: 'panel',
+            items: [
+              {
+                type: 'htmlpanel',
+                html: '',
+              },
+            ],
+          },
+          buttons: [
+          // {
+            // type: 'custom',
+            // text: 'Copy code',
+            // name: 'Copy code',
+            // buttonType: 'secondary',
+            // enabled: true,
+            // align: 'start',
+          // },
+          // {
+            // type: 'custom',
+            // text: 'Dark/light mode',
+            // name: 'Dark/light mode',
+            // buttonType: 'secondary',
+            // enabled: true,
+            // align: 'start',
+          // },
+          // {
+            // type: 'custom',
+            // text: 'Increase font size',
+            // name: 'Increase font size',
+            // icon: 'text-size-increase',
+            // buttonType: 'secondary',
+            // enabled: true,
+            // align: 'start',
+          // },
+          // {
+            // type: 'custom',
+            // text: 'Decrease font size',
+            // name: 'Decrease font size',
+            // icon: 'text-size-decrease',
+            // buttonType: 'secondary',
+            // enabled: true,
+            // align: 'start',
+          // },
+            {
+              type: 'cancel',
+              text: 'Cancel',
+              name: 'Cancel',
+              buttonType: 'secondary',
+              enabled: true,
+              align: 'end',
+            },
+            {
+              type: 'submit',
+              text: 'Save',
+              name: 'Save',
+              buttonType: 'primary',
+              enabled: true,
+              align: 'end',
+            },
+          ],
+          size: 'large',
+          onSubmit: () => {
+            const codeEdit = codeEditor.state.doc.toString();
+            editor.execCommand('mceSetContent', false, codeEdit);
+            editor.windowManager.close();
+            codeEditor = null;
+          },
+        });
+      });
+
       // small text icon from COLLECTION: Unicode Line Icons LICENSE: Apache License AUTHOR: Iconscout
       editor.ui.registry.addIcon('smallIcon', '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" strokeWidth="0.6" viewBox="0 0 24 24" transform="scale(-1 1)"><path d="M9 11H3a1 1 0 000 2h2v5a1 1 0 002 0v-5h2a1 1 0 000-2zm12-6H9a1 1 0 000 2h5v11a1 1 0 002 0V7h5a1 1 0 000-2z"></path></svg>'), // eslint-disable-line
 
       // floppy disk icon from COLLECTION: Zest Interface Icons LICENSE: MIT License AUTHOR: zest
       editor.ui.registry.addIcon('customSave', '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M4 5a1 1 0 0 1 1-1h2v3a1 1 0 0 0 1 1h7a1 1 0 0 0 1-1V4h.172a1 1 0 0 1 .707.293l2.828 2.828a1 1 0 0 1 .293.707V19a1 1 0 0 1-1 1h-1v-7a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v7H5a1 1 0 0 1-1-1V5Zm4 15h8v-6H8v6Zm6-16H9v2h5V4ZM5 2a3 3 0 0 0-3 3v14a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7.828a3 3 0 0 0-.879-2.12l-2.828-2.83A3 3 0 0 0 16.172 2H5Z" /></svg>'),
 
-      // add date+time button
+      // add buttons
       editor.ui.registry.addButton('adddate', {
         icon: 'insert-time',
         tooltip: 'Insert timestamp',
@@ -422,6 +509,15 @@ export function getTinymceBaseConfig(page: string): object {
           editor.formatter.toggle('small');
         },
       });
+
+      // add menu items
+      editor.ui.registry.addMenuItem('codemirror', {
+        text: 'Source code',
+        icon: 'sourcecode',
+        enabled: true,
+        onAction: () => editor.execCommand('codemirror'),
+      });
+
       // some shortcuts
       editor.addShortcut('ctrl+shift+d', 'add date/time at cursor', addDatetimeOnCursor);
       editor.addShortcut('ctrl+=', 'subscript', () => editor.execCommand('subscript'));
@@ -542,7 +638,8 @@ export function getTinymceBaseConfig(page: string): object {
     // render MathJax for TinyMCE preview
     init_instance_callback: (editor) => {
       editor.on('ExecCommand', (e) => {
-        if (e.command == 'mcePreview') {
+        switch (e.command) {
+        case 'mcePreview': {
           // declaration as iFrame element required to avoid errors with getting srcdoc property
           const iframe = (document.querySelector('iframe.tox-dialog__iframe') as HTMLIFrameElement);
           if (iframe) {
@@ -567,10 +664,85 @@ export function getTinymceBaseConfig(page: string): object {
               });
             };
           }
+          break;
+        }
+        case 'codemirror': {
+          const sourceText = editor.getContent();
+          const codeText = EditorState.create({
+            doc: sourceText,
+            extensions: [
+              autocompletion(),
+              bracketMatching(),
+              closeBrackets(),
+              drawSelection(),
+              dropCursor(),
+              EditorView.lineWrapping,
+              lineNumbers(),
+              foldGutter({
+                openText: '\u{25BE}',
+                closedText: '\u{25B8}',
+              }),
+              highlightActiveLineGutter(),
+              highlightActiveLine(),
+              highlightSpecialChars(),
+              history(),
+              html(),
+              indentOnInput(),
+              indentUnit.of('  '),
+              keymap.of([
+                indentWithTab,
+                ...closeBracketsKeymap,
+                ...completionKeymap,
+                ...defaultKeymap,
+                ...historyKeymap,
+                ...foldKeymap,
+              ]),
+              markdown(),
+              rectangularSelection(),
+              search(),
+              syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+            ],
+          });
+          const codeDialog = document.querySelector('.tox-form');
+          const customEditor = document.createElement('div');
+          customEditor.className = 'tox-custom-editor';
+          customEditor.setAttribute('tabindex', '-1');
+          customEditor.setAttribute('data-alloy-tabstop', 'true');
+          const mceCodeMirror = document.createElement('div');
+          mceCodeMirror.className = 'mce-codemirror';
+          const fullWidth = document.createElement('div');
+          fullWidth.setAttribute('style', 'display: flex; width: 100%; height: 100%;');
+          mceCodeMirror.append(fullWidth);
+          customEditor.append(mceCodeMirror);
+          codeDialog.replaceChildren(customEditor);
+          codeEditor = new EditorView({
+            state: codeText,
+            parent: fullWidth,
+          });
+          codeEditor.dispatch({
+            selection: {
+              anchor: 0,
+              head: codeEditor.state.doc.length,
+            },
+          });
+          setTimeout(() => {
+            indentSelection({
+              state: codeEditor.state,
+              dispatch: transaction => (codeEditor.update([transaction])),
+            });
+          }, 2000);
+        }
         }
       });
     },
     // custom settings
+    menu: {
+      customtools: {
+        title: 'Tools',
+        items: 'codemirror',
+      },
+    },
+    menubar: 'file edit view insert format customtools table',
     table_default_attributes: {},
     table_header_type: 'sectionCells',
     table_use_colgroups: false,

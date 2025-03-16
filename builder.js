@@ -109,7 +109,9 @@ module.exports = (env) => {
       minimize: true,
       minimizer: [
         new CssMinimizerPlugin(),
-        new TerserPlugin(),
+        new TerserPlugin({
+          parallel: true,
+        }),
       ],
     },
     plugins: [
@@ -146,8 +148,8 @@ module.exports = (env) => {
             loader: 'ts-loader',
             options: {
               // in prod, we don't have the types of some libs, use transpileOnly to avoid errors
-              transpileOnly: env.production
-              }
+              transpileOnly: true,
+            }
           },
         },
         { // CSS LOADER
@@ -159,6 +161,9 @@ module.exports = (env) => {
         },
         {
           test: /\.jsx?$/,
+          resolve: {
+            fullySpecified: false,
+          },
           use: {
             loader: 'babel-loader',
             options: {

@@ -1794,3 +1794,9 @@ input:user-invalid {
 #tinymce:not([contenteditable='true']) * {
   color: rgba(0, 0, 0, 0);
 }
+
+.mce-codemirror {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}

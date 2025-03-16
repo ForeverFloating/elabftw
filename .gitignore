@@ -36,3 +36,4 @@ tests/elabftw-user.env
 /todo
 /ideas
 .yarn
+.webpack_cache
