@@ -24,10 +24,10 @@ use Elabftw\Enums\State;
 use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Interfaces\FingerprinterInterface;
 use Elabftw\Interfaces\QueryParamsInterface;
 use Elabftw\Params\BaseQueryParams;
 use Elabftw\Params\CompoundParams;
-use Elabftw\Services\Fingerprinter;
 use Elabftw\Services\HttpGetter;
 use Elabftw\Services\PubChemImporter;
 use Elabftw\Traits\SetIdTrait;
@@ -42,7 +42,7 @@ final class Compounds extends AbstractRest
 {
     use SetIdTrait;
 
-    public function __construct(protected HttpGetter $httpGetter, private Users $requester, ?int $id = null)
+    public function __construct(protected HttpGetter $httpGetter, private Users $requester, protected FingerprinterInterface $fingerprinter, ?int $id = null)
     {
         parent::__construct();
         $this->setId($id);
@@ -66,9 +66,10 @@ final class Compounds extends AbstractRest
         }
         if (!empty($queryParams->getQuery()->get('search_fp_smi'))) {
             $q = $queryParams->getQuery();
-            return $this->searchFingerprint($this->getFingerprintFromSmiles($q->getString('search_fp_smi')), $q->getBoolean('exact'));
+            $fp = $this->fingerprinter->calculate('smi', $q->getString('search_fp_smi'));
+            return $this->searchFingerprint($fp, $q->getBoolean('exact'));
         }
-        $sql = $this->getSelectBeforeWhere() . ' WHERE 1=1 AND entity.state IN (1,2)';
+        $sql = $this->getSelectBeforeWhere() . ' WHERE 1=1 AND entity.state IN (:state_normal, :state_archived)';
         if ($queryParams->getQuery()->get('q')) {
             $sql .= ' AND (
                 entity.cas_number LIKE :query OR
@@ -108,6 +109,8 @@ final class Compounds extends AbstractRest
         if ($queryParams->getQuery()->get('q')) {
             $req->bindValue(':query', '%' . $queryParams->getQuery()->getString('q') . '%');
         }
+        $req->bindValue(':state_normal', State::Normal->value, PDO::PARAM_INT);
+        $req->bindValue(':state_archived', State::Archived->value, PDO::PARAM_INT);
         $this->Db->execute($req);
 
         return $req->fetchAll();
@@ -176,7 +179,6 @@ final class Compounds extends AbstractRest
                 isHazardous2health: (bool) ($reqBody['is_hazardous2health'] ?? false),
                 isOxidising: (bool) ($reqBody['is_oxidising'] ?? false),
                 isToxic: (bool) ($reqBody['is_toxic'] ?? false),
-                withFingerprint: Config::boolFromEnv('USE_FINGERPRINTER'),
             ),
         };
     }
@@ -191,40 +193,63 @@ final class Compounds extends AbstractRest
         ?string $inchi = null,
         ?string $inchiKey = null,
         ?string $name = null,
-        ?string $smiles = null,
+        ?string $casNumber = null,
+        ?string $ecNumber = null,
+        ?string $iupacName = null,
+        ?string $chebiId = null,
+        ?string $chemblId = null,
+        ?string $deaNumber = null,
+        ?string $drugbankId = null,
+        ?string $dsstoxId = null,
+        ?string $hmdbId = null,
+        ?string $keggId = null,
+        ?string $metabolomicsWbId = null,
         ?string $molecularFormula = null,
         ?float $molecularWeight = 0.00,
-        ?string $casNumber = null,
-        ?string $iupacName = null,
+        ?string $nciCode = null,
+        ?string $nikkajiNumber = null,
+        ?string $pharmGkbId = null,
+        ?string $pharosLigandId = null,
         ?int $pubchemCid = null,
+        ?string $rxcui = null,
+        ?string $smiles = null,
+        ?string $unii = null,
+        ?string $wikidata = null,
+        ?string $wikipedia = null,
         bool $isCorrosive = false,
-        bool $isSeriousHealthHazard = false,
         bool $isExplosive = false,
         bool $isFlammable = false,
         bool $isGasUnderPressure = false,
         bool $isHazardous2env = false,
         bool $isHazardous2health = false,
         bool $isOxidising = false,
+        bool $isSeriousHealthHazard = false,
         bool $isToxic = false,
-        bool $withFingerprint = true,
+        bool $isRadioactive = false,
+        bool $isAntibioticPrecursor = false,
+        bool $isDrugPrecursor = false,
+        bool $isExplosivePrecursor = false,
+        bool $isCmr = false,
+        bool $isNano = false,
+        bool $isControlled = false,
     ): int {
 
         $sql = 'INSERT INTO compounds (
             created_by, modified_by, name,
             inchi, inchi_key,
-            smiles, molecular_formula, molecular_weight,
-            cas_number, iupac_name, pubchem_cid, userid, team,
+            smiles, molecular_formula, molecular_weight, metabolomics_wb_id, nci_code, nikkaji_number, pharmgkb_id, pharos_ligand_id, rxcui, unii, wikidata, wikipedia, is_radioactive, is_antibiotic_precursor, is_drug_precursor, is_explosive_precursor, is_cmr, is_nano, is_controlled,
+            cas_number, ec_number, iupac_name, pubchem_cid, userid, team, chebi_id, chembl_id, dea_number, drugbank_id, dsstox_id, hmdb_id, kegg_id,
             is_corrosive, is_serious_health_hazard, is_explosive, is_flammable, is_gas_under_pressure, is_hazardous2env, is_hazardous2health, is_oxidising, is_toxic
             ) VALUES (
             :requester, :requester, :name,
             :inchi, :inchi_key,
-            :smiles, :molecular_formula, :molecular_weight,
-            :cas_number, :iupac_name, :pubchem_cid, :requester, :team,
+            :smiles, :molecular_formula, :molecular_weight, :metabolomics_wb_id, :nci_code, :nikkaji_number, :pharmgkb_id, :pharos_ligand_id, :rxcui, :unii, :wikidata, :wikipedia, :is_radioactive, :is_antibiotic_precursor, :is_drug_precursor, :is_explosive_precursor, :is_cmr, :is_nano, :is_controlled,
+            :cas_number, :ec_number, :iupac_name, :pubchem_cid, :requester, :team, :chebi_id, :chembl_id, :dea_number, :drugbank_id, :dsstox_id, :hmdb_id, :kegg_id,
             :is_corrosive, :is_serious_health_hazard, :is_explosive, :is_flammable, :is_gas_under_pressure, :is_hazardous2env, :is_hazardous2health, :is_oxidising, :is_toxic)';
 
         $req = $this->Db->prepare($sql);
-        $req->bindParam(':requester', $this->requester->userid);
-        $req->bindParam(':team', $this->requester->team);
+        $req->bindParam(':requester', $this->requester->userid, PDO::PARAM_INT);
+        $req->bindParam(':team', $this->requester->team, PDO::PARAM_INT);
         $req->bindParam(':name', $name);
         $req->bindParam(':inchi', $inchi);
         $req->bindParam(':inchi_key', $inchiKey);
@@ -232,8 +257,25 @@ final class Compounds extends AbstractRest
         $req->bindParam(':molecular_formula', $molecularFormula);
         $req->bindParam(':molecular_weight', $molecularWeight);
         $req->bindParam(':cas_number', $casNumber);
+        $req->bindParam(':ec_number', $ecNumber);
         $req->bindParam(':iupac_name', $iupacName);
         $req->bindParam(':pubchem_cid', $pubchemCid);
+        $req->bindParam(':chebi_id', $chebiId);
+        $req->bindParam(':chembl_id', $chemblId);
+        $req->bindParam(':dea_number', $deaNumber);
+        $req->bindParam(':drugbank_id', $drugbankId);
+        $req->bindParam(':dsstox_id', $dsstoxId);
+        $req->bindParam(':hmdb_id', $hmdbId);
+        $req->bindParam(':kegg_id', $keggId);
+        $req->bindParam(':metabolomics_wb_id', $metabolomicsWbId);
+        $req->bindParam(':nci_code', $nciCode);
+        $req->bindParam(':nikkaji_number', $nikkajiNumber);
+        $req->bindParam(':pharmgkb_id', $pharmGkbId);
+        $req->bindParam(':pharos_ligand_id', $pharosLigandId);
+        $req->bindParam(':rxcui', $rxcui);
+        $req->bindParam(':unii', $unii);
+        $req->bindParam(':wikidata', $wikidata);
+        $req->bindParam(':wikipedia', $wikipedia);
         $req->bindParam(':is_corrosive', $isCorrosive, PDO::PARAM_INT);
         $req->bindParam(':is_serious_health_hazard', $isSeriousHealthHazard, PDO::PARAM_INT);
         $req->bindParam(':is_explosive', $isExplosive, PDO::PARAM_INT);
@@ -242,7 +284,14 @@ final class Compounds extends AbstractRest
         $req->bindParam(':is_hazardous2env', $isHazardous2env, PDO::PARAM_INT);
         $req->bindParam(':is_hazardous2health', $isHazardous2health, PDO::PARAM_INT);
         $req->bindParam(':is_oxidising', $isOxidising, PDO::PARAM_INT);
+        $req->bindParam(':is_radioactive', $isRadioactive, PDO::PARAM_INT);
         $req->bindParam(':is_toxic', $isToxic, PDO::PARAM_INT);
+        $req->bindParam(':is_antibiotic_precursor', $isAntibioticPrecursor, PDO::PARAM_INT);
+        $req->bindParam(':is_drug_precursor', $isDrugPrecursor, PDO::PARAM_INT);
+        $req->bindParam(':is_explosive_precursor', $isExplosivePrecursor, PDO::PARAM_INT);
+        $req->bindParam(':is_cmr', $isCmr, PDO::PARAM_INT);
+        $req->bindParam(':is_nano', $isNano, PDO::PARAM_INT);
+        $req->bindParam(':is_controlled', $isControlled, PDO::PARAM_INT);
 
         try {
             $this->Db->execute($req);
@@ -255,10 +304,35 @@ final class Compounds extends AbstractRest
 
         $compoundId = $this->Db->lastInsertId();
 
-        if ($withFingerprint && !empty($smiles)) {
-            $this->fingerprintCompound($smiles, $compoundId);
+        if (!empty($smiles)) {
+            $fp = $this->fingerprinter->calculate('smi', $smiles);
+            $Fingerprints = new Fingerprints($compoundId);
+            $Fingerprints->create($fp['data']);
         }
         return $compoundId;
+    }
+
+    public function createFromCompound(Compound $compound): int
+    {
+        return $this->create(
+            casNumber: $compound->cas,
+            name: $compound->name,
+            inchi: $compound->inChI,
+            inchiKey: $compound->inChIKey,
+            smiles: $compound->smiles,
+            iupacName: $compound->iupacName,
+            pubchemCid: $compound->cid,
+            molecularFormula: $compound->molecularFormula,
+            molecularWeight: $compound->molecularWeight,
+            isCorrosive: $compound->isCorrosive,
+            isExplosive: $compound->isExplosive,
+            isFlammable: $compound->isFlammable,
+            isGasUnderPressure: $compound->isGasUnderPressure,
+            isHazardous2env: $compound->isHazardous2env,
+            isHazardous2health: $compound->isHazardous2health,
+            isOxidising: $compound->isOxidising,
+            isToxic: $compound->isToxic,
+        );
     }
 
     protected function canOrExplode(AccessType $accessType): bool
@@ -328,7 +402,7 @@ final class Compounds extends AbstractRest
 
         $sql .= 'FROM compounds_fingerprints AS cf
             LEFT JOIN compounds AS c ON cf.id = c.id';
-        $sql .= ' WHERE 1=1 AND c.state IN (1,2)';
+        $sql .= ' WHERE 1=1 AND c.state IN (:state_normal, :state_archived)';
         foreach ($fp['data'] as $key => $value) {
             if ($value == 0) {
                 continue;
@@ -343,6 +417,8 @@ final class Compounds extends AbstractRest
 
         $sql .= ' ORDER BY similarity_score, id DESC LIMIT 500';
         $req = $this->Db->prepare($sql);
+        $req->bindValue(':state_normal', State::Normal->value, PDO::PARAM_INT);
+        $req->bindValue(':state_archived', State::Archived->value, PDO::PARAM_INT);
         $req->execute();
         return $req->fetchAll();
     }
@@ -358,43 +434,5 @@ final class Compounds extends AbstractRest
         $Importer = new PubChemImporter($this->httpGetter);
         $cid = $Importer->getCidFromCas($cas);
         return $this->searchPubChem($cid);
-    }
-
-    private function getFingerprintFromSmiles(string $smiles): array
-    {
-        $Fingerprinter = new Fingerprinter($this->httpGetter, Config::boolFromEnv('USE_FINGERPRINTER'));
-        return $Fingerprinter->calculate('smi', $smiles);
-    }
-
-    private function fingerprintCompound(string $smiles, int $compoundId): int
-    {
-        $fp = $this->getFingerprintFromSmiles($smiles);
-        // if fingerprinter is not configured, no data will exist in the response
-        $Fingerprints = new Fingerprints($compoundId);
-        return $Fingerprints->create($fp['data']);
-    }
-
-    private function createFromCompound(Compound $compound): int
-    {
-        return $this->create(
-            casNumber: $compound->cas,
-            name: $compound->name,
-            inchi: $compound->inChI,
-            inchiKey: $compound->inChIKey,
-            smiles: $compound->smiles,
-            iupacName: $compound->iupacName,
-            pubchemCid: $compound->cid,
-            molecularFormula: $compound->molecularFormula,
-            molecularWeight: $compound->molecularWeight,
-            isCorrosive: $compound->isCorrosive,
-            isExplosive: $compound->isExplosive,
-            isFlammable: $compound->isFlammable,
-            isGasUnderPressure: $compound->isGasUnderPressure,
-            isHazardous2env: $compound->isHazardous2env,
-            isHazardous2health: $compound->isHazardous2health,
-            isOxidising: $compound->isOxidising,
-            isToxic: $compound->isToxic,
-            withFingerprint: Config::boolFromEnv('USE_FINGERPRINTER'),
-        );
     }
 }

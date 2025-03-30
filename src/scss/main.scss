@@ -44,6 +44,7 @@ $text-muted: $medium;
 @import 'ove';
 @import 'search-syntax-highlighting';
 @import 'tom-select';
+@import 'tinymce-custom';
 
 /* Font is Lato */
 @font-face {
@@ -958,6 +959,10 @@ the form-control fails to do that so we do the border ourselves */
 /* for icons such as pin, need important to override default icon color */
 .color-weak {
   color: $secondlevel !important;
+}
+
+.color-disabled {
+  color: $disabled !important;
 }
 
 .color-medium {

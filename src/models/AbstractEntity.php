@@ -155,7 +155,7 @@ abstract class AbstractEntity extends AbstractRest
         $sql = sprintf('UPDATE %s SET modified_at = NOW(), lastchangeby = :userid WHERE id = :id', $this->entityType->value);
         $req = $this->Db->prepare($sql);
         $req->bindParam(':id', $this->id, PDO::PARAM_INT);
-        $req->bindParam(':userid', $this->Users->requester->userid);
+        $req->bindParam(':userid', $this->Users->requester->userid, PDO::PARAM_INT);
         return $this->Db->execute($req);
     }
 
@@ -610,10 +610,6 @@ abstract class AbstractEntity extends AbstractRest
         // make sure entityData is filled
         if (empty($this->entityData)) {
             $this->readOne();
-        }
-        // if it has the deleted state, don't show it.
-        if ($this->entityData['state'] === State::Deleted->value) {
-            return array('read' => false, 'write' => false);
         }
 
         return (new Permissions($this->Users, $this->entityData))->forEntity();
