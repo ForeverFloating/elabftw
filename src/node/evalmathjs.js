@@ -5,7 +5,13 @@ const { expressionRegex, idRegex, arrayRegex, regexSelector, mathOutput } = requ
 const $ = cheerio.load(htmlfile);
 
 function mathExpression(inputString) {
-  const expressionString = inputString.replace(regexSelector, (selectMatch, expressionSelect) => {
+  const expressionString = inputString.replace(regexSelector, (selectMatch, expressionSelect1, expressionSelect2) => {
+    if (expressionSelect1 === undefined) {
+      expressionSelect1 = '';
+    }
+    if (expressionSelect2 === undefined) {
+      expressionSelect2= '';
+    }
     const selectArray = $('body').find(`${expressionSelect}`);
     const regexMatch = arrayRegex.test(selectMatch);
     if (regexMatch) {
@@ -23,6 +29,6 @@ function mathExpression(inputString) {
 const result = htmlfile.replace(expressionRegex, (match, expression) => {
   const replaceRefs = mathExpression(expression);
   return mathOutput(match, replaceRefs);
-});
+})
 
 console.log(result);

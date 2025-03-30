@@ -71,6 +71,7 @@ import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } 
 import { defaultKeymap, history, historyKeymap, indentSelection, indentWithTab } from '@codemirror/commands';
 import { html } from '@codemirror/lang-html';
 import { markdown } from '@codemirror/lang-markdown';
+// TODO: add getIndentation and syntaxTree back to list of imports from @codemirror/language
 import { bracketMatching, defaultHighlightStyle, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
 import { search } from '@codemirror/search';
@@ -407,6 +408,31 @@ export function getTinymceBaseConfig(page: string): object {
       });
 
       // miscellaneous custom commands
+      editor.addCommand('customPreview', () => {
+        editor.windowManager.open({
+          title: 'Preview',
+          body: {
+            type: 'panel',
+            items: [
+              {
+                type: 'htmlpanel',
+                html: editor.getContent(),
+              },
+            ],
+          },
+          buttons: [
+            {
+              type: 'cancel',
+              text: 'Close',
+              name: 'Close',
+              buttonType: 'primary',
+              enabled: true,
+              align: 'end',
+            },
+          ],
+          size: 'large',
+        });
+      });
       editor.addCommand('codemirror', () => {
         editor.windowManager.open({
           title: 'Source Code',
@@ -534,8 +560,8 @@ export function getTinymceBaseConfig(page: string): object {
 
       // disable closing source code window when esc key is pressed
       editor.on('execCommand', (e) => {
-        if (e.command === 'mceCodeEditor') {
-          const target = document.querySelector('.tox-dialog:has(.tox-textarea)');
+        if (e.command === 'codemirror') {
+          const target = document.querySelector('.mce-codemirror');
           if (target) {
             target.addEventListener('keyup', (event: KeyboardEvent) => {
               clearTimeout(typingTimer);
@@ -722,15 +748,19 @@ export function getTinymceBaseConfig(page: string): object {
           codeEditor.dispatch({
             selection: {
               anchor: 0,
-              head: codeEditor.state.doc.length,
+              head: sourceText.length,
             },
           });
           setTimeout(() => {
-            indentSelection({
-              state: codeEditor.state,
-              dispatch: transaction => (codeEditor.update([transaction])),
+            indentSelection(codeEditor);
+          }, 500);
+          setTimeout(() => {
+            codeEditor.dispatch({
+              selection: {
+                anchor: 0,
+              },
             });
-          }, 2000);
+          }, 1000);
         }
         }
       });
