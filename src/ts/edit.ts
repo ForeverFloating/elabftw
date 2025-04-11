@@ -32,6 +32,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const entity = getEntity();
 
+  // remove exclusive edit mode when leaving the page
+  window.onbeforeunload = function() {
+    ApiC.notifOnSaved = false;
+    ApiC.patch(`${entity.type}/${entity.id}`, {action: Action.RemoveExclusiveEditMode});
+  };
   // Which editor are we using? md or tiny
   const editor = getEditor();
   editor.init('edit');
@@ -92,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       params[Target.Customid] = null;
       ApiC.patch(`${entity.type}/${entity.id}`, params).then(() => {
         // get the entity with highest custom_id
-        return ApiC.getJson(`${el.dataset.endpoint}/?cat=${category}&order=customid&limit=1&sort=desc&scope=3`);
+        return ApiC.getJson(`${el.dataset.endpoint}/?cat=${category}&order=customid&limit=1&sort=desc&scope=3&skip_pinned=1`);
       }).then(json => {
         const nextId = json[0].custom_id + 1;
         inputEl.value = nextId;
@@ -195,15 +200,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         // wrap in pre element to retain whitespace, html encode '<' and '>'
         editor.setContent('<pre>' + fileContent.replace(/[<>]/g, char => specialChars[char]) + '</pre>');
       });
-    // REQUEST EXCLUSIVE EDIT MODE REMOVAL
-    } else if (el.matches('[data-action="request-exclusive-edit-mode-removal"]')) {
-      ApiC.post(`${entity.type}/${entity.id}/request_actions`, {
-        action: Action.Create,
-        target_action: 60,
-        target_userid: el.dataset.targetUser,
-      }).then(() => reloadElements(['requestActionsDiv']))
-        // the request gets rejected if repeated
-        .catch(error => console.error(error.message));
     }
   });
 

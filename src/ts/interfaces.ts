@@ -83,7 +83,6 @@ enum Action {
   Bloxberg = 'bloxberg',
   Disable2fa = 'disable2fa',
   Duplicate = 'duplicate',
-  ExclusiveEditMode = 'exclusiveeditmode',
   Finish = 'finish',
   ForceLock = 'forcelock',
   ForceUnlock = 'forceunlock',

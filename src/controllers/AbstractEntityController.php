@@ -45,10 +45,6 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Override;
 
-use function array_filter;
-
-use const ARRAY_FILTER_USE_KEY;
-
 /**
  * For displaying an entity in show, view or edit mode
  */
@@ -79,12 +75,7 @@ abstract class AbstractEntityController implements ControllerInterface
         $this->visibilityArr = $PermissionsHelper->getAssociativeArray();
         $this->classificationArr = Classification::getAssociativeArray();
         $this->meaningArr = Meaning::getAssociativeArray();
-        // exclude exclusive edit mode removal action
-        $this->requestableActionArr = array_filter(
-            RequestableAction::getAssociativeArray(),
-            fn(int $key): bool => $key !== RequestableAction::RemoveExclusiveEditMode->value,
-            ARRAY_FILTER_USE_KEY,
-        );
+        $this->requestableActionArr = RequestableAction::getAssociativeArray();
         $this->currencyArr = Currency::getAssociativeArray();
         $this->scopedTeamgroupsArr = $TeamGroups->readScopedTeamgroups();
         $Templates = new Templates($this->Entity->Users);
@@ -92,7 +83,6 @@ abstract class AbstractEntityController implements ControllerInterface
         if ($App->Request->query->has('archived') && $Entity instanceof AbstractConcreteEntity) {
             $Entity->Uploads->includeArchived = true;
         }
-
     }
 
     #[Override]
@@ -134,6 +124,7 @@ abstract class AbstractEntityController implements ControllerInterface
             limit: $this->App->Users->userData['limit_nb'],
             orderby: $orderBy,
             sort: Sort::tryFrom($this->App->Users->userData['sort']) ?? Sort::Desc,
+            skipOrderPinned: $this->App->Request->query->getBoolean('skip_pinned'),
         );
         $itemsArr = $this->Entity->readShow($DisplayParams);
 
@@ -265,6 +256,8 @@ abstract class AbstractEntityController implements ControllerInterface
         if ($redirectResponse instanceof RedirectResponse) {
             return ($redirectResponse);
         }
+        // all entities are in exclusive edit mode as of march 2025. See #5568
+        $this->Entity->ExclusiveEditMode->activate();
 
         // last modifier name
         $lastModifierFullname = '';
