@@ -68,17 +68,17 @@ import { mathDOM } from './mathjs';
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
 // CodeMirror imports
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from '@codemirror/autocomplete';
-import { defaultKeymap, history, historyKeymap, indentSelection, indentWithTab } from '@codemirror/commands';
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { html } from '@codemirror/lang-html';
 import { markdown } from '@codemirror/lang-markdown';
 // TODO: add getIndentation and syntaxTree back to list of imports from @codemirror/language
-import { bracketMatching, defaultHighlightStyle, foldGutter, foldKeymap, indentOnInput, indentUnit, syntaxHighlighting } from '@codemirror/language';
+import { bracketMatching, defaultHighlightStyle, foldGutter, foldKeymap, indentOnInput, indentRange, indentUnit, syntaxHighlighting } from '@codemirror/language';
 import { EditorState } from '@codemirror/state';
 import { search } from '@codemirror/search';
 import { drawSelection, dropCursor, EditorView, highlightActiveLine, highlightActiveLineGutter, highlightSpecialChars, lineNumbers, keymap, rectangularSelection } from '@codemirror/view';
 declare const MathJax: MathJaxObject;
 
-// set codeEditor variable to null
+// define codeEditor
 let codeEditor = null;
 
 // AUTOSAVE
@@ -746,22 +746,11 @@ export function getTinymceBaseConfig(page: string): object {
             state: codeText,
             parent: fullWidth,
           });
-          codeEditor.dispatch({
-            selection: {
-              anchor: 0,
-              head: sourceText.length,
-            },
-          });
-          setTimeout(() => {
-            indentSelection(codeEditor);
-          }, 500);
           setTimeout(() => {
             codeEditor.dispatch({
-              selection: {
-                anchor: 0,
-              },
+              changes: indentRange(codeEditor.state, 0, codeEditor.state.doc.length),
             });
-          }, 1000);
+          }, 500);
         }
         }
       });
