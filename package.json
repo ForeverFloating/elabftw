@@ -21,7 +21,7 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.36.4",
     "@deltablot/dropzone": "^7.3.0",
-    "@deltablot/malle": "^2.7.0",
+    "@deltablot/malle": "^2.7.1",
     "@fancyapps/fancybox": "^3.5.7",
     "@fortawesome/fontawesome-free": "^6.7.2",
     "@fullcalendar/bootstrap": "^6.1.17",
