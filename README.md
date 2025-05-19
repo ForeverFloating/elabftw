@@ -125,6 +125,11 @@ This project is backed by [Deltablot](https://www.deltablot.com) company.
 
 * [The ELN Consortium](https://github.com/TheELNConsortium/): a consortium of ELN vendors interested in improving interoperability between ELNs
 
+## Importing data from another ELN
+
+* [Importing data from RSpace](https://github.com/elabftw/rspace2elabftw): A python script to import .eln files from RSpace into eLabFTW
+* [Importing data from LabFolder](https://github.com/TheELNConsortium/any2eln): A python script to import data from LabFolder into eLabFTW, using their API
+
 ## Third party libraries or scripts
 
 These projects were created by users of eLabFTW, check them out if interested!
