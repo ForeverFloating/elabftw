@@ -9,10 +9,13 @@ import { Metadata } from './Metadata.class';
 import JSONEditor from 'jsoneditor';
 import $ from 'jquery';
 import i18next from 'i18next';
-import { getNewIdFromPostRequest, notif, notifSaved, reloadElements } from './misc';
+import { getNewIdFromPostRequest, reloadElements } from './misc';
 import { Action, Entity, Model } from './interfaces';
 import { Api } from './Apiv2.class';
 import { ValidMetadata } from './metadataInterfaces';
+import { Notification } from './Notifications.class';
+
+const notify = new Notification();
 
 // This class is named helper because the jsoneditor lib already exports JSONEditor
 export default class JsonEditorHelper {
@@ -100,9 +103,9 @@ export default class JsonEditorHelper {
       })
       .catch(e => {
         if (e instanceof SyntaxError) {
-          notif({ 'res': false, 'msg': i18next.t('json-parse-error') });
+          notify.error('invalid-info');
         } else {
-          notif({'res': false, 'msg':'JSON Editor: ' + e.message});
+          notify.error(e.message);
         }
       });
     // add the filename as a title
@@ -125,8 +128,7 @@ export default class JsonEditorHelper {
     try {
       this.MetadataC.update(this.editor.get());
     } catch (error) {
-      notif({res: false, msg: 'Error parsing the JSON! Error logged in console.'});
-      console.error(error);
+      notify.error(error);
     }
   }
 
@@ -187,7 +189,7 @@ export default class JsonEditorHelper {
       method: 'POST',
       body: formData,
     });
-    notifSaved();
+    notify.success();
   }
 
   toggleDisplayMainText(): void {
