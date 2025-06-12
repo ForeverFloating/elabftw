@@ -209,8 +209,15 @@ final class Filter
         $config->set('Attr.EnableID', true);
         $config->set('Attr.IDBlacklist', $blacklistIds);
         // allow only certain elements
-        $config->set('HTML.Allowed', 'div[class|id|style],br[class|id|style],p[class|id|style],sub[class|id|style],img[src|id|class|style|width|height|alt],sup[class|id|style],strong[class|id|style],b[class|id|style],em[class|id|style],u[class|id|style],a[href|hreflang|class|id|style|rel|type],s[class|id|style],span[class|id|style],ul[class|id|style],li[class|id|style|value],ol[class|id|style|reversed|start|type],dl[class|id|style],dt[class|id|style],dd[class|id|style],blockquote[class|id|style|cite],h1[class|id|style],h2[class|id|style],h3[class|id|style],h4[class|id|style],h5[class|id|style],h6[class|id|style],hr[class|id|style],table[class|id|style],tr[class|id|style],td[class|id|style|colspan|rowspan|headers],th[class|id|style|colspan|rowspan|abbr|headers|scope],code[class|id|style],video[class|id|src|controls|controlslist|style|height|width|disablepictureinpicture|disableremoteplayback|loop|muted|poster|preload],audio[class|id|style|src|controls|autoplay|controlslist|disableremoteplayback|loop|muted|preload],pre[class|id|style],details[class|id|style|open|name],summary[class|id|style],caption[class|id|style],figure[class|id|style],figcaption[class|id|style],abbr[|class|id|style|title],aside[class|id|style],bdi[class|id|style|dir],cite[class|id|style],col[class|id|span|style],data[class|id|style|value],del[class|id|style|cite|datetime],dfn[class|style|title|id],ins[class|id|style|cite|datetime],kbd[class|id|style],mark[class|id|style],q[class|id|style|cite],samp[class|id|style],tbody[class|id|style],tfoot[class|id|style],thead[class|id|style],time[class|id|style|datetime],var[class|id|style],wbr[class|id|style],small[class|id|style],input[class|id|style|alt|autocapitalize|autocomplete|checked|disabled|form|height|list|max|maxlength|min|minlength|name|pattern|placeholder|popovertarget|popovertargetaction|readonly|required|size|src|step|type|value|width],label[class|id|style|for]');
+        $config->set('HTML.Allowed', '[class|dir|id|itemid|itemprop|itemref|itemscope|itemtype|lang|role|style|tabindex|title|translate],div,br,p,sub,img[src|width|height|alt],sup,strong,b,em,u,a[href|hreflang|rel|type],s,span,ul,li[value],ol[reversed|start|type],dl,dt,dd,blockquote[cite],h1,h2,h3,h4,h5,h6,hr,table,tr,td[colspan|rowspan|headers],th[colspan|rowspan|abbr|headers|scope],code,video[src|controls|controlslist|height|width|disablepictureinpicture|disableremoteplayback|loop|muted|poster|preload],audio[src|controls|autoplay|controlslist|disableremoteplayback|loop|muted|preload],pre,details[open|name],summary,caption,figure,figcaption,abbr[title],aside,bdi[dir],cite,col[span|style],data[value],del[cite|datetime],dfn[title|id],ins[cite|datetime],kbd,mark,q[cite],samp,tbody,tfoot,thead,time[datetime],var,wbr,small,input[alt|autocapitalize|autocomplete|checked|disabled|form|height|list|max|maxlength|min|minlength|name|pattern|placeholder|popovertarget|popovertargetaction|readonly|required|size|src|step|type|value|width],label[for]');
+        // allow certain global attributes
         $config->set('HTML.TargetBlank', true);
+        // default text direction; TODO change this value based on default language
+        $config->set('Attr.DefaultTextDir', 'ltr');
+        // remove nonspecific spans
+        $config->set('AutoFormat.RemoveSpansWithoutAttributes', true);
+        // allow safe embeds
+        $config->set('HTML.SafeObject', true);
         // configure the cache for htmlpurifier
         $tmpDir = FsTools::getCacheFolder('purifier');
         $config->set('Cache.SerializerPath', $tmpDir);
@@ -221,11 +228,472 @@ final class Filter
         $config->set('HTML.MaxImgLength', null);
         // permit form fields
         $config->set('HTML.Trusted', true);
+        // MathML element definition arrays
+        // $MMLIDTYPE = 'ID';
+        // $MMLIDREFTYPE = 'ID';
+        // $MalignExpression = array('maligngroup', 'malignmark');
+        // $TokenExpression = array('mi', 'mn', 'mo', 'mtext', 'mspace', 'ms');
+        // $PresentationExpression = $TokenExpression + $MalignExpression + array('mrow', 'mfrac', 'msqrt', 'mroot', 'mstyle', 'merror', 'mpadded', 'mphantom', 'mfenced', 'menclose', 'msub', 'msup', 'msubsup', 'munder', 'mover', 'munderover', 'mmultiscripts', 'mtable', 'mstack', 'mlongdiv', 'maction');
+        // $cnContent = '(#PCDATA|mglyph|sep|' + implode('|', $PresentationExpression) + ')*';
+        // $ciContent = '(#PCDATA|mglyph|' + implode('|', $PresentationExpression) + ')*';
+        // $csymbolContent = '(#PCDATA|mglyph|' + implode('|', $PresentationExpression) + ')*';
+        // $SymbolName = '#PCDATA';
+        // $BvarQ = '(bvar)*';
+        // $DomainQ = '(domainofapplication|condition|(lowlimit,uplimit?))*'
+        // $constantArithMmlclass = array('exponentiale', 'imaginaryi', 'notanumber', 'true', 'false', 'pi', 'eulergamma', 'infinity');
+        // $constantSetMmlclass = array('integers', 'reals', 'rationals', 'naturalnumbers', 'complexes', 'primes', 'emptyset');
+        // $binaryLinalgMmlclass = array('vectorproduct', 'scalarproduct', 'outerproduct');
+        // $naryLinalgMmlclass = array('selector');
+        // $unaryLinalgMmlclass = array('determinant', 'transpose');
+        // $naryConstructorMmlclass = array('vector', 'matrix', 'matrixrow');
+        // $naryStatsMmlclass = array('mean', 'sdev', 'variance', 'median', 'mode');
+        // $unaryElementaryMmlclass = array('sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'sinh', 'cosh', 'tanh', 'sech', 'csch', 'coth', 'arcsin', 'arccos', 'arctan', 'arccosh', 'arccot', 'arccoth', 'arccsc', 'arccsch', 'arcsec', 'arcsech', 'arcsinh', 'arctanh');
+        // $limitMmlclass = array('limit');
+        // $productMmlclass = array('product');
+        // $sumMmlclass = array('sum');
+        // $unarySetMmlclass = array('card');
+        // $narySetRelnMmlclass = array('subset', 'prsubset');
+        // $binarySetMmlclass = array('in', 'notin', 'notsubset', 'notprsubset', 'setdiff');
+        // $narySetMmlclass = array('union', 'intersect', 'cartesianproduct');
+        // $narySetlistConstructorMmlclass = array('set', 'list');
+        // $unaryVeccalcMmlclass = array('divergence', 'grad', 'curl', 'laplacian');
+        // $partialdiffMmlclass = array('partialdiff');
+        // $DifferentialOperatorMmlclass = array('diff');
+        // $intMmlclass = array('int');
+        // $binaryRelnMmlclass = array('neq', 'approx', 'factorof', 'tendsto');
+        // $naryRelnMmlclass = array('eq', 'gt', 'lt', 'geq', 'leq');
+        // $quantifierMmlclass = array('forall', 'exists');
+        // $binaryLogicalMmlclass = array('implies', 'equivalent');
+        // $unaryLogicalMmlclass = array('not');
+        // $naryLogicalMmlclass = array('and', 'or', 'xor');
+        // $naryArithMmlclass = array('plus', 'times', 'gcd', 'lcm');
+        // $naryMinmaxMmlclass = array('max', 'min');
+        // $unaryArithMmlclass = array('factorial', 'abs', 'conjugate', 'arg', 'real', 'imaginary', 'floor', 'ceiling', 'exp');
+        //        $binaryArithMmlclass = array('quotient', 'divide', 'minus', 'power', 'rem', 'root');
+        //        $naryFunctionalMmlclass = array('compose');
+        //        $lambdaMmlclass = array('lambda');
+        //        $unaryFunctionalMmlclass = array('inverse', 'ident', 'domain', 'codomain', 'image', 'ln', 'log', 'moment');
+        //        $intervalMmlclass = array('interval');
+        //        $DeprecatedContExp = array('reln', 'fn', 'declare');
+        //        $CommonDeprecatedAtt = array('other' => 'CDATA');
+        //        $Qualifier = $DomainQ + array('degree', 'momentabout', 'logbase');
+        //        $ContExp = array('piecewise') + $DeprecatedContExp + $IntervalMmlclass + $unaryFunctionalMmlclass + $lambdaMmlclass + $naryFunctionalMmlclass + $binaryArithMmlclass + $unaryArithMmlclass + $naryMinmaxMmlclass + $naryArithMmlclass + $naryLogicalMmlclass + $unaryLogicalMmlclass + $binaryLogicalMmlclass + $quantifierMmlclass + $naryRelnMmlclass + $binaryRelnMmlclass + $intMmlclass + $DifferentialOperatorMmlclass + $partialDiffMmlclass + $unaryVeccalcMmlclass + $narySetlistConstructorMmlclass + $narySetMmlclass + $binarySetMmlclass + $narySetRelnMmlclass + $unarySetMmlclass + $sumMmlclass + $productMmlclass + $limitMmlclass + $unaryElementaryMmlclass + $naryStatsMmlclass + $naryConstructorMmlclass + $unaryLinalgMmlclass + $naryLinalgMmlclass + $binaryLinalgMmlclass + $constantSetMmlclass + $constantArithMmlclass + array('semantics', 'cn', 'ci', 'csymbol', 'apply', 'bind', 'share', 'cerror', 'cbytes', 'cs');
+        //        $CommonAtt = array(
+        //            '%XLINK/prefix;:href' => 'CDATA',
+        //            '%XLINK.prefix;:type' => 'CDATA',
+        //            'xml:lang' => 'CDATA',
+        //            'xml:space' => 'Enum#default|preserve',
+        //            'id' => $MMLIDTYPE,
+        //            'xref' => $MMLIDREFTYPE,
+        //            'class' => 'CDATA',
+        //            'style' => 'CDATA',
+        //            'href' => 'CDATA'
+        //        ) + $CommonDeprecatedAtt;
+        //        $applyContent = '(' + implode('|', $ContExp) + '),(' + implode('|', $BvarQ) + '),(' + implode('|', $Qualifier) + ')*,(' + implode('|', $ContExp) + ')*';
+        //        $bindContent = $applyContent;
+        //        $src = array('src' => 'CDATA');
+        //        $base64 = 'CDATA';
+        //        $DefEncAtt = array('encoding' => 'CDATA', 'definitionURL' => 'CDATA');
+        //        $ciType = array('type*' => 'CDATA');
+        //        $base = array('base*' => 'CDATA');
+        //        $type = array('type*' => 'CDATA');
+        //        $order = array('order*' => 'Enum#numeric|lexicographic');
+        //        $closure = array('closure*' => 'CDATA');
+        //        $MathExpression = $ContExp + $PresentationExpression;
+        //        $ImpliedMrow = '(' + implode('|', $MathExpression) + ')*';
+        //        $TableRowExpression = array('mtr', 'mlabeledtr');
+        //        $MstackExpression = $MathExpression + array('mscarries', 'msline', 'msrow', 'msgroup');
+        //        $MsrowExpression = $MathExpression + array('none');
+        //        $MultiScriptExpression = '(' + implode('|', $MathExpression) + '| none),(' + implode('|', $MathExpression) + '|none');
+        //        $mpaddedLength = 'CDATA';
+        //        $linestyle = array('left', 'center', 'right');
+        //        $notationstyle = array('longdiv', 'actuarial', 'radical', 'box', 'roundedbox', 'circle', 'left', 'right', 'top', 'bottom' 'updiagonalstrike', 'downdiagonalstrike', 'verticalstrike', 'horizontalstrike', 'madruwb');
+        //        $idref = '#PCDATA';
+        //        $unsignedInteger = 'CDATA';
+        //        $integer = 'CDATA';
+        //        $number = 'CDATA';
+        //        $character = 'CDATA';
+        //        $color = 'CDATA';
+        //        $groupAlignment = array('left', 'center', 'right', 'decimalpoint');
+        //        $groupAlignmentList = '#PCDATA';
+        //        $groupAlignmentListList = '#PCDATA';
+        //        $positiveInteger = 'CDATA';
+        //        $tokenContent = array('#PCDATA', 'mglyph', 'malignmark');
+        //        $length = 'CDATA';
+        //        $DeprecatedTokenAtt = array(
+        //            'fontfamily' => 'CDATA',
+        //            'fontweight' => 'Enum#normal|bold',
+        //            'fontstyle' => 'Enum#normal|italic',
+        //            'fontsize' => 'Length',
+        //            'color' => 'Color',
+        //            'background' => 'CDATA'
+        //        );
+        //        $TokenAtt = array(
+        //            'mathvariant' => 'Enum#normal|bold|italic|bold-italic|double-struck|bold-fraktur|script|bold-script|fraktur|sans-serif|bold-sans-serif|sans-serif-italic|sans-serif-bold-italic|monospace|initial|tailed|looped|stretched',
+        //            'mathsize' => 'CDATA',
+        //            'dir' => 'Enum#ltr|rtl'
+        //        ) + $DeprecatedTokenAtt;
+        //        $CommonPresAtt = array(
+        //            'mathcolor' => 'Color',
+        //            'mathbackground' => 'CDATA'
+        //        );
+        //        $mglyphDeprecatedAttributes = array(
+        //            'index' => 'Number',
+        //            'mathvariant' => 'Enum#normal|bold|italic|bold-italic|double-struck|bold-fraktur|script|bold-script|fraktur|sans-serif|bold-sans-serif|sans-serif-italic|sans-serif-bold-italic|monospace|initial|tailed|looped|stretched',
+        //            'mathsize' => 'CDATA'
+        //        ) + $DeprecatedTokenAtt;
+        //        $mglyphAttributes = $CommonAtt + $CommonPresAtt + array(
+        //            'src' => 'CDATA',
+        //            'width' => 'Length',
+        //            'height' => 'Length',
+        //            'valign' => 'Length',
+        //            'alt' => 'CDATA'
+        //        );
+        //        $mstyleDeprecatedAttributes = $DeprecatedTokenAtt + array(
+        //            'veryverythinmathspace' => 'Length',
+        //            'verythinmathspace' => 'Length',
+        //            'thinmathspace' => 'Length',
+        //            'mediummathspace' => 'Length',
+        //            'thickmathspace' => 'Length',
+        //            'verythickmathspace' => 'Length',
+        //            'veryverythickmathspace' => 'Length'
+        //        );
+        //        $mstyleGeneralAttributes = array(
+        //            'accent' => 'Enum#true|false',
+        //            'accentunder' => 'Enum#true|false',
+        //            'align' => 'Enum#left|right|center',
+        //            'alignmentscope' => 'CDATA',
+        //            'bevelled' => 'Enum#true|false',
+        //            'charalign' => 'Enum#left|center|right',
+        //            'charspacing' => 'CDATA',
+        //            'close' => 'CDATA',
+        //            'columnalign' => 'CDATA',
+        //            'columnlines' => 'CDATA',
+        //            'columnspacing' => 'CDATA',
+        //            'columnspan' => 'Number',
+        //            'columnwdith' => 'CDATA',
+        //            'crossout' => 'CDATA',
+        //            'denomalign' => 'Enum#left|center|right',
+        //            'depth' => 'Length',
+        //            'dir' => 'Enum#ltr|rtl',
+        //            'edge' => 'Enum#left|right',
+        //            'equalcolumns' => 'Enum#true|false',
+        //            'equalrows' => 'Enum#true|false',
+        //            'fence' => 'Enum#true|false',
+        //            'form' => 'Enum#true|false',
+        //            'frame' => 'Enum#' + implode('|', $linestyle),
+        //            'framespacing' => 'CDATA',
+        //            'groupalign' => 'CDATA',
+        //            'height' => 'Length',
+        //            'indentalign' => 'Enum#left|center|right|auto|id',
+        //            'indentalignfirst' => 'Enum#left|center|right|auto|id|indentalign',
+        //            'indentalignlast' => 'Enum#left|center|right|auto|id|indentalign',
+        //            'indentshift' => 'Length',
+        //            'indentshiftfirst' => 'CDATA',
+        //            'indentshiftlast' => 'CDATA',
+        //            'indenttarget' => 'CDATA',
+        //            'largeop' => 'Enum#true|false',
+        //            'leftoverhang' => 'Length',
+        //            'length' => 'Number',
+        //            'linebreak' => 'Enum#auto|newline|nobreak|goodbreak|badbreak',
+        //            'linebreakmultchar' => 'CDATA',
+        //            'linebreakstyle' => 'Enum#before|after|duplicate|infixlinebreakstyle',
+        //            'lineleading' => 'Length',
+        //            'linethickness' => 'CDATA',
+        //            'location' => 'Enum#w|nw|n|ne|e|se|s|sw',
+        //            'longdivstyle' => 'CDATA',
+        //            'lquote' => 'CDATA',
+        //            'lspace' => 'Length',
+        //            'mathsize' => 'CDATA',
+        //            'mathvariant' => 'Enum#normal|bold|italic|bold-italic|double-struck|bold-fraktur|script|bold-script|fraktur|sans-serif|bold-sans-serif|sans-serif-italic|sans-serif-bold-italic|monospace|initial|tailed|looped|stretched',
+        //            'maxsize' => 'CDATA',
+        //            'minlabelspacing' => 'Length',
+        //            'minsize' => 'Length',
+        //            'movablelimits' => 'Enum#true|false',
+        //            'mslinethickness' => 'CDATA',
+        //            'notation' => 'CDATA',
+        //            'numalign' => 'Enum#left|center|right',
+        //            'open' => 'CDATA',
+        //            'position' => 'Number',
+        //            'rightoverhang' => 'Length',
+        //            'rowalign' => 'CDATA',
+        //            'rowlines' => 'CDATA',
+        //            'rowspacing' => 'CDATA',
+        //            'rowspan' => 'Number',
+        //            'rquote' => 'CDATA',
+        //            'rspace' => 'Length',
+        //            'selection' => 'Number',
+        //            'separator' => 'Enum#true|false',
+        //            'separators' => 'CDATA',
+        //            'shift' => 'Number',
+        //            'side' => 'Enum#left|right|leftoverlap|rightoverlap',
+        //            'stackalign' => 'Enum#left|center|right|decimalpoint',
+        //            'stretchy' => 'Enum#true|false',
+        //            'subscriptshift' => 'Length',
+        //            'superscriptshift' => 'Length',
+        //            'symmetric' => 'Enum#true|false',
+        //            'valign' => 'Length',
+        //            'width' => 'Length'
+        //        );
+        //        $mstyleSpecificAttributes = array(
+        //            'scriptlevel' => 'Number',
+        //            'displaystyle' => 'Enum#true|false',
+        //            'scriptsizemultiplier' => 'Number',
+        //            'scriptminsize' => 'Length',
+        //            'infixlinebreakstyle' => 'Enum#before|after|duplicate',
+        //            'decimalpoint' => 'Character'
+        //        );
+        //        $msubsupAttributes = $CommonAtt + $CommonPresAtt + array(
+        //            'subscriptshift' => 'Length',
+        //            'superscriptshift' => 'Length'
+        //        );
+        //        $mtrAttributes = $CommonAtt + $CommonPresAtt + array(
+        //            'rowalign' => 'Enum#top|bottom|center|baseline|axis',
+        //            'columnalign' => 'CDATA',
+        //            'groupalign' => 'CDATA'
+        //        );
+        //        $msgroupAttributes = $CommonAtt + $CommonPresAtt + array(
+        //            'position' => 'Number',
+        //            'shift' => 'Number'
+        //        );
+        //        $NonMathMLAtt = array();
+        //        $mathDeprecatedAttributes = array(
+        //            'mode' => 'CDATA',
+        //            'macros' => 'CDATA'
+        //        );
+        //        $name = array('name*' => 'CDATA');
+        //        $cd = array('cd*' => 'CDATA');
+        //        $annotationAttributes = $CommonAtt + array(
+        //            'cd' => 'CDATA',
+        //            'name' => 'CDATA'
+        //        ) + $DefEncAtt + array('src' => 'CDATA');
+        //        $annotationXmlModel = '(' + implode('|', $MathExpression) + ')*';
+        //        $anyElement = '';
         // allow 'data-table-sort' attribute to indicate that a table shall be sortable by js
         if ($def = $config->maybeGetRawHTMLDefinition()) {
             $def->addAttribute('table', 'data-table-sort', 'Enum#true');
             $def->addAttribute('td', 'headers', 'NMTOKENS');
             $def->addAttribute('th', 'headers', 'NMTOKENS');
+            /**
+             * MathML elements
+             * for adding custom elements: http://htmlpurifier.org/docs/enduser-customize.html
+             * examples of custom elements: https://repo.or.cz/w/htmlpurifier.git?a=tree;hb=HEAD;f=library/HTMLPurifier/HTMLModule
+             * MathML reference page: https://www.w3.org/Math/DTD/mathml3/mathml3.dtd
+             */
+            // cn
+            // ci
+            // csymbol
+            // apply
+            // bind
+            // share
+            // cerror
+            // cbytes
+            // cs
+            // bvar
+            // sep
+            // domainofapplication
+            // condition
+            // uplimit
+            // lowlimit
+            // degree
+            // momentabout
+            // logbase
+            // piecewise
+            // piece
+            // otherwise
+            // reln
+            // fn
+            // declare
+            // interval
+            // inverse
+            // ident
+            // domain
+            // codomain
+            //            image
+            //            ln
+            //            log
+            //            moment
+            //            lambda
+            //            compose
+            //            quotient
+            //            divide
+            //            minus
+            //            power
+            //            rem
+            //            root
+            //            factorial
+            //            abs
+            //            conjugate
+            //            arg
+            //            real
+            //            imaginary
+            //            floor
+            //            ceiling
+            //            exp
+            //            max
+            //            min
+            //            times
+            //            gcd
+            //            lcm
+            //            and
+            //            or
+            //            xor
+            //            not
+            //            implies
+            //            equivalent
+            //            forall
+            //            exists
+            //            eq
+            //            gt
+            //            lt
+            //            geq
+            //            leq
+            //            neq
+            //            approx
+            //            factorof
+            //            tendsto
+            //            int
+            //            diff
+            //            partialdiff
+            //            divergence
+            //            grad
+            //            curl
+            //            laplacian
+            //            set
+            //            list
+            //            union
+            //            intersect
+            //            cartesianproduct
+            //            in
+            //            notin
+            //            notsubset
+            //            notprsubset
+            //            setdiff
+            //            subset
+            //            prsubset
+            //            card
+            //            sum
+            //            product
+            //            limit
+            //            sin
+            //            cos
+            //            tan
+            //            sec
+            //            csc
+            //            cot
+            //            sinh
+            //            cosh
+            //            tanh
+            //            sech
+            //            csch
+            //            coth
+            //            arcsin
+            //            arccos
+            //            arctan
+            //            arccosh
+            //            arccot
+            //            arccoth
+            //            arccsc
+            //            arccsch
+            //            arcsec
+            //            arcsech
+            //            arcsinh
+            //            arctanh
+            //            mean
+            //            sdev
+            //            variance
+            //            median
+            //            mode
+            //            vector
+            //            matrix
+            //            matrixrow
+            //            determinant
+            //            transpose
+            //            selector
+            //            vectorproduct
+            //            scalarproduct
+            //            outerproduct
+            //            integers
+            //            reals
+            //            rationals
+            //            naturalnumbers
+            //            complexes
+            //            primes
+            //            emptyset
+            //            exponentiale
+            //            imaginaryi
+            //            notanumber
+            //            true
+            //            false
+            //            pi
+            //            eulergamma
+            //            infinity
+            //            mi
+            //            mn
+            //            mo
+            //            mtext
+            //            mspace
+            //            ms
+            //            mglyph
+            //            msline
+            //            none
+            //            mprescripts
+            //            malignmark
+            //            maligngroup
+            //            mrow
+            //            mfrac
+            //            msqrt
+            //            mroot
+            //            mstyle
+            //            merror
+            //            mpadded
+            //            mphantom
+            //            mfenced
+            //            menclosed
+            //            msub
+            //            msup
+            //            msubsup
+            //            munder
+            //            mover
+            //            munderover
+            //            mmultiscripts
+            //            mtable
+            //            mlabeledtr
+            //            mtr
+            //            mtd
+            //            mstack
+            //            mlongdiv
+            //            msgroup
+            //            msrow
+            //            mscarries
+            //            mscarry
+            //            maction
+            //            $def->addElement(
+            //                'math',
+            //                false,
+            //                '(' + implode('|', $MathExpression) + ')*',
+            //                null,
+            //                $CommonAtt + array(
+            //                    'display' => 'Enum#block|inline',
+            //                    'maxwidth' => 'Length',
+            //                    'overflow' => 'Enum#linebreak|scroll|elide|truncate|scale',
+            //                    'altimg' => 'CDATA',
+            //                    'altimg-width' => 'Length',
+            //                    'altimg-height' => 'Length',
+            //                    'altimg-valign' => 'CDATA',
+            //                    'alttext' => 'CDATA',
+            //                    'cdgroup' => 'CDATA'
+            //                ) + $mathDeprecatedAttributes + $CommonPresAtt + $mstyleSpecificAttributes + $mstyleGeneralAttributes
+            //            );
+            //            $def->addElement(
+            //              'annotation',
+            //              'Inline',
+            //              'Empty',
+            //              null,
+            //              $annotationAttributes
+            //            );
+            //            annotation-xml
+            //            semantics
         }
 
         $purifier = new HTMLPurifier($config);

@@ -786,6 +786,8 @@ export function getTinymceBaseConfig(page: string): object {
     details_serialized_state: 'collapsed',
     advlist_bullet_styles: 'default,circle,disc,square',
     a11y_advanced_options: true,
-    toolbar_mode: 'floating',
+    draggable_modal: true,
+    visualblocks_default_state: true,
+    paste_as_text: true,
   };
 }
