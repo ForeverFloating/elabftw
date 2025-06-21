@@ -209,7 +209,103 @@ final class Filter
         $config->set('Attr.EnableID', true);
         $config->set('Attr.IDBlacklist', $blacklistIds);
         // allow only certain elements
-        $config->set('HTML.Allowed', '[class|dir|id|itemid|itemprop|itemref|itemscope|itemtype|lang|role|style|tabindex|title|translate],div,br,p,sub,img[src|width|height|alt],sup,strong,b,em,u,a[href|hreflang|rel|type],s,span,ul,li[value],ol[reversed|start|type],dl,dt,dd,blockquote[cite],h1,h2,h3,h4,h5,h6,hr,table,tr,td[colspan|rowspan|headers],th[colspan|rowspan|abbr|headers|scope],code,video[src|controls|controlslist|height|width|disablepictureinpicture|disableremoteplayback|loop|muted|poster|preload],audio[src|controls|autoplay|controlslist|disableremoteplayback|loop|muted|preload],pre,details[open|name],summary,caption,figure,figcaption,abbr[title],aside,bdi[dir],cite,col[span|style],data[value],del[cite|datetime],dfn[title|id],ins[cite|datetime],kbd,mark,q[cite],samp,tbody,tfoot,thead,time[datetime],var,wbr,small,input[alt|autocapitalize|autocomplete|checked|disabled|form|height|list|max|maxlength|min|minlength|name|pattern|placeholder|popovertarget|popovertargetaction|readonly|required|size|src|step|type|value|width],label[for]');
+        $htmlcommon = 'lang|title|translate';
+        $mathmlcommon = 'displaystyle|mathbackground|mathcolor|mathsize|scriptlevel';
+        $config->set('HTML.Allowed', implode(',', array(
+            '*[autofocus|class|dir|id|style|tabindex]',
+            'a[href|hreflang|rel|type|' . $htmlcommon . ']',
+            'abbr[title|' . $htmlcommon . ']',
+            'address[' . $htmlcommon . ']',
+            'aside[' . $htmlcommon . ']',
+            'b[' . $htmlcommon . ']',
+            'bdi[dir|' . $htmlcommon . ']',
+            'blockquote[cite|' . $htmlcommon . ']',
+            'br[' . $htmlcommon . ']',
+            'caption[' . $htmlcommon . ']',
+            'cite[' . $htmlcommon . ']',
+            'code[' . $htmlcommon . ']',
+            'col[span|' . $htmlcommon . ']',
+            'colgroup[span|' . $htmlcommon . ']',
+            'data[value|' . $htmlcommon . ']',
+            'dd[' . $htmlcommon . ']',
+            'del[cite|datetime|' . $htmlcommon . ']',
+            'details[open|name|' . $htmlcommon . ']',
+            'dfn[' . $htmlcommon . ']',
+            'div[' . $htmlcommon . ']',
+            'dl[' . $htmlcommon . ']',
+            'dt[' . $htmlcommon . ']',
+            'em[' . $htmlcommon . ']',
+            'figcaption[' . $htmlcommon . ']',
+            'figure[' . $htmlcommon . ']',
+            'h1[' . $htmlcommon . ']',
+            'h2[' . $htmlcommon . ']',
+            'h3[' . $htmlcommon . ']',
+            'h4[' . $htmlcommon . ']',
+            'h5[' . $htmlcommon . ']',
+            'h6[' . $htmlcommon . ']',
+            'hgroup[' . $htmlcommon . ']',
+            'i[' . $htmlcommon . ']',
+            'img[src|width|height|alt|' . $htmlcommon . ']',
+            'ins[cite|datetime|' . $htmlcommon . ']',
+            'kbd[' . $htmlcommon . ']',
+            'li[value|' . $htmlcommon . ']',
+            'mark[' . $htmlcommon . ']',
+            'ol[reversed|start|type|' . $htmlcommon . ']',
+            'p[' . $htmlcommon . ']',
+            'pre[' . $htmlcommon . ']',
+            'q[cite|' . $htmlcommon . ']',
+            's[' . $htmlcommon . ']',
+            'samp[' . $htmlcommon . ']',
+            'section[' . $htmlcommon . ']',
+            'small[' . $htmlcommon . ']',
+            'span[' . $htmlcommon . ']',
+            'strong[' . $htmlcommon . ']',
+            'sub[' . $htmlcommon . ']',
+            'summary[' . $htmlcommon . ']',
+            'sup[' . $htmlcommon . ']',
+            'table[' . $htmlcommon . ']',
+            'tbody[' . $htmlcommon . ']',
+            'td[colspan|rowspan|headers|' . $htmlcommon . ']',
+            'tfoot[' . $htmlcommon . ']',
+            'th[colspan|rowspan|abbr|headers|scope|' . $htmlcommon . ']',
+            'thead[' . $htmlcommon . ']',
+            'time[datetime|' . $htmlcommon . ']',
+            'tr[' . $htmlcommon . ']',
+            'ul[' . $htmlcommon . ']',
+            'var[' . $htmlcommon . ']',
+            'video[src|controls|controlslist|height|width|playsinline|loop|muted|poster|preload|' . $htmlcommon . ']',
+            'wbr[' . $htmlcommon . ']',
+            'annotation[encoding|' . $mathmlcommon . ']',
+            'annotation-xml[encoding|' . $mathmlcommon . ']',
+            'maction[actiontype|selection|' . $mathmlcommon . ']',
+            'math[display|alttext|' . $mathmlcommon . ']',
+            'merror[' . $mathmlcommon . ']',
+            'mfrac[linethickness|' . $mathmlcommon . ']',
+            'mi[mathvariant|' . $mathmlcommon . ']',
+            'mmultiscripts[' . $mathmlcommon . ']',
+            'mn[' . $mathmlcommon . ']',
+            'mo[form|fence|separator|lspace|rspace|stretchy|symmetric|maxsize|minsize|largeop|movablelimits|' . $mathmlcommon . ']',
+            'mover[accent|' . $mathmlcommon . ']',
+            'mpadded[width|height|depth|lspace|voffset' . $mathmlcommon . ']',
+            'mphantom[' . $mathmlcommon . ']',
+            'mprescripts[' . $mathmlcommon . ']',
+            'mroot[' . $mathmlcommon . ']',
+            'mrow[' . $mathmlcommon . ']',
+            'ms[' . $mathmlcommon . ']',
+            'mspace[width|height|depth|' . $mathmlcommon . ']',
+            'msqrt[' . $mathmlcommon . ']',
+            'mstyle[' . $mathmlcommon . ']',
+            'msub[' . $mathmlcommon . ']',
+            'msubsup[' . $mathmlcommon . ']',
+            'msup[' . $mathmlcommon . ']',
+            'mtable[' . $mathmlcommon . ']',
+            'mtd[colspan|rowspan|' . $mathmlcommon . ']',
+            'mtext[' . $mathmlcommon . ']',
+            'mtr[' . $mathmlcommon . ']',
+            'munder[accentunder|' . $mathmlcommon . ']',
+            'munderover[accent|accentunder|' . $mathmlcommon . ']',
+            'semantics[' . $mathmlcommon . ']',
+        )));
         // allow certain global attributes
         $config->set('HTML.TargetBlank', true);
         // default text direction; TODO change this value based on default language
@@ -228,472 +324,286 @@ final class Filter
         $config->set('HTML.MaxImgLength', null);
         // permit form fields
         $config->set('HTML.Trusted', true);
-        // MathML element definition arrays
-        // $MMLIDTYPE = 'ID';
-        // $MMLIDREFTYPE = 'ID';
-        // $MalignExpression = array('maligngroup', 'malignmark');
-        // $TokenExpression = array('mi', 'mn', 'mo', 'mtext', 'mspace', 'ms');
-        // $PresentationExpression = $TokenExpression + $MalignExpression + array('mrow', 'mfrac', 'msqrt', 'mroot', 'mstyle', 'merror', 'mpadded', 'mphantom', 'mfenced', 'menclose', 'msub', 'msup', 'msubsup', 'munder', 'mover', 'munderover', 'mmultiscripts', 'mtable', 'mstack', 'mlongdiv', 'maction');
-        // $cnContent = '(#PCDATA|mglyph|sep|' + implode('|', $PresentationExpression) + ')*';
-        // $ciContent = '(#PCDATA|mglyph|' + implode('|', $PresentationExpression) + ')*';
-        // $csymbolContent = '(#PCDATA|mglyph|' + implode('|', $PresentationExpression) + ')*';
-        // $SymbolName = '#PCDATA';
-        // $BvarQ = '(bvar)*';
-        // $DomainQ = '(domainofapplication|condition|(lowlimit,uplimit?))*'
-        // $constantArithMmlclass = array('exponentiale', 'imaginaryi', 'notanumber', 'true', 'false', 'pi', 'eulergamma', 'infinity');
-        // $constantSetMmlclass = array('integers', 'reals', 'rationals', 'naturalnumbers', 'complexes', 'primes', 'emptyset');
-        // $binaryLinalgMmlclass = array('vectorproduct', 'scalarproduct', 'outerproduct');
-        // $naryLinalgMmlclass = array('selector');
-        // $unaryLinalgMmlclass = array('determinant', 'transpose');
-        // $naryConstructorMmlclass = array('vector', 'matrix', 'matrixrow');
-        // $naryStatsMmlclass = array('mean', 'sdev', 'variance', 'median', 'mode');
-        // $unaryElementaryMmlclass = array('sin', 'cos', 'tan', 'sec', 'csc', 'cot', 'sinh', 'cosh', 'tanh', 'sech', 'csch', 'coth', 'arcsin', 'arccos', 'arctan', 'arccosh', 'arccot', 'arccoth', 'arccsc', 'arccsch', 'arcsec', 'arcsech', 'arcsinh', 'arctanh');
-        // $limitMmlclass = array('limit');
-        // $productMmlclass = array('product');
-        // $sumMmlclass = array('sum');
-        // $unarySetMmlclass = array('card');
-        // $narySetRelnMmlclass = array('subset', 'prsubset');
-        // $binarySetMmlclass = array('in', 'notin', 'notsubset', 'notprsubset', 'setdiff');
-        // $narySetMmlclass = array('union', 'intersect', 'cartesianproduct');
-        // $narySetlistConstructorMmlclass = array('set', 'list');
-        // $unaryVeccalcMmlclass = array('divergence', 'grad', 'curl', 'laplacian');
-        // $partialdiffMmlclass = array('partialdiff');
-        // $DifferentialOperatorMmlclass = array('diff');
-        // $intMmlclass = array('int');
-        // $binaryRelnMmlclass = array('neq', 'approx', 'factorof', 'tendsto');
-        // $naryRelnMmlclass = array('eq', 'gt', 'lt', 'geq', 'leq');
-        // $quantifierMmlclass = array('forall', 'exists');
-        // $binaryLogicalMmlclass = array('implies', 'equivalent');
-        // $unaryLogicalMmlclass = array('not');
-        // $naryLogicalMmlclass = array('and', 'or', 'xor');
-        // $naryArithMmlclass = array('plus', 'times', 'gcd', 'lcm');
-        // $naryMinmaxMmlclass = array('max', 'min');
-        // $unaryArithMmlclass = array('factorial', 'abs', 'conjugate', 'arg', 'real', 'imaginary', 'floor', 'ceiling', 'exp');
-        //        $binaryArithMmlclass = array('quotient', 'divide', 'minus', 'power', 'rem', 'root');
-        //        $naryFunctionalMmlclass = array('compose');
-        //        $lambdaMmlclass = array('lambda');
-        //        $unaryFunctionalMmlclass = array('inverse', 'ident', 'domain', 'codomain', 'image', 'ln', 'log', 'moment');
-        //        $intervalMmlclass = array('interval');
-        //        $DeprecatedContExp = array('reln', 'fn', 'declare');
-        //        $CommonDeprecatedAtt = array('other' => 'CDATA');
-        //        $Qualifier = $DomainQ + array('degree', 'momentabout', 'logbase');
-        //        $ContExp = array('piecewise') + $DeprecatedContExp + $IntervalMmlclass + $unaryFunctionalMmlclass + $lambdaMmlclass + $naryFunctionalMmlclass + $binaryArithMmlclass + $unaryArithMmlclass + $naryMinmaxMmlclass + $naryArithMmlclass + $naryLogicalMmlclass + $unaryLogicalMmlclass + $binaryLogicalMmlclass + $quantifierMmlclass + $naryRelnMmlclass + $binaryRelnMmlclass + $intMmlclass + $DifferentialOperatorMmlclass + $partialDiffMmlclass + $unaryVeccalcMmlclass + $narySetlistConstructorMmlclass + $narySetMmlclass + $binarySetMmlclass + $narySetRelnMmlclass + $unarySetMmlclass + $sumMmlclass + $productMmlclass + $limitMmlclass + $unaryElementaryMmlclass + $naryStatsMmlclass + $naryConstructorMmlclass + $unaryLinalgMmlclass + $naryLinalgMmlclass + $binaryLinalgMmlclass + $constantSetMmlclass + $constantArithMmlclass + array('semantics', 'cn', 'ci', 'csymbol', 'apply', 'bind', 'share', 'cerror', 'cbytes', 'cs');
-        //        $CommonAtt = array(
-        //            '%XLINK/prefix;:href' => 'CDATA',
-        //            '%XLINK.prefix;:type' => 'CDATA',
-        //            'xml:lang' => 'CDATA',
-        //            'xml:space' => 'Enum#default|preserve',
-        //            'id' => $MMLIDTYPE,
-        //            'xref' => $MMLIDREFTYPE,
-        //            'class' => 'CDATA',
-        //            'style' => 'CDATA',
-        //            'href' => 'CDATA'
-        //        ) + $CommonDeprecatedAtt;
-        //        $applyContent = '(' + implode('|', $ContExp) + '),(' + implode('|', $BvarQ) + '),(' + implode('|', $Qualifier) + ')*,(' + implode('|', $ContExp) + ')*';
-        //        $bindContent = $applyContent;
-        //        $src = array('src' => 'CDATA');
-        //        $base64 = 'CDATA';
-        //        $DefEncAtt = array('encoding' => 'CDATA', 'definitionURL' => 'CDATA');
-        //        $ciType = array('type*' => 'CDATA');
-        //        $base = array('base*' => 'CDATA');
-        //        $type = array('type*' => 'CDATA');
-        //        $order = array('order*' => 'Enum#numeric|lexicographic');
-        //        $closure = array('closure*' => 'CDATA');
-        //        $MathExpression = $ContExp + $PresentationExpression;
-        //        $ImpliedMrow = '(' + implode('|', $MathExpression) + ')*';
-        //        $TableRowExpression = array('mtr', 'mlabeledtr');
-        //        $MstackExpression = $MathExpression + array('mscarries', 'msline', 'msrow', 'msgroup');
-        //        $MsrowExpression = $MathExpression + array('none');
-        //        $MultiScriptExpression = '(' + implode('|', $MathExpression) + '| none),(' + implode('|', $MathExpression) + '|none');
-        //        $mpaddedLength = 'CDATA';
-        //        $linestyle = array('left', 'center', 'right');
-        //        $notationstyle = array('longdiv', 'actuarial', 'radical', 'box', 'roundedbox', 'circle', 'left', 'right', 'top', 'bottom' 'updiagonalstrike', 'downdiagonalstrike', 'verticalstrike', 'horizontalstrike', 'madruwb');
-        //        $idref = '#PCDATA';
-        //        $unsignedInteger = 'CDATA';
-        //        $integer = 'CDATA';
-        //        $number = 'CDATA';
-        //        $character = 'CDATA';
-        //        $color = 'CDATA';
-        //        $groupAlignment = array('left', 'center', 'right', 'decimalpoint');
-        //        $groupAlignmentList = '#PCDATA';
-        //        $groupAlignmentListList = '#PCDATA';
-        //        $positiveInteger = 'CDATA';
-        //        $tokenContent = array('#PCDATA', 'mglyph', 'malignmark');
-        //        $length = 'CDATA';
-        //        $DeprecatedTokenAtt = array(
-        //            'fontfamily' => 'CDATA',
-        //            'fontweight' => 'Enum#normal|bold',
-        //            'fontstyle' => 'Enum#normal|italic',
-        //            'fontsize' => 'Length',
-        //            'color' => 'Color',
-        //            'background' => 'CDATA'
-        //        );
-        //        $TokenAtt = array(
-        //            'mathvariant' => 'Enum#normal|bold|italic|bold-italic|double-struck|bold-fraktur|script|bold-script|fraktur|sans-serif|bold-sans-serif|sans-serif-italic|sans-serif-bold-italic|monospace|initial|tailed|looped|stretched',
-        //            'mathsize' => 'CDATA',
-        //            'dir' => 'Enum#ltr|rtl'
-        //        ) + $DeprecatedTokenAtt;
-        //        $CommonPresAtt = array(
-        //            'mathcolor' => 'Color',
-        //            'mathbackground' => 'CDATA'
-        //        );
-        //        $mglyphDeprecatedAttributes = array(
-        //            'index' => 'Number',
-        //            'mathvariant' => 'Enum#normal|bold|italic|bold-italic|double-struck|bold-fraktur|script|bold-script|fraktur|sans-serif|bold-sans-serif|sans-serif-italic|sans-serif-bold-italic|monospace|initial|tailed|looped|stretched',
-        //            'mathsize' => 'CDATA'
-        //        ) + $DeprecatedTokenAtt;
-        //        $mglyphAttributes = $CommonAtt + $CommonPresAtt + array(
-        //            'src' => 'CDATA',
-        //            'width' => 'Length',
-        //            'height' => 'Length',
-        //            'valign' => 'Length',
-        //            'alt' => 'CDATA'
-        //        );
-        //        $mstyleDeprecatedAttributes = $DeprecatedTokenAtt + array(
-        //            'veryverythinmathspace' => 'Length',
-        //            'verythinmathspace' => 'Length',
-        //            'thinmathspace' => 'Length',
-        //            'mediummathspace' => 'Length',
-        //            'thickmathspace' => 'Length',
-        //            'verythickmathspace' => 'Length',
-        //            'veryverythickmathspace' => 'Length'
-        //        );
-        //        $mstyleGeneralAttributes = array(
-        //            'accent' => 'Enum#true|false',
-        //            'accentunder' => 'Enum#true|false',
-        //            'align' => 'Enum#left|right|center',
-        //            'alignmentscope' => 'CDATA',
-        //            'bevelled' => 'Enum#true|false',
-        //            'charalign' => 'Enum#left|center|right',
-        //            'charspacing' => 'CDATA',
-        //            'close' => 'CDATA',
-        //            'columnalign' => 'CDATA',
-        //            'columnlines' => 'CDATA',
-        //            'columnspacing' => 'CDATA',
-        //            'columnspan' => 'Number',
-        //            'columnwdith' => 'CDATA',
-        //            'crossout' => 'CDATA',
-        //            'denomalign' => 'Enum#left|center|right',
-        //            'depth' => 'Length',
-        //            'dir' => 'Enum#ltr|rtl',
-        //            'edge' => 'Enum#left|right',
-        //            'equalcolumns' => 'Enum#true|false',
-        //            'equalrows' => 'Enum#true|false',
-        //            'fence' => 'Enum#true|false',
-        //            'form' => 'Enum#true|false',
-        //            'frame' => 'Enum#' + implode('|', $linestyle),
-        //            'framespacing' => 'CDATA',
-        //            'groupalign' => 'CDATA',
-        //            'height' => 'Length',
-        //            'indentalign' => 'Enum#left|center|right|auto|id',
-        //            'indentalignfirst' => 'Enum#left|center|right|auto|id|indentalign',
-        //            'indentalignlast' => 'Enum#left|center|right|auto|id|indentalign',
-        //            'indentshift' => 'Length',
-        //            'indentshiftfirst' => 'CDATA',
-        //            'indentshiftlast' => 'CDATA',
-        //            'indenttarget' => 'CDATA',
-        //            'largeop' => 'Enum#true|false',
-        //            'leftoverhang' => 'Length',
-        //            'length' => 'Number',
-        //            'linebreak' => 'Enum#auto|newline|nobreak|goodbreak|badbreak',
-        //            'linebreakmultchar' => 'CDATA',
-        //            'linebreakstyle' => 'Enum#before|after|duplicate|infixlinebreakstyle',
-        //            'lineleading' => 'Length',
-        //            'linethickness' => 'CDATA',
-        //            'location' => 'Enum#w|nw|n|ne|e|se|s|sw',
-        //            'longdivstyle' => 'CDATA',
-        //            'lquote' => 'CDATA',
-        //            'lspace' => 'Length',
-        //            'mathsize' => 'CDATA',
-        //            'mathvariant' => 'Enum#normal|bold|italic|bold-italic|double-struck|bold-fraktur|script|bold-script|fraktur|sans-serif|bold-sans-serif|sans-serif-italic|sans-serif-bold-italic|monospace|initial|tailed|looped|stretched',
-        //            'maxsize' => 'CDATA',
-        //            'minlabelspacing' => 'Length',
-        //            'minsize' => 'Length',
-        //            'movablelimits' => 'Enum#true|false',
-        //            'mslinethickness' => 'CDATA',
-        //            'notation' => 'CDATA',
-        //            'numalign' => 'Enum#left|center|right',
-        //            'open' => 'CDATA',
-        //            'position' => 'Number',
-        //            'rightoverhang' => 'Length',
-        //            'rowalign' => 'CDATA',
-        //            'rowlines' => 'CDATA',
-        //            'rowspacing' => 'CDATA',
-        //            'rowspan' => 'Number',
-        //            'rquote' => 'CDATA',
-        //            'rspace' => 'Length',
-        //            'selection' => 'Number',
-        //            'separator' => 'Enum#true|false',
-        //            'separators' => 'CDATA',
-        //            'shift' => 'Number',
-        //            'side' => 'Enum#left|right|leftoverlap|rightoverlap',
-        //            'stackalign' => 'Enum#left|center|right|decimalpoint',
-        //            'stretchy' => 'Enum#true|false',
-        //            'subscriptshift' => 'Length',
-        //            'superscriptshift' => 'Length',
-        //            'symmetric' => 'Enum#true|false',
-        //            'valign' => 'Length',
-        //            'width' => 'Length'
-        //        );
-        //        $mstyleSpecificAttributes = array(
-        //            'scriptlevel' => 'Number',
-        //            'displaystyle' => 'Enum#true|false',
-        //            'scriptsizemultiplier' => 'Number',
-        //            'scriptminsize' => 'Length',
-        //            'infixlinebreakstyle' => 'Enum#before|after|duplicate',
-        //            'decimalpoint' => 'Character'
-        //        );
-        //        $msubsupAttributes = $CommonAtt + $CommonPresAtt + array(
-        //            'subscriptshift' => 'Length',
-        //            'superscriptshift' => 'Length'
-        //        );
-        //        $mtrAttributes = $CommonAtt + $CommonPresAtt + array(
-        //            'rowalign' => 'Enum#top|bottom|center|baseline|axis',
-        //            'columnalign' => 'CDATA',
-        //            'groupalign' => 'CDATA'
-        //        );
-        //        $msgroupAttributes = $CommonAtt + $CommonPresAtt + array(
-        //            'position' => 'Number',
-        //            'shift' => 'Number'
-        //        );
-        //        $NonMathMLAtt = array();
-        //        $mathDeprecatedAttributes = array(
-        //            'mode' => 'CDATA',
-        //            'macros' => 'CDATA'
-        //        );
-        //        $name = array('name*' => 'CDATA');
-        //        $cd = array('cd*' => 'CDATA');
-        //        $annotationAttributes = $CommonAtt + array(
-        //            'cd' => 'CDATA',
-        //            'name' => 'CDATA'
-        //        ) + $DefEncAtt + array('src' => 'CDATA');
-        //        $annotationXmlModel = '(' + implode('|', $MathExpression) + ')*';
-        //        $anyElement = '';
         // allow 'data-table-sort' attribute to indicate that a table shall be sortable by js
         if ($def = $config->maybeGetRawHTMLDefinition()) {
             $def->addAttribute('table', 'data-table-sort', 'Enum#true');
             $def->addAttribute('td', 'headers', 'NMTOKENS');
             $def->addAttribute('th', 'headers', 'NMTOKENS');
             /**
-             * MathML elements
-             * for adding custom elements: http://htmlpurifier.org/docs/enduser-customize.html
-             * examples of custom elements: https://repo.or.cz/w/htmlpurifier.git?a=tree;hb=HEAD;f=library/HTMLPurifier/HTMLModule
-             * MathML reference page: https://www.w3.org/Math/DTD/mathml3/mathml3.dtd
+             * MathML definitions
+             * DTD reference for MathML 3: https://www.w3.org/Math/DTD/mathml3/mathml3.dtd
+             * Valid elements and attributes for MathML Core: https://www.w3.org/TR/mathml-core/
+             * Mozilla lists additional attributes as valid: https://developer.mozilla.org/en-US/docs/Web/MathML/Reference/Attribute
              */
-            // cn
-            // ci
-            // csymbol
-            // apply
-            // bind
-            // share
-            // cerror
-            // cbytes
-            // cs
-            // bvar
-            // sep
-            // domainofapplication
-            // condition
-            // uplimit
-            // lowlimit
-            // degree
-            // momentabout
-            // logbase
-            // piecewise
-            // piece
-            // otherwise
-            // reln
-            // fn
-            // declare
-            // interval
-            // inverse
-            // ident
-            // domain
-            // codomain
-            //            image
-            //            ln
-            //            log
-            //            moment
-            //            lambda
-            //            compose
-            //            quotient
-            //            divide
-            //            minus
-            //            power
-            //            rem
-            //            root
-            //            factorial
-            //            abs
-            //            conjugate
-            //            arg
-            //            real
-            //            imaginary
-            //            floor
-            //            ceiling
-            //            exp
-            //            max
-            //            min
-            //            times
-            //            gcd
-            //            lcm
-            //            and
-            //            or
-            //            xor
-            //            not
-            //            implies
-            //            equivalent
-            //            forall
-            //            exists
-            //            eq
-            //            gt
-            //            lt
-            //            geq
-            //            leq
-            //            neq
-            //            approx
-            //            factorof
-            //            tendsto
-            //            int
-            //            diff
-            //            partialdiff
-            //            divergence
-            //            grad
-            //            curl
-            //            laplacian
-            //            set
-            //            list
-            //            union
-            //            intersect
-            //            cartesianproduct
-            //            in
-            //            notin
-            //            notsubset
-            //            notprsubset
-            //            setdiff
-            //            subset
-            //            prsubset
-            //            card
-            //            sum
-            //            product
-            //            limit
-            //            sin
-            //            cos
-            //            tan
-            //            sec
-            //            csc
-            //            cot
-            //            sinh
-            //            cosh
-            //            tanh
-            //            sech
-            //            csch
-            //            coth
-            //            arcsin
-            //            arccos
-            //            arctan
-            //            arccosh
-            //            arccot
-            //            arccoth
-            //            arccsc
-            //            arccsch
-            //            arcsec
-            //            arcsech
-            //            arcsinh
-            //            arctanh
-            //            mean
-            //            sdev
-            //            variance
-            //            median
-            //            mode
-            //            vector
-            //            matrix
-            //            matrixrow
-            //            determinant
-            //            transpose
-            //            selector
-            //            vectorproduct
-            //            scalarproduct
-            //            outerproduct
-            //            integers
-            //            reals
-            //            rationals
-            //            naturalnumbers
-            //            complexes
-            //            primes
-            //            emptyset
-            //            exponentiale
-            //            imaginaryi
-            //            notanumber
-            //            true
-            //            false
-            //            pi
-            //            eulergamma
-            //            infinity
-            //            mi
-            //            mn
-            //            mo
-            //            mtext
-            //            mspace
-            //            ms
-            //            mglyph
-            //            msline
-            //            none
-            //            mprescripts
-            //            malignmark
-            //            maligngroup
-            //            mrow
-            //            mfrac
-            //            msqrt
-            //            mroot
-            //            mstyle
-            //            merror
-            //            mpadded
-            //            mphantom
-            //            mfenced
-            //            menclosed
-            //            msub
-            //            msup
-            //            msubsup
-            //            munder
-            //            mover
-            //            munderover
-            //            mmultiscripts
-            //            mtable
-            //            mlabeledtr
-            //            mtr
-            //            mtd
-            //            mstack
-            //            mlongdiv
-            //            msgroup
-            //            msrow
-            //            mscarries
-            //            mscarry
-            //            maction
-            //            $def->addElement(
-            //                'math',
-            //                false,
-            //                '(' + implode('|', $MathExpression) + ')*',
-            //                null,
-            //                $CommonAtt + array(
-            //                    'display' => 'Enum#block|inline',
-            //                    'maxwidth' => 'Length',
-            //                    'overflow' => 'Enum#linebreak|scroll|elide|truncate|scale',
-            //                    'altimg' => 'CDATA',
-            //                    'altimg-width' => 'Length',
-            //                    'altimg-height' => 'Length',
-            //                    'altimg-valign' => 'CDATA',
-            //                    'alttext' => 'CDATA',
-            //                    'cdgroup' => 'CDATA'
-            //                ) + $mathDeprecatedAttributes + $CommonPresAtt + $mstyleSpecificAttributes + $mstyleGeneralAttributes
-            //            );
-            //            $def->addElement(
-            //              'annotation',
-            //              'Inline',
-            //              'Empty',
-            //              null,
-            //              $annotationAttributes
-            //            );
-            //            annotation-xml
-            //            semantics
+            $MathExpression = 'semantics|mi|mn|mo|mtext|mspace|ms|mrow|mfrac|msqrt|mroot|mstyle|merror|mpadded|mphantom|msub|msup|msubsup|munder|mover|munderover|mmultiscripts|mtable|maction';
+            $MathMLCommonAttributes = array(
+                'autofocus' => 'Bool',
+                'class' => 'Class',
+                'dir' => 'Enum#ltr|rtl',
+                'displaystyle' => 'Bool',
+                'id' => 'ID',
+                'mathbackground' => 'Color',
+                'mathcolor' => 'Color',
+                'mathsize' => 'Length',
+                'scriptlevel' => 'Number',
+                // technically tabindex is supposed to be positive integer, 0, or -1, but tabindex attribute for predefined HTML elements all are declared as 'Number' which allows only positive integers
+                'tabindex' => 'Number',
+                'href' => 'URI',
+                'intent' => 'Text',
+                // string should actually be NCNAME: https://w3c.github.io/mathml/#mixing_intent_grammar
+                'arg' => 'Text',
+            );
+            $def->addElement(
+                'annotation',
+                false,
+                'Required: #PCDATA',
+                'Style',
+                $MathMLCommonAttributes + array('encoding' => 'Text')
+            );
+            $def->addElement(
+                'annotation-xml',
+                false,
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes + array('encoding' => 'Text')
+            );
+            $def->addElement(
+                'maction',
+                false,
+                'Required: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'math',
+                'Block',
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes + array(
+                    'display' => 'Enum#block,inline',
+                    'alttext' => 'Text',
+                )
+            );
+            $def->addElement(
+                'math',
+                'Inline',
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes + array(
+                    'display' => 'Enum#block,inline',
+                    'alttext' => 'Text',
+                )
+            );
+            $def->addElement(
+                'merror',
+                false,
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mfrac',
+                false,
+                'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
+                'Style',
+                $MathMLCommonAttributes + array('linethickness' => 'Length',)
+            );
+            $def->addElement(
+                'mi',
+                false,
+                'Optional: #PCDATA',
+                'Style',
+                $MathMLCommonAttributes + array('mathvariant' => 'Enum#normal')
+            );
+            $def->addElement(
+                'mmultiscripts',
+                false,
+                'Custom: ((' . $MathExpression . '),((' . $MathExpression . '),(' . $MathExpression . '))*,(mprescripts,((' . $MathExpression . '),(' . $MathExpression . '))*)?)',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mn',
+                false,
+                'Optional: #PCDATA',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mo',
+                false,
+                'Optional: #PCDATA',
+                'Style',
+                $MathMLCommonAttributes + array(
+                    'form' => 'Enum#infix|prefix|postfix',
+                    'fence' => 'Bool',
+                    'separator' => 'Bool',
+                    'lspace' => 'Length',
+                    'rspace' => 'Length',
+                    'stretchy' => 'Bool',
+                    'symmetric' => 'Bool',
+                    'maxsize' => 'Length',
+                    'minsize' => 'Length',
+                    'largeop' => 'Bool',
+                    'movablelimits' => 'Bool',
+                )
+            );
+            $def->addElement(
+                'mover',
+                false,
+                'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
+                'Style',
+                $MathMLCommonAttributes + array('accent' => 'Bool')
+            );
+            $def->addElement(
+                'mpadded',
+                false,
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes + array(
+                    'width' => 'Length',
+                    'height' => 'Length',
+                    'depth' => 'Length',
+                    'lspace' => 'Length',
+                    'voffset' => 'Length',
+                )
+            );
+            $def->addElement(
+                'mphantom',
+                false,
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mprescripts',
+                false,
+                'Empty',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mroot',
+                false,
+                'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mrow',
+                false,
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'ms',
+                false,
+                'Optional: #PCDATA',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mspace',
+                false,
+                'Empty',
+                'Style',
+                $MathMLCommonAttributes + array(
+                    'width' => 'Length',
+                    'height' => 'Length',
+                    'depth' => 'Length',
+                )
+            );
+            $def->addElement(
+                'msqrt',
+                false,
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mstyle',
+                false,
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'msub',
+                false,
+                'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'msubsup',
+                false,
+                'Custom: ((' . $MathExpression . '),(' . $MathExpression . '),(' . $MathExpression . '))',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'msup',
+                false,
+                'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mtable',
+                false,
+                'Optional: mtr',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mtd',
+                false,
+                'Optional: ' . $MathExpression,
+                'Style',
+                $MathMLCommonAttributes + array(
+                    'columnspan' => 'Number',
+                    'rowspan' => 'Number',
+                )
+            );
+            $def->addElement(
+                'mtext',
+                false,
+                'Optional: #PCDATA',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'mtr',
+                false,
+                'Optional: mtd',
+                'Style',
+                $MathMLCommonAttributes
+            );
+            $def->addElement(
+                'munder',
+                false,
+                'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
+                'Style',
+                $MathMLCommonAttributes + array('accentunder' => 'Bool')
+            );
+            $def->addElement(
+                'munderover',
+                false,
+                'Custom: ((' . $MathExpression . '),(' . $MathExpression . '),(' . $MathExpression . '))',
+                'Style',
+                $MathMLCommonAttributes + array(
+                    'accent' => 'Bool',
+                    'accentunder' => 'Bool',
+                )
+            );
+            $def->addElement(
+                'semantics',
+                false,
+                'Custom: ((' . $MathExpression . '),(annotation|annotation-xml)*)',
+                'Style',
+                $MathMLCommonAttributes
+            );
         }
 
         $purifier = new HTMLPurifier($config);

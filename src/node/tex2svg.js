@@ -43,6 +43,7 @@ require('mathjax-full/components/src/startup/lib/startup.js');
 require('mathjax-full/components/src/core/core.js');
 require('mathjax-full/components/src/adaptors/liteDOM/liteDOM.js');
 require('mathjax-full/components/src/input/tex-full/tex-full.js');
+require('mathjax-full/components/src/input/mml/mml.js');
 require('mathjax-full/components/src/input/tex/extensions/all-packages/all-packages.js');
 // load all html entities, compare to https://github.com/mathjax/MathJax-demos-node/issues/16
 require('mathjax-full/js/util/entities/all.js');
@@ -55,6 +56,7 @@ MathJax.loader.preLoad(
     'core',
     'adaptors/liteDOM',
     'input/tex-full',
+    '[mml]/mml3',
     '[tex]/all-packages',
     'output/svg',
     'output/svg/fonts/tex',
