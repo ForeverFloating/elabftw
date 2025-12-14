@@ -34,6 +34,9 @@ final class UserParams extends ContentParams
     #[Override]
     public function getContent(): string | int
     {
+        /**
+         * @psalm-suppress InvalidStaticInvocation
+         */
         return match ($this->target) {
             // checked in update
             'email' => trim($this->asString()),

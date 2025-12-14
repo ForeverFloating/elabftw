@@ -25,6 +25,8 @@ Loader.preLoad(
   'core',
   'input/tex-full',
   'input/mml',
+  'output/chtml',
+  'output/chtml/fonts/tex.js',
   'output/svg',
   'output/svg/fonts/tex.js',
   'ui/menu',
@@ -75,6 +77,9 @@ import 'mathjax-full/components/src/core/core.js';
 
 import 'mathjax-full/components/src/input/tex-full/tex-full.js';
 import 'mathjax-full/components/src/input/mml/mml.js';
+
+import 'mathjax-full/components/src/output/chtml/chtml.js';
+import 'mathjax-full/components/src/output/chtml/fonts/tex/tex.js';
 
 import 'mathjax-full/components/src/output/svg/svg.js';
 import 'mathjax-full/components/src/output/svg/fonts/tex/tex.js';

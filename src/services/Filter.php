@@ -209,10 +209,10 @@ final class Filter
         $config->set('Attr.EnableID', true);
         $config->set('Attr.IDBlacklist', $blacklistIds);
         // allow only certain elements
-        $htmlcommon = 'lang|title|translate';
-        $mathmlcommon = 'displaystyle|mathbackground|mathcolor|mathsize|scriptlevel';
+        $htmlcommon = 'autofocus|dir|lang|title|translate|tabindex';
+        // $mathmlcommon = 'href|xref';
         $config->set('HTML.Allowed', implode(',', array(
-            '*[autofocus|class|dir|id|style|tabindex]',
+            '*[class|id|style]',
             'a[href|hreflang|rel|type|' . $htmlcommon . ']',
             'abbr[title|' . $htmlcommon . ']',
             'address[' . $htmlcommon . ']',
@@ -275,36 +275,60 @@ final class Filter
             'var[' . $htmlcommon . ']',
             'video[src|controls|controlslist|height|width|playsinline|loop|muted|poster|preload|' . $htmlcommon . ']',
             'wbr[' . $htmlcommon . ']',
-            'annotation[encoding|' . $mathmlcommon . ']',
-            'annotation-xml[encoding|' . $mathmlcommon . ']',
-            'maction[actiontype|selection|' . $mathmlcommon . ']',
-            'math[display|alttext|' . $mathmlcommon . ']',
-            'merror[' . $mathmlcommon . ']',
-            'mfrac[linethickness|' . $mathmlcommon . ']',
-            'mi[mathvariant|' . $mathmlcommon . ']',
-            'mmultiscripts[' . $mathmlcommon . ']',
-            'mn[' . $mathmlcommon . ']',
-            'mo[form|fence|separator|lspace|rspace|stretchy|symmetric|maxsize|minsize|largeop|movablelimits|' . $mathmlcommon . ']',
-            'mover[accent|' . $mathmlcommon . ']',
-            'mpadded[width|height|depth|lspace|voffset' . $mathmlcommon . ']',
-            'mphantom[' . $mathmlcommon . ']',
-            'mprescripts[' . $mathmlcommon . ']',
-            'mroot[' . $mathmlcommon . ']',
-            'mrow[' . $mathmlcommon . ']',
-            'ms[' . $mathmlcommon . ']',
-            'mspace[width|height|depth|' . $mathmlcommon . ']',
-            'msqrt[' . $mathmlcommon . ']',
-            'mstyle[' . $mathmlcommon . ']',
-            'msub[' . $mathmlcommon . ']',
-            'msubsup[' . $mathmlcommon . ']',
-            'msup[' . $mathmlcommon . ']',
-            'mtable[' . $mathmlcommon . ']',
-            'mtd[colspan|rowspan|' . $mathmlcommon . ']',
-            'mtext[' . $mathmlcommon . ']',
-            'mtr[' . $mathmlcommon . ']',
-            'munder[accentunder|' . $mathmlcommon . ']',
-            'munderover[accent|accentunder|' . $mathmlcommon . ']',
-            'semantics[' . $mathmlcommon . ']',
+            'annotation',
+            'annotation-xml',
+            'apply',
+            'bind',
+            'bvar',
+            'cbytes',
+            'cerror',
+            'ci',
+            'cn',
+            'cs',
+            'csymbol',
+            'maction',
+            'maligngroup',
+            'malignmark',
+            'math[display]',
+            'menclose',
+            'mfenced',
+            'mfrac',
+            'merror',
+            'mglyph',
+            'mi',
+            'mlabeledtr',
+            'mlongdiv',
+            'mmultiscripts',
+            'mo',
+            'mn',
+            'mover',
+            'mpadded',
+            'mphantom',
+            'mprescripts',
+            'mroot',
+            'mrow',
+            'ms',
+            'mscarries',
+            'mscarry',
+            'msgroup',
+            'msline',
+            'mspace',
+            'msqrt',
+            'msrow',
+            'mstack',
+            'mstyle',
+            'msub',
+            'msubsup',
+            'msup',
+            'mtable',
+            'mtext',
+            'mtd',
+            'mtr',
+            'munder',
+            'munderover',
+            'none',
+            'semantics',
+            'share',
         )));
         // allow certain global attributes
         $config->set('HTML.TargetBlank', true);
@@ -333,276 +357,672 @@ final class Filter
              * MathML definitions
              * DTD reference for MathML 3: https://www.w3.org/Math/DTD/mathml3/mathml3.dtd
              * Valid elements and attributes for MathML Core: https://www.w3.org/TR/mathml-core/
-             * Mozilla lists additional attributes as valid: https://developer.mozilla.org/en-US/docs/Web/MathML/Reference/Attribute
              */
-            $MathExpression = 'semantics|mi|mn|mo|mtext|mspace|ms|mrow|mfrac|msqrt|mroot|mstyle|merror|mpadded|mphantom|msub|msup|msubsup|munder|mover|munderover|mmultiscripts|mtable|maction';
-            $MathMLCommonAttributes = array(
-                'autofocus' => 'Bool',
-                'class' => 'Class',
-                'dir' => 'Enum#ltr|rtl',
-                'displaystyle' => 'Bool',
+            // MathML variable definitions
+            $CommonAtt = array(
                 'id' => 'ID',
-                'mathbackground' => 'Color',
-                'mathcolor' => 'Color',
-                'mathsize' => 'Length',
-                'scriptlevel' => 'Number',
-                // technically tabindex is supposed to be positive integer, 0, or -1, but tabindex attribute for predefined HTML elements all are declared as 'Number' which allows only positive integers
-                'tabindex' => 'Number',
+                'xref' => 'Text',
+                'class' => 'NMTOKENS',
+                'style' => 'Text',
                 'href' => 'URI',
-                'intent' => 'Text',
-                // string should actually be NCNAME: https://w3c.github.io/mathml/#mixing_intent_grammar
-                'arg' => 'Text',
             );
+            $DefEncAtt = array(
+                'encoding' => 'Text',
+                'definitionURL' => 'URI',
+            );
+            $CommonPresAtt = array(
+                'mathcolor' => 'Color',
+                'mathbackground' => 'Color',
+            );
+            $TokenAtt = array(
+                'mathvariant' => 'Enum#normal,bold,italic,bold-italic,double-struck,bold-fraktur,script,bold-script,fraktur,sans-serif,bold-sans-serif,sans-serif-italic,sans-serif-bold-italic,monospace,initial,tailed,looped,stretched',
+                'mathsize' => 'Enum#small,normal,big',
+                // 'mathsize' => 'Length',
+                'dir' => 'Enum#ltr,rtl',
+            );
+            $ContExp = 'semantics|cn|ci|csymbol|apply|bind|share|cerror|cbytes|cs';
+            $TokenExpression = 'mi|mn|mo|mtext|mspace|ms';
+            $MalignExpression = 'maligngroup|malignmark';
+            $PresentationExpression = $TokenExpression . '|mrow|mfrac|msqrt|mroot|mstyle|merror|mpadded|mphantom|mfenced|menclose|msub|msup|msubsup|munder|mover|munderover|mmultiscripts|mtable|mstack|mlongdiv|maction|' . $MalignExpression;
+            $MathExpression = $PresentationExpression . '|' . $ContExp;
+            $MstackExpression = $MathExpression . '|mscarries|msline|msrow|msgroup';
+            $ImpliedMrow = '(' . $MathExpression . ')*';
+            // add MathML elements
             $def->addElement(
                 'annotation',
                 false,
                 'Required: #PCDATA',
-                'Style',
-                $MathMLCommonAttributes + array('encoding' => 'Text')
+                null,
+                array(
+                    'definitionURL' => 'URI',
+                    'encoding' => 'Text',
+                    'cd' => 'Text',
+                    'name' => 'Text',
+                    'src' => 'URI',
+                )
             );
             $def->addElement(
                 'annotation-xml',
                 false,
                 'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes + array('encoding' => 'Text')
+                null,
+                array(
+                    'definitionURL' => 'URI',
+                    'encoding' => 'Text',
+                    'cd' => 'Text',
+                    'name' => 'Text',
+                    'src' => 'URI',
+                )
+            );
+            $def->addElement(
+                'apply',
+                false,
+                'Required: ' . $ContExp,
+                null,
+                $CommonAtt
+            );
+            $def->addElement(
+                'bind',
+                false,
+                'Custom: (' . $ContExp . '),(bvar)*,(' . $ContExp . ')',
+                null,
+                $CommonAtt
+            );
+            $def->addElement(
+                'bvar',
+                false,
+                'Custom: (ci|semantics)',
+                null,
+                $CommonAtt
+            );
+            $def->addElement(
+                'cbytes',
+                false,
+                'Required: #PCDATA',
+                null,
+                $CommonAtt
+            );
+            $def->addElement(
+                'cerror',
+                false,
+                'Custom: (csymbol,(' . $ContExp . ')*)',
+                null,
+                $CommonAtt
+            );
+            $def->addElement(
+                'ci',
+                false,
+                'Required: #PCDATA',
+                null,
+                $CommonAtt + array('type' => 'Enum#integer,rational,real,complex,complex-polar,complex-cartesian,constant,function,vector,list,set,matrix')
+            );
+            $def->addElement(
+                'cn',
+                false,
+                'Required: #PCDATA',
+                null,
+                $CommonAtt + array('type*' => 'Enum#integer,real,double,hexdouble')
+            );
+            $def->addElement(
+                'cs',
+                false,
+                'Required: #PCDATA',
+                null,
+                $CommonAtt
+            );
+            $def->addElement(
+                'csymbol',
+                false,
+                'Required: #PCDATA',
+                null,
+                $CommonAtt + array('cd*' => 'Text')
             );
             $def->addElement(
                 'maction',
                 false,
                 'Required: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                // attributes
+            );
+            $def->addElement(
+                'maligngroup',
+                false,
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt + array('groupalign' => 'Enum#left,center,right,decimalpoint')
+            );
+            $def->addElement(
+                'malignmark',
+                false,
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt + array('edge' => 'Enum#left,right')
             );
             $def->addElement(
                 'math',
                 'Block',
                 'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes + array(
+                null,
+                $CommonAtt + array(
                     'display' => 'Enum#block,inline',
+                    'maxwidth' => 'Length',
+                    'overflow' => 'Enum#linebreak,scroll,elide,truncate,scale',
+                    'altimg' => 'URI',
+                    'altimg-width' => 'Length',
+                    'altimg-height' => 'Length',
+                    'altimg-valign' => 'Length',
+                    // 'altimg-valign' => 'Enum#top,middle,bottom',
                     'alttext' => 'Text',
+                    'cdgroup' => 'URI',
                 )
             );
             $def->addElement(
                 'math',
                 'Inline',
                 'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes + array(
+                null,
+                $CommonAtt + array(
                     'display' => 'Enum#block,inline',
+                    'maxwidth' => 'Length',
+                    'overflow' => 'Enum#linebreak,scroll,elide,truncate,scale',
+                    'altimg' => 'URI',
+                    'altimg-width' => 'Length',
+                    'altimg-height' => 'Length',
+                    'altimg-valign' => 'Length',
+                    // 'altimg-valign' => 'Enum#top,middle,bottom',
                     'alttext' => 'Text',
+                    'cdgroup' => 'URI',
                 )
             );
             $def->addElement(
-                'merror',
+                'menclose',
+                false,
+                'Custom: ' . $ImpliedMrow,
+                null,
+                $CommonAtt + $CommonPresAtt + array('notation' => 'Text')
+            );
+            $def->addElement(
+                'mfenced',
                 false,
                 'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'open' => 'Text',
+                    'close' => 'Text',
+                    'separators' => 'Text',
+                )
             );
             $def->addElement(
                 'mfrac',
                 false,
                 'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
-                'Style',
-                $MathMLCommonAttributes + array('linethickness' => 'Length',)
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'linethickness' => 'Length',
+                    // 'linethickness' => 'Enum#thin,medium,thick',
+                    'numalign' => 'Enum#left,center,right',
+                    'denomalign' => 'Enum#left,center,right',
+                    'bevelled' => 'Bool',
+                )
+            );
+            $def->addElement(
+                'merror',
+                false,
+                'Custom: ' . $ImpliedMrow,
+                null,
+                $CommonAtt + $CommonPresAtt
+            );
+            $def->addElement(
+                'mglyph',
+                false,
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'src' => 'URI',
+                    'width' => 'Length',
+                    'height' => 'Length',
+                    'valign' => 'Length',
+                    'alt' => 'Text',
+                )
             );
             $def->addElement(
                 'mi',
                 false,
-                'Optional: #PCDATA',
-                'Style',
-                $MathMLCommonAttributes + array('mathvariant' => 'Enum#normal')
+                'Optional: mglyph|malignmark|#PCDATA',
+                null,
+                $CommonAtt + $CommonPresAtt + $TokenAtt
+            );
+            $def->addElement(
+                'mlabeledtr',
+                false,
+                'Required: mtd',
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'rowalign' => 'Enum#top,bottom,center,baseline,axis',
+                    'columnalign' => 'Text',
+                    'groupalign' => 'Text',
+                )
+            );
+            $def->addElement(
+                'mlongdiv',
+                false,
+                'Custom: (' . $MstackExpression . '),(' . $MstackExpression . '),($MstackExpression)+',
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'position' => 'Number',
+                    'shift' => 'Number',
+                    'longdivstyle' => 'Enum#lefttop,stackedrightright,mediumstackedrightright,shortstackedrightright,righttop,left/\right,left)(right,:right=right,stackedleftleft,stackedleftlinetop',
+                )
             );
             $def->addElement(
                 'mmultiscripts',
                 false,
-                'Custom: ((' . $MathExpression . '),((' . $MathExpression . '),(' . $MathExpression . '))*,(mprescripts,((' . $MathExpression . '),(' . $MathExpression . '))*)?)',
-                'Style',
-                $MathMLCommonAttributes
+                // 'Custom: (' . $MathExpression . '),(' . $MultiScriptExpression . ')*,(mprescripts|(' . $MultiScriptExpression . ')*)?',
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'subscriptshift' => 'Length',
+                    'superscriptshift' => 'Length',
+                )
             );
             $def->addElement(
                 'mn',
                 false,
-                'Optional: #PCDATA',
-                'Style',
-                $MathMLCommonAttributes
+                'Optional: mglyph|malignmark|#PCDATA',
+                null,
+                $CommonAtt + $CommonPresAtt + $TokenAtt
             );
             $def->addElement(
                 'mo',
                 false,
-                'Optional: #PCDATA',
-                'Style',
-                $MathMLCommonAttributes + array(
-                    'form' => 'Enum#infix|prefix|postfix',
-                    'fence' => 'Bool',
-                    'separator' => 'Bool',
-                    'lspace' => 'Length',
-                    'rspace' => 'Length',
-                    'stretchy' => 'Bool',
-                    'symmetric' => 'Bool',
-                    'maxsize' => 'Length',
-                    'minsize' => 'Length',
-                    'largeop' => 'Bool',
-                    'movablelimits' => 'Bool',
-                )
+                'Optional: mglyph|malignmark|#PCDATA',
+                null,
+                $CommonAtt + $CommonPresAtt + $TokenAtt
             );
             $def->addElement(
                 'mover',
                 false,
                 'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
-                'Style',
-                $MathMLCommonAttributes + array('accent' => 'Bool')
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'accent' => 'Bool',
+                    'align' => 'Enum#left,right,center',
+                )
             );
             $def->addElement(
                 'mpadded',
                 false,
-                'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes + array(
-                    'width' => 'Length',
-                    'height' => 'Length',
-                    'depth' => 'Length',
-                    'lspace' => 'Length',
-                    'voffset' => 'Length',
+                'Custom: ' . $ImpliedMrow,
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'height' => 'Text',
+                    'depth' => 'Text',
+                    'width' => 'Text',
+                    'lspace' => 'Text',
+                    'voffset' => 'Text',
                 )
             );
             $def->addElement(
                 'mphantom',
                 false,
-                'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes
+                'Custom: ' . $ImpliedMrow,
+                null,
+                $CommonAtt + $CommonPresAtt
             );
             $def->addElement(
                 'mprescripts',
                 false,
                 'Empty',
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                $CommonAtt + $CommonPresAtt
             );
             $def->addElement(
                 'mroot',
                 false,
                 'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                $CommonAtt + $CommonPresAtt
             );
             $def->addElement(
                 'mrow',
                 false,
                 'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                $CommonAtt + $CommonPresAtt + array('dir' => 'Enum#ltr,rtl')
             );
             $def->addElement(
                 'ms',
                 false,
-                'Optional: #PCDATA',
-                'Style',
-                $MathMLCommonAttributes
+                'Optional: mglyph|malignmark|#PCDATA',
+                null,
+                $CommonAtt + $CommonPresAtt + $TokenAtt + array(
+                    'lquote' => 'Text',
+                    'rquote' => 'Text',
+                )
+            );
+            $def->addElement(
+                'mscarries',
+                false,
+                // 'Optional: ' . $MsrowExpression . '|mscarry',
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'position' => 'Number',
+                    'location' => 'Enum#w,nw,n,ne,e,se,s,sw',
+                    'crossout' => 'Text',
+                    'scriptsizemultiplier' => 'Number',
+                )
+            );
+            $def->addElement(
+                'mscarry',
+                false,
+                // 'Optional: ' . $MsrowExpression,
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'location' => 'Enum#w,nw,n,ne,e,se,s,sw',
+                    'crossout' => 'Text',
+                )
+            );
+            $def->addElement(
+                'msgroup',
+                false,
+                'Optional: ' . $MstackExpression,
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'position' => 'Number',
+                    'shift' => 'Number',
+                )
+            );
+            $def->addElement(
+                'msline',
+                false,
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'position' => 'Number',
+                    'length' => 'Number',
+                    'leftoverhang' => 'Length',
+                    'rightoverhang' => 'Length',
+                    'mslinethickness' => 'Length',
+                    // 'mslinethickness' => 'Enum#thin,medium,thick',
+                )
             );
             $def->addElement(
                 'mspace',
                 false,
                 'Empty',
-                'Style',
-                $MathMLCommonAttributes + array(
+                null,
+                $CommonAtt + $CommonPresAtt + $TokenAtt + array(
                     'width' => 'Length',
                     'height' => 'Length',
                     'depth' => 'Length',
+                    'linebreak' => 'Enum#auto,newline,nobreak,goodbreak,badbreak,indentingnewline',
+                    'indentalign' => 'Enum#left,center,right,auto,id',
+                    'indentshift' => 'Length',
+                    'indenttarget' => 'Text',
+                    'indentalignfirst' => 'Enum#left,center,right,auto,id,indentalign',
+                    'indentshiftfirst' => 'Length',
+                    // 'indentshiftfirst' => 'Enum#indentshift',
+                    'indentalignlast' => 'Enum#left,center,right,auto,id,indentalign',
+                    'indentshiftlast' => 'Length',
+                    // 'indentshiftlast' => 'Enum#indentshift',
                 )
             );
             $def->addElement(
                 'msqrt',
                 false,
-                'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes
+                'Custom: (' . $ImpliedMrow . ')',
+                null,
+                $CommonAtt + $CommonPresAtt
+            );
+            $def->addElement(
+                'msrow',
+                false,
+                // 'Optional: ' . $MsrowExpression,
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt + array('position' => 'Number')
+            );
+            $def->addElement(
+                'mstack',
+                false,
+                'Optional: ' . $MstackExpression,
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'align' => 'Text',
+                    'stackalign' => 'Enum#left,center,right,decimalpoint',
+                    'charalign' => 'Enum#left,center,right',
+                    'charspacing' => 'Length',
+                    // 'charspacing' => 'Enum#loose,medium,tight',
+                )
             );
             $def->addElement(
                 'mstyle',
                 false,
-                'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes
+                'Custom: ' . $ImpliedMrow,
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'scriptlevel' => 'Length',
+                    'displaystyle' => 'Bool',
+                    'scriptsizemultiplier' => 'Number',
+                    'scriptminsize' => 'Length',
+                    'infixlinebreakstyle' => 'Enum#before,after,duplicate',
+                    'decimalpoint' => 'Character',
+                    'accent' => 'Bool',
+                    'accentunder' => 'Bool',
+                    'align' => 'Enum#left,right,center',
+                    'alignmentscope' => 'Text',
+                    'bevelled' => 'Bool',
+                    'charalign' => 'Enum#left,center,right',
+                    'charspacing' => 'Length',
+                    // 'charspacing' => 'Enum#loose,medium,tight',
+                    'close' => 'Text',
+                    'columnalign' => 'Text',
+                    'columnlines' => 'Text',
+                    'columnspacing' => 'Text',
+                    'columnspan' => 'Number',
+                    'columnwidth' => 'Text',
+                    'crossout' => 'Text',
+                    'denomalign' => 'Enum#left,center,right',
+                    'depth' => 'Length',
+                    'dir' => 'Enum#ltr,rtl',
+                    'edge' => 'Enum#left,right',
+                    'equalcolumns' => 'Bool',
+                    'equalrows' => 'Bool',
+                    'fence' => 'Bool',
+                    'form' => 'Enum#prefix,infix,postfix',
+                    'frame' => 'Enum#none,solid,dashed',
+                    'framespacing' => 'Text',
+                    'groupalign' => 'Text',
+                    'height' => 'Length',
+                    'indentalign' => 'Enum#left,center,right,auto,id',
+                    'indentalignfirst' => 'Enum#left,center,right,auto,id,indentalign',
+                    'indentalignlast' => 'Enum#left,center,right,auto,id,indentalign',
+                    'indentshift' => 'Length',
+                    'indentshiftfirst' => 'Length',
+                    // 'indentshiftfirst' => 'Enum#indentshift',
+                    'indentshiftlast' => 'Length',
+                    // 'indentshiftlast' => 'Enum#indentshift',
+                    'indenttarget' => 'Text',
+                    'largeop' => 'Bool',
+                    'leftoverhang' => 'Length',
+                    'length' => 'Number',
+                    'linebreak' => 'Enum#auto,newline,nobreak,goodbreak,badbreak',
+                    'linebreakmultichar' => 'Text',
+                    'linebreakstyle' => 'Enum#before,after,duplicate,infixlinebreakstyle',
+                    'lineleading' => 'Length',
+                    'linethickness' => 'Length',
+                    // 'linethickness' => 'Enum#thin,medium,thick',
+                    'location' => 'Enum#w,nw,n,ne,e,se,s,sw',
+                    'longdivstyle' => 'Enum#lefttop,stackedrightright,mediumstackedrightright,shortstackedrightright,righttop,left/\right,left)(right,:right=right,stackedleftleft,stackedleftlinetop',
+                    'lquote' => 'Text',
+                    'lspace' => 'Length',
+                    'mathsize' => 'Enum#small,normal,big',
+                    // 'mathsize' => 'Length',
+                    'mathvariant' => 'Enum#normal,bold,italic,bold-italic,double-struck,bold-fraktur,script,bold-script,fraktur,sans-serif,bold-sans-serif,sans-serif-italic,sans-serif-bold-italic,monospace,initial,tailed,looped,stretched',
+                    'maxsize' => 'Length',
+                    // 'maxsize' => 'Enum#infinity',
+                    'minlabelspacing' => 'Length',
+                    'minsize' => 'Length',
+                    'movablelimits' => 'Bool',
+                    'mslinethickness' => 'Length',
+                    // 'mslinethickness' => 'Enum#thin,medium,thick',
+                    'notation' => 'Text',
+                    'numalign' => 'Enum#left,center,right',
+                    'open' => 'Text',
+                    'position' => 'Number',
+                    'rightoverhang' => 'Length',
+                    'rowalign' => 'Text',
+                    'rowlines' => 'Text',
+                    'rowspacing' => 'Text',
+                    'rowspan' => 'Number',
+                    'rquote' => 'Text',
+                    'rspace' => 'Length',
+                    'selection' => 'Number',
+                    'separator' => 'Bool',
+                    'separators' => 'Text',
+                    'shift' => 'Number',
+                    'side' => 'Enum#left,right,leftoverlap,rightoverlap',
+                    'stackalign' => 'Enum#left,center,right,decimalpoint',
+                    'stretchy' => 'Bool',
+                    'subscriptshift' => 'Length',
+                    'superscriptshift' => 'Length',
+                    'symmetric' => 'Bool',
+                    'valign' => 'Length',
+                    'width' => 'Length',
+                )
             );
             $def->addElement(
                 'msub',
                 false,
                 'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                $CommonAtt + $CommonPresAtt + array('subscriptshift' => 'Length')
             );
             $def->addElement(
                 'msubsup',
                 false,
                 'Custom: ((' . $MathExpression . '),(' . $MathExpression . '),(' . $MathExpression . '))',
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'subscriptshift' => 'Length',
+                    'superscriptshift' => 'Length',
+                )
             );
             $def->addElement(
                 'msup',
                 false,
                 'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'subscriptshift' => 'Length',
+                    'superscriptshift' => 'Length',
+                )
             );
             $def->addElement(
                 'mtable',
                 false,
-                'Optional: mtr',
-                'Style',
-                $MathMLCommonAttributes
-            );
-            $def->addElement(
-                'mtd',
-                false,
-                'Optional: ' . $MathExpression,
-                'Style',
-                $MathMLCommonAttributes + array(
-                    'columnspan' => 'Number',
-                    'rowspan' => 'Number',
+                // 'Optional: ' . $TableRowExpression,
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'align' => 'Text',
+                    'rowalign' => 'Text',
+                    'columnalign' => 'Text',
+                    'groupalign' => 'Text',
+                    'alignmentscope' => 'Text',
+                    'columnwidth' => 'Text',
+                    'width' => 'Enum#auto',
+                    // 'width' => 'Length',
+                    'rowspacing' => 'Text',
+                    'columnspacing' => 'Text',
+                    'rowlines' => 'Text',
+                    'columnlines' => 'Text',
+                    'frame' => 'Enum#none,solid,dashed',
+                    'framespacing' => 'Text',
+                    'equalrows' => 'Bool',
+                    'equalcolumns' => 'Bool',
+                    'displaystyle' => 'Bool',
+                    'side' => 'Enum#left,right,leftoverlap,rightoverlap',
+                    'minlabelspacing' => 'Length',
                 )
             );
             $def->addElement(
                 'mtext',
                 false,
-                'Optional: #PCDATA',
-                'Style',
-                $MathMLCommonAttributes
+                'Optional: mglyph|malignmark|#PCDATA',
+                null,
+                $CommonAtt + $CommonPresAtt + $TokenAtt
+            );
+            $def->addElement(
+                'mtd',
+                false,
+                'Required: ' . $ImpliedMrow,
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'rowspan' => 'Number',
+                    'columnspan' => 'Number',
+                    'rowalign' => 'Enum#top,bottom,center,baseline,axis',
+                    'columnalign' => 'Enum#left,center,right',
+                    'groupalign' => 'Text',
+                )
             );
             $def->addElement(
                 'mtr',
                 false,
                 'Optional: mtd',
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'rowalign' => 'Enum#top,bottom,center,baseline,axis',
+                    'columnalign' => 'Text',
+                    'groupalign' => 'Text',
+                )
             );
             $def->addElement(
                 'munder',
                 false,
                 'Custom: ((' . $MathExpression . '),(' . $MathExpression . '))',
-                'Style',
-                $MathMLCommonAttributes + array('accentunder' => 'Bool')
+                null,
+                $CommonAtt + $CommonPresAtt + array(
+                    'accentunder' => 'Bool',
+                    'align' => 'Enum#left,right,center',
+                )
             );
             $def->addElement(
                 'munderover',
                 false,
                 'Custom: ((' . $MathExpression . '),(' . $MathExpression . '),(' . $MathExpression . '))',
-                'Style',
-                $MathMLCommonAttributes + array(
+                null,
+                $CommonAtt + $CommonPresAtt + array(
                     'accent' => 'Bool',
                     'accentunder' => 'Bool',
+                    'align' => 'Enum#left,right,center',
                 )
+            );
+            $def->addElement(
+                'none',
+                false,
+                'Empty',
+                null,
+                $CommonAtt + $CommonPresAtt
             );
             $def->addElement(
                 'semantics',
                 false,
                 'Custom: ((' . $MathExpression . '),(annotation|annotation-xml)*)',
-                'Style',
-                $MathMLCommonAttributes
+                null,
+                $CommonAtt + $DefEncAtt + array(
+                    'cd' => 'Text',
+                    'name' => 'Text',
+                )
+            );
+            $def->addElement(
+                'share',
+                false,
+                'Empty',
+                null,
+                $CommonAtt + array('src', 'URI')
             );
         }
 

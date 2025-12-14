@@ -70,6 +70,9 @@ class ContentParams implements ContentParamsInterface
 
     protected function getBinary(): int
     {
+        /**
+         * @psalm-suppress InvalidStaticInvocation
+         */
         return Filter::toBinary($this->content);
     }
 

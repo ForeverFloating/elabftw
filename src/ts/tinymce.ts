@@ -789,5 +789,6 @@ export function getTinymceBaseConfig(page: string): object {
     draggable_modal: true,
     visualblocks_default_state: true,
     paste_as_text: true,
+    extended_valid_elements: 'annotation,annotation-xml,apply,bind,bvar,cbytes,cerror,ci,cn,cs,csymbol,maction,maligngroup,malignmark,math[display],menclose,mfenced,mfrac,merror,mglyph,mi,mlabeledtr,mlongdiv,mmultiscripts,mn,mo,mover,mpadded,mphantom,mprescripts,mroot,mrow,ms,mscarries,mscarry,msgroup,msline,mspace,msqrt,msrow,mstack,mstyle,msub,msubsup,msup,mtable,mtext,mtd,mtr,munder,munderover,none,semantics,share',
   };
 }

@@ -142,6 +142,9 @@ abstract class AbstractStatus extends AbstractCategory
         $this->Teams->canWriteOrExplode();
         $title = Filter::title($title);
         $color = Check::color($color);
+        /**
+         * @psalm-suppress InvalidStaticInvocation
+         */
         $isDefault = Filter::toBinary($isDefault);
 
         $sql = sprintf('INSERT INTO %s (title, color, team, is_default)
