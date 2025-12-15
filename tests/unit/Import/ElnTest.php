@@ -14,12 +14,14 @@ namespace Elabftw\Import;
 use Elabftw\Enums\BasePermissions;
 use Elabftw\Enums\EntityType;
 use Elabftw\Exceptions\ImproperActionException;
-use Elabftw\Models\Users;
+use Elabftw\Models\Users\Users;
 use League\Flysystem\Filesystem;
 use League\Flysystem\FilesystemOperator;
 use League\Flysystem\Local\LocalFilesystemAdapter;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
+
+use function dirname;
 
 use const UPLOAD_ERR_INI_SIZE;
 use const UPLOAD_ERR_OK;
@@ -101,6 +103,73 @@ class ElnTest extends \PHPUnit\Framework\TestCase
             $this->logger,
             EntityType::Experiments,
             category: 1,
+        );
+        $Import->import();
+        $this->assertEquals(1, $Import->getInserted());
+    }
+
+    public function testImportV103(): void
+    {
+        $uploadedFile = new UploadedFile(
+            dirname(__DIR__, 2) . '/_data/version-103.eln',
+            'importable.eln',
+            null,
+            UPLOAD_ERR_OK,
+            true,
+        );
+
+        $Import = new Eln(
+            new Users(1, 1),
+            BasePermissions::Team->toJson(),
+            BasePermissions::User->toJson(),
+            $uploadedFile,
+            $this->fs,
+            $this->logger,
+            EntityType::Experiments,
+        );
+        $Import->import();
+        $this->assertEquals(1, $Import->getInserted());
+
+        // run it a second time so we trigger the custom_id exception
+        $uploadedFile = new UploadedFile(
+            dirname(__DIR__, 2) . '/_data/version-103.eln',
+            'importable.eln',
+            null,
+            UPLOAD_ERR_OK,
+            true,
+        );
+
+        $Import = new Eln(
+            new Users(1, 1),
+            BasePermissions::Team->toJson(),
+            BasePermissions::User->toJson(),
+            $uploadedFile,
+            $this->fs,
+            $this->logger,
+            EntityType::Experiments,
+        );
+        $Import->import();
+        $this->assertEquals(1, $Import->getInserted());
+    }
+
+    public function testImportV104(): void
+    {
+        $uploadedFile = new UploadedFile(
+            dirname(__DIR__, 2) . '/_data/version-104.eln',
+            'importable.eln',
+            null,
+            UPLOAD_ERR_OK,
+            true,
+        );
+
+        $Import = new Eln(
+            new Users(1, 1),
+            BasePermissions::Team->toJson(),
+            BasePermissions::User->toJson(),
+            $uploadedFile,
+            $this->fs,
+            $this->logger,
+            EntityType::Experiments,
         );
         $Import->import();
         $this->assertEquals(1, $Import->getInserted());
@@ -229,6 +298,54 @@ class ElnTest extends \PHPUnit\Framework\TestCase
         $uploadedFile = new UploadedFile(
             dirname(__DIR__, 2) . '/_data/4.9.0_special_chars.eln',
             '4.9.0_special_chars.eln',
+            null,
+            UPLOAD_ERR_OK,
+            true,
+        );
+
+        $Import = new Eln(
+            new Users(1, 1),
+            BasePermissions::Team->toJson(),
+            BasePermissions::User->toJson(),
+            $uploadedFile,
+            $this->fs,
+            $this->logger,
+            EntityType::Items,
+            category: 1,
+        );
+        $Import->import();
+        $this->assertEquals(2, $Import->getInserted());
+    }
+
+    public function testImportPasta(): void
+    {
+        $uploadedFile = new UploadedFile(
+            dirname(__DIR__, 2) . '/_data/PASTA.eln',
+            'PASTA.eln',
+            null,
+            UPLOAD_ERR_OK,
+            true,
+        );
+
+        $Import = new Eln(
+            new Users(1, 1),
+            BasePermissions::Team->toJson(),
+            BasePermissions::User->toJson(),
+            $uploadedFile,
+            $this->fs,
+            $this->logger,
+            EntityType::Items,
+            category: 1,
+        );
+        $Import->import();
+        $this->assertEquals(9, $Import->getInserted());
+    }
+
+    public function testImportSampledb(): void
+    {
+        $uploadedFile = new UploadedFile(
+            dirname(__DIR__, 2) . '/_data/sampledb.eln',
+            'sampledb.eln',
             null,
             UPLOAD_ERR_OK,
             true,

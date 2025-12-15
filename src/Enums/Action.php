@@ -16,14 +16,17 @@ enum Action: string
 {
     case AccessKey = 'accesskey';
     case Add = 'add';
+    case AllowUntrusted = 'allowuntrusted';
     case Archive = 'archive';
     case Bloxberg = 'bloxberg';
+    case ClearLockedOutDevices = 'clearlockedoutdevices';
     case Create = 'create';
     case CreateFromString = 'createfromstring';
     case CreateSigkeys = 'createsigkeys';
     case Destroy = 'destroy';
     case Disable2fa = 'disable2fa';
     case Duplicate = 'duplicate';
+    case Email = 'email';
     case Finish = 'finish';
     case ForceLock = 'forcelock';
     case ForceUnlock = 'forceunlock';
@@ -34,12 +37,16 @@ enum Action: string
     case Pin = 'pin';
     case RemoveExclusiveEditMode = 'removeexclusiveeditmode';
     case Replace = 'replace';
+    case Restore = 'restore';
     case Review = 'review';
     case SendOnboardingEmails = 'sendonboardingemails';
     case SetCanread = 'setcanread';
     case SetCanwrite = 'setcanwrite';
+    case SetNextCustomId = 'setnextcustomid';
     case Sign = 'sign';
+    case Test = 'test';
     case Timestamp = 'timestamp';
+    case Unarchive = 'unarchive';
     case Unreference = 'unreference';
     case Update = 'update';
     case UpdateMetadataField = 'updatemetadatafield';

@@ -48,7 +48,7 @@ module.exports = (env) => {
     plugins: [
       new ForkTsCheckerWebpackPlugin({
         typescript: {
-          configFile: './src/ts/tsconfig.json',
+          configFile: './tsconfig.json',
         },
       }),
     ],

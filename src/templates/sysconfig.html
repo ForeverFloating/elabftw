@@ -52,7 +52,6 @@
   <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='12'>LDAP</button></li>
   <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='13'>{{ 'External auth'|trans }}</button></li>
   <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='14'>{{ 'Audit Logs'|trans }}</button></li>
-  <li><button type='button' class='btn' data-action='switch-tab' data-tabtarget='15'>{{ 'Inventory'|trans }}</button></li>
 </ul>
 
 {# loading spinner #}
@@ -98,8 +97,29 @@
     <p class='smallgray'>{{ 'If you are behind a firewall/proxy, enter the address here. Example: http://proxy.example.com:3128'|trans }}</p>
     <hr>
 
-    {% include 'binary-setting.html' with {'label': 'Allow the base permission setting «Only owner»'|trans, 'slug': 'allow_useronly'} %}
+    <div class='d-flex justify-content-between'>
+      <label for='support_url' class='col-form-label'>{{ 'URL where the Support menu entry from Help dropdown points'|trans }}</label>
+      <input class='form-control col-md-3' type='url' value='{{ App.Config.configArr.support_url }}' data-trigger='blur' data-model='config' data-target='support_url' id='support_url' />
+    </div>
+    <hr>
 
+    <div class='d-flex justify-content-between'>
+      <label for='chat_url' class='col-form-label'>{{ 'URL where the Chat room menu entry from Help dropdown points'|trans }}</label>
+      <input class='form-control col-md-3' type='url' value='{{ App.Config.configArr.chat_url }}' data-trigger='blur' data-model='config' data-target='chat_url' id='chat_url' />
+    </div>
+    <hr>
+
+    {% include 'binary-setting.html' with {'label': 'Allow users to change their first name, last name, internal id or email address'|trans, 'slug': 'allow_users_change_identity', 'help': 'When disabled, only a Sysadmin will be allowed to modify these parameters.'|trans} %}
+
+    {% include 'binary-setting.html' with {'label': 'Prevent modification of global compounds database unless user is given explicit rights.'|trans, 'slug': 'compounds_require_edit_rights', 'help': 'When enabled, a Sysadmin will need to give edit rights to all users that should be able to edit the common compounds database. All other users will access it in read-only.'|trans} %}
+
+    {% include 'binary-setting.html' with {'label': 'Prevent modification of inventory locations unless user is given explicit rights.'|trans, 'slug': 'inventory_require_edit_rights', 'help': 'When enabled, a Sysadmin will need to give edit rights to all users that should be able to edit the inventory locations. All other users will access it in read-only.'|trans} %}
+
+  </div>
+
+
+  <h3 class='mb-3 p-2 pl-3 section-title'>{{ 'Revisions system configuration'|trans }}</h3>
+  <div class='pl-3'>
     <div class='d-flex justify-content-between'>
       <label for='max_revisions' class='col-form-label'>{{ 'Maximum number of stored revisions per entry'|trans }}</label>
       <input class='form-control col-md-3' data-trigger='blur' data-model='config' data-target='max_revisions' type='number' min='0' max='999' value='{{ App.Config.configArr.max_revisions }}' id='max_revisions' />
@@ -120,21 +140,13 @@
     </div>
     <p class='smallgray'>{{ 'If the last change is at least this days old, a revision will be created regardless of the minimum characters setting.'|trans }}</p>
     <hr>
+  </div>
 
-    <div class='d-flex justify-content-between'>
-      <label for='support_url' class='col-form-label'>{{ 'URL where the Support menu entry from Help dropdown points'|trans }}</label>
-      <input class='form-control col-md-3' type='url' value='{{ App.Config.configArr.support_url }}' data-trigger='blur' data-model='config' data-target='support_url' id='support_url' />
-    </div>
-    <hr>
-
-    <div class='d-flex justify-content-between'>
-      <label for='chat_url' class='col-form-label'>{{ 'URL where the Chat room menu entry from Help dropdown points'|trans }}</label>
-      <input class='form-control col-md-3' type='url' value='{{ App.Config.configArr.chat_url }}' data-trigger='blur' data-model='config' data-target='chat_url' id='chat_url' />
-    </div>
-    <hr>
-
-    {% include 'binary-setting.html' with {'label': 'Allow users to change their first name, last name, or email address'|trans, 'slug': 'allow_users_change_identity', 'help': 'When disabled, only a Sysadmin will be allowed to modify these parameters.'} %}
-
+  <h3 class='mb-3 p-2 pl-3 section-title'>{{ 'Permissions settings'|trans }}</h3>
+  <div id='permissionsSettingsDiv' class='pl-3'>
+    {% for perm in permissions %}
+      {% include 'binary-setting.html' with {'label': 'Allow the base permission setting «' ~ perm.toHuman|trans ~ '»', 'slug': perm.configKey} %}
+    {% endfor %}
   </div>
 
   <h3 class='mb-3 p-2 pl-3 section-title'>{{ 'Registration and authentication configuration'|trans }}</h3>
@@ -217,58 +229,60 @@
     </div>
 
     {% include 'filter-input-snippet.html' with {'target': 'teamsTableBody'} %}
-    <table id='teamsTable' class='table' aria-describedby='teamsSectionTitle' data-table-sort='true'>
-      <thead>
-        <tr>
-          <th scope='col'>{{ 'ID'|trans }}</th>
-          <th scope='col'>{{ 'Name'|trans }}</th>
-          <th scope='col'>{{ 'Organisation ID'|trans }}</th>
-          <th scope='col'>{{ 'Creation date'|trans }}</th>
-          <th scope='col'>{{ 'Visible'|trans }}</th>
-          <th scope='col'>{{ 'Actions'|trans }}</th>
-        </tr>
-      </thead>
-      <!-- [html-validate-disable-block prefer-native-element: suppress error from malle] -->
-      <tbody id='teamsTableBody'>
-        {% for team in teamsArr %}
-        {# commented out because scales very badly obviously and makes loading sysconfig page super slow #}
-        {#{% set count = Teams.getStats(team.id) %}#}
+    <div class='table-container'>
+      <table id='teamsTable' class='table' aria-describedby='teamsSectionTitle' data-table-sort='true'>
+        <thead>
           <tr>
-            <td>{{ team.id }}</td>
-            <td><span class='hl-hover-gray p-1 rounded malleableColumn' data-endpoint='teams' data-id='{{ team.id }}' data-target='name'>{{ team.name }}</span>
-              {#
-              <p class='smallgray p-1'>{{ 'Members'|trans }}: {{ count.totusers }} &ndash;
-              {% trans %}
-              Experiment
-              {% plural count.totxp %}
-              Experiments
-              {% endtrans %}
-              : {{ count.totxp }} ({{ count.totxpts }} timestamped) &ndash; {{ 'Resources'|trans }}: {{ count.totdb }}<p>
-              #}
-
-            </td>
-            <td><span class='hl-hover-gray p-1 rounded malleableColumn' data-endpoint='teams' data-id='{{ team.id }}' data-target='orgid'>{{ team.orgid|default('Not set'|trans) }}</span></td>
-            <td>{{ team.created_at }}</td>
-            <td>
-              <label class='switch ucp-align'>
-                <input type='checkbox' data-trigger='change' data-model='teams/{{ team.id }}' data-target='visible' {{ team.visible == 1 ? 'checked="checked"' }}>
-                <span class='slider'></span>
-                <span class='sr-only'>{{ team.name }} - {{ 'Visible'|trans }}</span>
-              </label>
-            </td>
-            <td>
-              {% if count.totusers == 0 and team.id != App.Users.userData.team %}
-              <span data-id='{{ team.id }}' id='teamsDestroyButton_{{ team.id }}' data-action='destroy-team' class='p-1 rounded hover-danger'>
-                <i class='fas fa-trash-alt'></i>
-              </span>
-              {% else %}
-                <em class='text-muted'>{{ 'None available'|trans }}</em>
-              {% endif %}
-            </td>
+            <th scope='col'>{{ 'ID'|trans }}</th>
+            <th scope='col'>{{ 'Name'|trans }}</th>
+            <th scope='col'>{{ 'Organisation ID'|trans }}</th>
+            <th scope='col'>{{ 'Creation date'|trans }}</th>
+            <th scope='col'>{{ 'Visible'|trans }}</th>
+            <th scope='col'>{{ 'Actions'|trans }}</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+        </thead>
+        <!-- [html-validate-disable-block prefer-native-element: suppress error from malle] -->
+        <tbody id='teamsTableBody'>
+          {% for team in teamsArr %}
+          {# commented out because scales very badly obviously and makes loading sysconfig page super slow #}
+          {#{% set count = Teams.getStats(team.id) %}#}
+            <tr>
+              <td>{{ team.id }}</td>
+              <td><span class='hl-hover-gray p-1 rounded malleableColumn' data-endpoint='teams' data-id='{{ team.id }}' data-target='name'>{{ team.name }}</span>
+                {#
+                <p class='smallgray p-1'>{{ 'Members'|trans }}: {{ count.totusers }} &ndash;
+                {% trans %}
+                Experiment
+                {% plural count.totxp %}
+                Experiments
+                {% endtrans %}
+                : {{ count.totxp }} ({{ count.totxpts }} timestamped) &ndash; {{ 'Resources'|trans }}: {{ count.totdb }}<p>
+                #}
+
+              </td>
+              <td><span class='hl-hover-gray p-1 rounded malleableColumn' data-endpoint='teams' data-id='{{ team.id }}' data-target='orgid'>{{ team.orgid|default('Not set'|trans) }}</span></td>
+              <td>{{ team.created_at }}</td>
+              <td>
+                <label class='switch ucp-align'>
+                  <input type='checkbox' data-trigger='change' data-model='teams/{{ team.id }}' data-target='visible' {{ team.visible == 1 ? 'checked="checked"' }}>
+                  <span class='slider'></span>
+                  <span class='sr-only'>{{ team.name }} - {{ 'Visible'|trans }}</span>
+                </label>
+              </td>
+              <td>
+                {% if count.all_users_count == 0 and team.id != App.Users.userData.team %}
+                <span data-id='{{ team.id }}' id='teamsDestroyButton_{{ team.id }}' data-action='destroy-team' class='p-1 rounded hover-danger'>
+                  <i class='fas fa-trash-alt'></i>
+                </span>
+                {% else %}
+                  <em class='text-muted'>{{ 'None available'|trans }}</em>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -314,9 +328,10 @@
 
   {# MASS EMAIL #}
   <h3 class='p-2 pl-3 section-title'>{{ 'Send a Mass Email'|trans }}</h3>
-  <div class='pl-3 mt-2 mb-5' id='massEmailDiv'>
+  <form class='pl-3 mt-2 mb-5' aria-label='{{ 'Send a Mass Email'|trans }}' id='massEmailForm'>
+    {{ App.Session.get('csrf')|csrf }}
+    <input type='hidden' name='action' value='email'>
     <label>{{ 'Send to'|trans }}</label>
-
     <div class='form-check'>
       <input class='form-check-input' type='radio' name='target' value='active_users' id='targetAll' checked> <label class='form-check-label' for='targetAll'>{{ 'All active users'|trans }}</label>
     </div>
@@ -329,14 +344,14 @@
       <input class='form-check-input' type='radio' name='target' value='sysadmins' id='targetSysadmins'> <label class='form-check-label' for='targetSysadmins'>{{ 'All active sysadmins'|trans }}</label>
     </div>
     <label for='massSubject' class='col-form-label'>{{ 'Email Subject'|trans }}</label>
-    <input class='form-control col-md-12' type='text' id='massSubject' size='45' />
+    <input class='form-control col-md-12' name='subject' type='text' required id='massSubject' size='45' />
 
     <label for='massBody' class='col-form-label mt-2'>{{ 'Email Body'|trans }}</label>
-    <textarea class='form-control col-md-12' id='massBody'></textarea>
+    <textarea class='form-control col-md-12' name='body' id='massBody'></textarea>
     <div class='mt-4 text-center'>
-      <button type='button' data-action='send-mass-email' class='btn btn-primary'>{{ 'Send'|trans }}</button>
+      <button type='submit' data-action='send-mass-email' class='btn btn-primary'>{{ 'Send'|trans }}</button>
     </div>
-  </div>
+  </form>
 </div>
 
 {# TAB 5 EMAIL #}
@@ -370,7 +385,7 @@
         <div class='input-group col-md-3 p-0'>
           <input class='form-control' type='password' data-trigger='blur' data-model='config' data-target='smtp_password' id='smtp_password' autocomplete='off' />
           <div class='input-group-append'>
-            <button type='button' class='btn btn-light input-border' data-action='toggle-password' data-target='smtp_password' title='{{ 'Show password'|trans }}' aria-label='{{ 'Show password'|trans }}'><i class='fas fa-eye' aria-hidden='true'></i></button>
+            <button type='button' class='btn btn-light input-border' data-action='toggle-password' title='{{ 'Show password'|trans }}' aria-label='{{ 'Show password'|trans }}'><i class='fas fa-eye' aria-hidden='true'></i></button>
           </div>
         </div>
       {% else %}
@@ -395,14 +410,16 @@
 
   {# TEST EMAIL #}
   <h3 class='mb-3 p-2 pl-3 section-title'>{{ 'Send a test email'|trans }}</h3>
-  <div class='pl-3'>
+  <form class='pl-3' aria-label='{{ 'Send a test email'|trans }}' id='testEmailForm'>
+    {{ App.Session.get('csrf')|csrf }}
+    <input type='hidden' name='action' value='test'>
     <div class='input-group'>
-      <input type='email' class='form-control col-md-12' value='{{ App.Users.userData.email|e('html_attr') }}' id='testemailEmail' aria-label='{{ 'Email address'|trans }}'>
+      <input type='email' name='email' class='form-control col-md-12' value='{{ App.Users.userData.email|e('html_attr') }}' aria-label='{{ 'Email address'|trans }}'>
       <div class='input-group-append'>
-        <button type='button' class='btn btn-primary' data-action='send-test-email'>{{ 'Send'|trans }}</button>
+        <button type='submit' class='btn btn-primary' data-action='send-test-email'>{{ 'Send'|trans }}</button>
       </div>
     </div>
-  </div>
+  </form>
 </div>
 
 {# TAB 6 SECURITY #}
@@ -420,6 +437,7 @@
         {% endfor %}
       </select>
     </div>
+    <p class='smallgray'>{{ 'Force certain accounts to enable multi-factor authentication.'|trans }}</p>
     <hr>
 
     <div class='d-flex justify-content-between'>
@@ -459,13 +477,13 @@
   <div id='bruteforceDiv' class='pl-3'>
     <div class='d-flex justify-content-between'>
       <span>{{ '%d users are currently prevented from logging in from unknown devices.'|trans|format(nologinUsersCount) }}</span>
-      <button type='submit' data-action='clear-nologinusers' {{- nologinUsersCount == 0 ? ' disabled' }} class='btn btn-primary'>{{ 'Clear'|trans }}</button>
+      <button type='submit' data-action='allowuntrusted' {{- nologinUsersCount == 0 ? ' disabled' }} class='btn btn-primary'>{{ 'Clear'|trans }}</button>
     </div>
     <hr>
 
     <div class='d-flex justify-content-between'>
       <span>{{ '%d devices are currently denied authentication.'|trans|format(lockoutDevicesCount) }}</span>
-      <button type='submit' data-action='clear-lockoutdevices' {{- lockoutDevicesCount == 0 ? ' disabled' }} class='btn btn-primary'>{{ 'Clear'|trans }}</button>
+      <button type='submit' data-action='clearlockedoutdevices' {{- lockoutDevicesCount == 0 ? ' disabled' }} class='btn btn-primary'>{{ 'Clear'|trans }}</button>
     </div>
     <hr>
   </div>
@@ -474,7 +492,7 @@
 {# TAB 7 POLICIES #}
 <div data-tabcontent='7' hidden>
 
-  {% macro policy(title, slug, configArr) %}
+  {% macro policy(title, slug, configArr, devMode) %}
     <h3 class='mb-3 p-2 pl-3 section-title'>{{ title|trans }}</h3>
     <div class='pl-3'>
       <div class='d-flex justify-content-between'>
@@ -485,7 +503,7 @@
       {% if not configArr[slug] %}
         {{ 'Note: the text below is a template and must be edited and saved.'|trans|msg('ok', false) }}
       {% endif %}
-      {% if configArr.debug -%}
+      {% if devMode -%}
         <!-- [html-validate-disable-block unique-landmark, element-permitted-content, no-deprecated-attr, prefer-native-element, no-unused-disable, require-sri: suppress errors from tinymce] -->
       {%- endif %}
       <textarea id='{{ slug }}Input' class='mceditable'>
@@ -498,10 +516,10 @@
     </div>
   {% endmacro %}
 
-  {{ _self.policy('Privacy policy', 'privacy_policy', App.Config.configArr) }}
-  {{ _self.policy('Terms of service', 'terms_of_service', App.Config.configArr) }}
-  {{ _self.policy('Accessibility statement', 'a11y_statement', App.Config.configArr) }}
-  {{ _self.policy('Legal notice', 'legal_notice', App.Config.configArr) }}
+  {{ _self.policy('Privacy policy', 'privacy_policy', App.Config.configArr, App.devMode) }}
+  {{ _self.policy('Terms of service', 'terms_of_service', App.Config.configArr, App.devMode) }}
+  {{ _self.policy('Accessibility statement', 'a11y_statement', App.Config.configArr, App.devMode) }}
+  {{ _self.policy('Legal notice', 'legal_notice', App.Config.configArr, App.devMode) }}
 
 </div>
 
@@ -516,6 +534,7 @@
       {{ 'Warning: %d files are missing a filesize value. Fix it with %sbin/console uploads:check%s command.'|format(uploadsStats.count_null_filesize, '<code>', '</code>')|msg('warning', false) }}
     {% endif %}
     {{ 'This instance has %d files uploaded using %s of disk space.'|trans|format(uploadsStats.count_all, uploadsStats.filesize_all|default(0)|formatBytes) }}
+    {{ '%d files are stored on local filesystem and %d files are stored on S3.'|trans|format(uploadsStats.count_storage_local, uploadsStats.count_storage_s3) }}
   </div>
 
   <h3 class='p-2 pl-3 section-title'>{{ 'Configuration'|trans }}</h3>
@@ -557,6 +576,8 @@
     <hr>
 
     {% include 'binary-setting.html' with {'label': 'Verify TLS certificate'|trans, 'slug': 's3_verify_cert'} %}
+    {% include 'binary-setting.html' with {'label': 'Use S3 Path-Style endpoint'|trans, 'slug': 's3_use_path_style_endpoint'} %}
+
   </div>
 </div>
 
@@ -606,6 +627,8 @@
     {% include 'binary-setting.html' with {'label': 'Enable local authentication'|trans, 'slug': 'local_auth_enabled', 'help': 'Toggle local authentication method (email + password). Warning: disabling this method might lock you out!'|trans} %}
     {% include 'binary-setting.html' with {'label': 'Enable local account creation'|trans, 'slug': 'local_register', 'help': 'Allow users to create accounts through the registration page. You probably want to disable this if you use an external authentication/provisioning method.'|trans} %}
     {% include 'binary-setting.html' with {'label': 'Show local login form'|trans, 'slug': 'local_login', 'help': 'This setting will hide the local authentication fields from the login page, but one can still display them by appending ?letmein to the login page URL.'|trans} %}
+    {% include 'binary-setting.html' with {'label': 'Only allow a Sysadmin to login when local login form is hidden'|trans, 'slug': 'local_login_hidden_only_sysadmin', 'help': 'Enable this setting to prevent non-sysadmin users to authenticate using local auth when the form is hidden.'|trans} %}
+    {% include 'binary-setting.html' with {'label': 'Only allow a Sysadmin to login with local login form'|trans, 'slug': 'local_login_only_sysadmin', 'help': 'Only a Sysadmin account can use the local login regardless if the local login form is hidden or not. Only activate it if you have another authentication method enabled for users.'|trans} %}
   </div>
 
   <h3 class='mb-3 p-2 pl-3 section-title'>{{ 'Password policy'|trans }}</h3>
@@ -1041,7 +1064,7 @@
 <div data-tabcontent='14' hidden>
   <h3 class='mb-3 p-2 pl-3 section-title'>{{ 'Audit Logs configuration'|trans }}</h3>
   <div class='pl-3 mb-5'>
-    {% include 'binary-setting.html' with {'label': 'Emit audit logs with PHP error log'|trans, 'slug': 'emit_audit_logs', 'help': 'Enable to include audit logs events as NOTICE error in PHP logs.'|trans} %}
+    {% include 'binary-setting.html' with {'label': 'Emit audit logs with PHP error log'|trans, 'slug': 'emit_audit_logs', 'help': 'Enable to include audit logs events as INFO event in PHP logs.'|trans} %}
   </div>
 
   <h3 class='mb-3 p-2 pl-3 section-title'>{{ 'Audit Logs'|trans }}</h3>
@@ -1049,57 +1072,46 @@
     <p id='auditLogsTableLabel'>{{ 'This table lists the most recent events recorded in the application and worth keeping a trace of.'|trans }}</p>
     {# Refresh button #}
     <div class='text-center'>
-      <button type='button' aria-label='{{ 'Refresh'|trans }}' class='btn btn-secondary btn-sm mb-2' data-reload-on-click='auditLogsTable'><i class='fas fa-rotate color-white mr-1'></i>{{ 'Refresh'|trans }}</button>
+      <button type='button' aria-label='{{ 'Refresh'|trans }}' class='btn btn-secondary btn-sm mb-2' data-action='reload-on-click' data-target='auditLogsTable'><i class='fas fa-rotate color-white mr-1'></i>{{ 'Refresh'|trans }}</button>
     </div>
     {# Logs are presented in a sortable table #}
     {% include 'filter-input-snippet.html' with {'target': 'auditLogsTable'} %}
-    <table class='table' aria-labelledby='auditLogsTableLabel' data-table-sort='true'>
-      <thead>
-        <tr>
-          <th scope='col'>{{ 'Category'|trans }}</th>
-          <th scope='col'>{{ 'Created at'|trans }}</th>
-          <th scope='col'>{{ 'Content'|trans }}</th>
-          <th scope='col'>{{ 'Actor'|trans }}</th>
-          <th scope='col'>{{ 'Target user'|trans }}</th>
-        </tr>
-      </thead>
-      <tbody id='auditLogsTable'>
-        {% for log in auditLogsArr %}
+    <div class='table-container'>
+      <table class='table' aria-labelledby='auditLogsTableLabel' data-table-sort='true'>
+        <thead>
           <tr>
-            <td>{{ log.category }}</td>
-            <td><span class='relative-moment' title='{{ log.created_at }}'></span></td>
-            <td>{{ log.body }}</td>
-            <td>
-              {%- if log.requester_userid != 0 -%}
-                <a class='p-1 rounded hl-hover-gray' href='?tab=3&amp;q=&amp;userid={{ log.requester_userid }}'>{{ log.requester_userid }}</a>
-              {%- else -%}
-                <span class='p-1'>&ndash;</span>
-              {%- endif -%}
-            </td>
-            <td>
-              {%- if log.target_userid != 0 -%}
-                <a class='p-1 rounded hl-hover-gray' href='?tab=3&amp;q=&amp;userid={{ log.target_userid }}'>{{ log.target_userid }}</a>
-              {%- else -%}
-                <span class='p-1'>&ndash;</span>
-              {%- endif -%}
-            </td>
+            <th scope='col'>{{ 'Category'|trans }}</th>
+            <th scope='col'>{{ 'Created at'|trans }}</th>
+            <th scope='col'>{{ 'Content'|trans }}</th>
+            <th scope='col'>{{ 'Actor'|trans }}</th>
+            <th scope='col'>{{ 'Target user'|trans }}</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-{# INVENTORY #}
-<div data-tabcontent='15' hidden>
-  <h3 class='mb-3 p-2 pl-3 section-title'>{{ 'Inventory'|trans }}</h3>
-  <div class='pl-3 mb-5'>
-    {% if storageUnitsArr %}
-      <div><a href='/api/v2/reports?format=csv&scope=stored_compounds' class='btn btn-primary'>{{ 'Get inventory report'|trans }}</a></div>
-      {% include 'storage-list.html' with {'storage_editable': true} %}
-    {% else %}
-      {{ 'No places have been defined yet. Head to the %sInventory page%s to add places.'|trans|format('<a href="/inventory.php">', '</a>')|raw }}
-    {% endif %}
+        </thead>
+        <tbody id='auditLogsTable'>
+          {% for log in auditLogsArr %}
+            <tr>
+              <td>{{ log.category }}</td>
+              <td><span class='relative-moment' title='{{ log.created_at }}'></span></td>
+              <td>{{ log.body }}</td>
+              <td>
+                {%- if log.requester_userid != 0 -%}
+                  <a class='p-1 rounded hl-hover-gray' href='?tab=3&amp;q=&amp;userid={{ log.requester_userid }}'>{{ log.requester_userid }}</a>
+                {%- else -%}
+                  <span class='p-1'>&ndash;</span>
+                {%- endif -%}
+              </td>
+              <td>
+                {%- if log.target_userid != 0 -%}
+                  <a class='p-1 rounded hl-hover-gray' href='?tab=3&amp;q=&amp;userid={{ log.target_userid }}'>{{ log.target_userid }}</a>
+                {%- else -%}
+                  <span class='p-1'>&ndash;</span>
+                {%- endif -%}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

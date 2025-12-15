@@ -14,7 +14,7 @@ namespace Elabftw\Import;
 
 use Elabftw\Elabftw\FsTools;
 use Elabftw\Enums\Storage;
-use Elabftw\Models\Users;
+use Elabftw\Models\Users\Users;
 use League\Flysystem\FilesystemOperator;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use ZipArchive;
@@ -50,7 +50,8 @@ abstract class AbstractZip extends AbstractImport
         parent::__construct($requester, $UploadedFile);
         // set up a temporary directory in the cache to extract the archive to
         $this->tmpDir = FsTools::getUniqueString();
-        $cacheStorage = Storage::CACHE->getStorage();
+        // do not use Storage::CACHE here, but the possibly bind-mounted exports folder instead
+        $cacheStorage = Storage::EXPORTS->getStorage();
         $this->tmpPath = $cacheStorage->getPath() . '/' . $this->tmpDir;
         $this->tmpFs = $cacheStorage->getFs();
 

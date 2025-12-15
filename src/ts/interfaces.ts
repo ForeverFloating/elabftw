@@ -45,8 +45,8 @@ interface CheckableItem {
 interface Selected {
   experiments_categories: number[];
   experiments_status: number[];
+  items_categories: number[];
   items_status: number[];
-  items_types: number[];
   items_tags: number[];
   experiments_tags: number[];
   users: number[];
@@ -81,6 +81,8 @@ enum Action {
   Add = 'add',
   Archive = 'archive',
   Bloxberg = 'bloxberg',
+  CancelRequestableAction = 'cancelrequestableaction',
+  CreateProcurementRequest = 'createprocurementrequest',
   Disable2fa = 'disable2fa',
   Duplicate = 'duplicate',
   Finish = 'finish',
@@ -93,11 +95,14 @@ enum Action {
   Pin = 'pin',
   RemoveExclusiveEditMode = 'removeexclusiveeditmode',
   Replace = 'replace',
+  Restore = 'restore',
   RequestAction = 'requestaction',
   Review = 'review',
   SendOnboardingEmails = 'sendonboardingemails',
+  SetNextCustomId = 'setnextcustomid',
   Sign = 'sign',
   Timestamp = 'timestamp',
+  Unarchive = 'unarchive',
   Unreference = 'unreference',
   UpdateMetadataField = 'updatemetadatafield',
   UpdatePassword = 'updatepassword',
@@ -137,6 +142,7 @@ enum EntityType {
   Item = 'items',
   ItemType = 'items_types',
   Template = 'experiments_templates',
+  Other = 'other',
 }
 
 enum Target {
@@ -164,6 +170,16 @@ enum Target {
   UserId = 'userid',
 }
 
+enum FileType {
+  Csv = 'csv',
+  Html = 'html',
+  Json = 'json',
+  Ods = 'ods',
+  Xls = 'xls',
+  Xlsb = 'xlsb',
+  Xlsx = 'xlsx',
+}
+
 interface Entity {
   type: EntityType;
   id: number;
@@ -173,13 +189,14 @@ export {
   Action,
   Categories,
   CheckableItem,
-  Selected,
   Entity,
   EntityType,
+  FileType,
   Method,
   Model,
   ProcurementState,
   ResponseMsg,
+  Selected,
   Target,
   Todoitem,
   UnfinishedEntities,

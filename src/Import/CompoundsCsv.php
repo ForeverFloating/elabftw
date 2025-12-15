@@ -14,8 +14,8 @@ namespace Elabftw\Import;
 
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Models\Compounds;
-use Elabftw\Models\Compounds2ItemsLinks;
-use Elabftw\Models\Containers2ItemsLinks;
+use Elabftw\Models\Links\Compounds2ItemsLinks;
+use Elabftw\Models\Links\Containers2ItemsLinks;
 use Elabftw\Models\Items;
 use Elabftw\Models\StorageUnits;
 use Elabftw\Params\DisplayParams;
@@ -28,6 +28,8 @@ use Override;
 use Symfony\Component\HttpFoundation\InputBag;
 
 use function sprintf;
+use function strcasecmp;
+use function trim;
 
 /**
  * Import a CSV into compounds
@@ -39,7 +41,7 @@ final class CompoundsCsv extends AbstractCsv
         protected Items $Items,
         protected UploadedFile $UploadedFile,
         protected Compounds $Compounds,
-        protected ?int $resourceCategory = null,
+        protected ?int $resourceTemplate = null,
         protected ?PubChemImporter $PubChemImporter = null,
         protected string $locationSplitter = '/',
         protected ?string $matchWith = null,
@@ -55,23 +57,44 @@ final class CompoundsCsv extends AbstractCsv
         $this->output->writeln(sprintf('[info] Found %d rows to import', $count));
 
         $loopIndex = 0;
+
+        // find out the correct case for CAS and keep it so if it's imported as custom field it has correct case
+        // but do this so we can match any case for pubchem import
+        $casKey = null;
+        foreach ($this->reader->getHeader() as $h) {
+            if (strcasecmp($h, 'cas') === 0) {
+                $casKey = $h;
+                break;
+            }
+        }
         foreach ($this->reader->getRecords() as $row) {
             // this might store the compound from pubchem
             $compound = false;
-            $id = -1;
+            $ids = array();
+            $cids = array();
             try {
                 if ($this->PubChemImporter !== null) {
                     $cid = isset($row['pubchemcid']) ? (int) $row['pubchemcid'] : null;
-                    if (empty($cid) && !empty($row['cas'])) {
-                        $cid = $this->PubChemImporter->getCidFromCas($row['cas']);
-                    }
                     if ($cid) {
+                        $cids[] = $cid;
+                    }
+
+                    // cas will likely return several compounds cid !
+                    if ($casKey !== null) {
+                        $casValue = trim($row[$casKey] ?? '');
+                        if ($casValue !== '' && empty($cid)) {
+                            $cids = $this->PubChemImporter->getCidFromCas($casValue);
+                        }
+                    }
+
+                    foreach ($cids as $cid) {
+                        $this->output->writeln(sprintf('[info] Importing compound with CID %d', $cid));
                         $compound = $this->PubChemImporter->fromPugView($cid);
-                        $id = $this->Compounds->createFromCompound($compound);
+                        $ids[] = $this->Compounds->createFromCompound($compound);
                     }
                 } else {
-                    $id = $this->Compounds->create(
-                        casNumber: $row['cas'] ?? null,
+                    $ids[] = $this->Compounds->create(
+                        casNumber: $casKey !== null && isset($row[$casKey]) ? trim($row[$casKey]) : null,
                         ecNumber: $row['ec_number'] ?? null,
                         inchi: $row['inchi'] ?? null,
                         inchiKey: $row['inchikey'] ?? null,
@@ -125,26 +148,36 @@ final class CompoundsCsv extends AbstractCsv
                 }
 
                 // optionally create Resource
-                if ($this->resourceCategory !== null) {
+                if ($this->resourceTemplate !== null) {
                     $title = $row['name'] ?? $row['iupacname'] ?? null;
                     if ($title === null && $compound) {
                         $title = $compound->name ?? $compound->iupacName;
                     }
-                    $resource = $this->Items->create(template: $this->resourceCategory, title: $title ?? 'Unnamed compound');
+                    $resource = $this->Items->createFromTemplate($this->resourceTemplate, title: $title ?? 'Unnamed compound');
                     $this->Items->setId($resource);
                     if (isset($row['comment'])) {
                         $this->Items->update(new EntityParams('body', $row['comment']));
                     }
                     $this->Items->update(new EntityParams('metadata', $this->collectMetadata($row)));
-                    $Compounds2ItemsLinks = new Compounds2ItemsLinks($this->Items, $id);
-                    $Compounds2ItemsLinks->create();
+                    foreach ($ids as $id) {
+                        $Compounds2ItemsLinks = new Compounds2ItemsLinks($this->Items, $id);
+                        $Compounds2ItemsLinks->create();
+                    }
                     // process localisation
                     if (isset($row['location']) && !empty($row['location']) && !empty($this->locationSplitter)) {
                         $locationSplit = explode($this->locationSplitter, $row['location']);
-                        $StorageUnits = new StorageUnits($this->requester);
+                        $StorageUnits = new StorageUnits($this->requester, requireEditRights: false);
                         $id = $StorageUnits->createImmutable($locationSplit);
                         $Containers2ItemsLinks = new Containers2ItemsLinks($this->Items, $id);
                         $Containers2ItemsLinks->createWithQuantity((float) ($row['quantity'] ?? 1.0), $row['unit'] ?? '•');
+                    }
+                    // process custom_id
+                    if (isset($row['custom_id']) && !empty($row['custom_id'])) {
+                        try {
+                            $this->Items->update(new EntityParams('custom_id', (int) $row['custom_id']));
+                        } catch (ImproperActionException $e) {
+                            $this->output->writeln(sprintf('[error] Custom id %s: %s', $row['custom_id'], $e->getMessage()));
+                        }
                     }
                 }
 
@@ -153,8 +186,10 @@ final class CompoundsCsv extends AbstractCsv
                     $resource = $this->findMatch($row[$this->matchWith]);
                     if (is_array($resource)) {
                         $this->Items->setId($resource['id']);
-                        $Compounds2ItemsLinks = new Compounds2ItemsLinks($this->Items, $id);
-                        $Compounds2ItemsLinks->create();
+                        foreach ($ids as $id) {
+                            $Compounds2ItemsLinks = new Compounds2ItemsLinks($this->Items, $id);
+                            $Compounds2ItemsLinks->create();
+                        }
                     }
                 }
             } catch (ImproperActionException | RequestException $e) {
@@ -188,6 +223,9 @@ final class CompoundsCsv extends AbstractCsv
     {
         // these are the columns that are added to the compound
         return array(
+            'quantity',
+            'unit',
+            'location',
             'cas',
             'ec_number',
             'inchi',
@@ -196,6 +234,7 @@ final class CompoundsCsv extends AbstractCsv
             'name',
             'title',
             'comment',
+            'custom_id',
             'chebi_id',
             'chembl_id',
             'dea_number',

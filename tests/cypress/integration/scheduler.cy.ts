@@ -1,7 +1,6 @@
 describe('Scheduler', () => {
   beforeEach(() => {
     cy.login();
-    cy.enableCodeCoverage(Cypress.currentTest.titlePath.join(' '));
   });
 
   it('Displays Scheduler page', () => {
@@ -10,10 +9,11 @@ describe('Scheduler', () => {
     cy.get('h1#pageTitle').should('have.text', 'Scheduler');
     cy.get('#loading-spinner').should('not.exist');
     cy.htmlvalidate();
+  });
 
+  it ('Display Scheduler with selected item', () => {
     // Scheduler with selected item
-    cy.visit('/scheduler.php?item=1');
-    cy.get('#schedulerResourceDisplay').should('exist');
+    cy.visit('/scheduler.php?items[]=1');
     cy.get('#loading-spinner').should('not.exist');
     cy.htmlvalidate();
   });

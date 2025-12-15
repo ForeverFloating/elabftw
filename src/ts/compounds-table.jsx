@@ -16,11 +16,10 @@ import '@ag-grid-community/styles/ag-grid.css';
 import '@ag-grid-community/styles/ag-theme-alpine.css';
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Api } from './Apiv2.class';
+import { ApiC } from './api';
 import { toggleEditCompound } from './misc';
-import i18next from 'i18next';
-
-const ApiC = new Api();
+import i18next from './i18n';
+import { notify } from './notify';
 
 if (document.getElementById('compounds-table')) {
   ModuleRegistry.registerModules([ClientSideRowModelModule]);
@@ -33,17 +32,22 @@ if (document.getElementById('compounds-table')) {
 
   const GridExample = () => {
       const [rowData, setRowData] = useState([]);
+      const [gridApi, setGridApi] = useState(null);
+      const onGridReady = (params) => {
+        setGridApi(params.api);
+      };
 
       const [columnDefs] = useState([
           { field: 'name', pinned: 'left' },
           { field: 'cas_number', headerName: 'CAS Number' },
           { field: 'iupac_name', headerName: 'IUPAC Name' },
-          { field: 'smiles', headerName: 'SMILES' },
-          { field: 'inchi', headerName: 'InChI' },
-          { field: 'inchi_key', headerName: 'InChI Key' },
+          { field: 'molecular_weight', headerName: 'Molecular weight (g/mol)' },
           { field: 'molecular_formula', headerName: 'Molecular formula' },
           { field: 'ec_number', headerName: 'EC Number' },
           { field: 'pubchem_cid', headerName: 'PubChem CID' },
+          { field: 'smiles', headerName: 'SMILES' },
+          { field: 'inchi', headerName: 'InChI' },
+          { field: 'inchi_key', headerName: 'InChI Key' },
           { field: 'userid_human', headerName: 'Owner' },
           { field: 'team_name', headerName: 'Team' },
           { field: 'modified_at', headerName: 'Modified at' },
@@ -114,7 +118,7 @@ if (document.getElementById('compounds-table')) {
         const compounds = await ApiC.getJson(`compounds?limit=999999${searchString}${deletedParam}`);
         setRowData(compounds);
       } catch (error) {
-        (new Notifications()).error(error);
+        notify.error(error);
       }
     };
 
@@ -154,8 +158,19 @@ if (document.getElementById('compounds-table')) {
         toggleEditCompound(json);
       });
     };
+    const onQuickFilterChange = (e) => {
+      gridApi.setGridOption('quickFilterText', e.target.value);
+    };
 
     return (
+      <>
+        <input
+          type="text"
+          aria-label={i18next.t('search')}
+          placeholder={i18next.t('search')}
+          onChange={onQuickFilterChange}
+          className={'form-control mb-2'}
+        />
       <div
         className={'ag-theme-alpine'}
         style={{ height: 650 }}
@@ -166,6 +181,7 @@ if (document.getElementById('compounds-table')) {
           defaultColDef={defaultColDef}
           rowSelection={rowSelection}
           onCellDoubleClicked={cellDoubleClicked}
+          onGridReady={onGridReady}
           onSelectionChanged={selectionChanged}
           pagination={true}
           paginationPageSize={15}
@@ -181,6 +197,7 @@ if (document.getElementById('compounds-table')) {
           </button>
         </div>
       </div>
+    </>
     );
   };
 

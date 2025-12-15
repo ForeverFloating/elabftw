@@ -12,13 +12,14 @@ declare(strict_types=1);
 
 namespace Elabftw\Make;
 
-use Elabftw\Elabftw\CreateUpload;
+use Elabftw\Elabftw\CreateUploadFromLocalFile;
 use Elabftw\Elabftw\FsTools;
 use Elabftw\Enums\ExportFormat;
+use Elabftw\Enums\Messages;
 use Elabftw\Enums\State;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Models\AbstractEntity;
-use Elabftw\Models\Users;
+use Elabftw\Models\Users\Users;
 use Elabftw\Services\HttpGetter;
 use RuntimeException;
 use ZipArchive;
@@ -62,13 +63,15 @@ final class MakeBloxberg extends AbstractMakeTimestamp
 
         // first request sends the hash to the certify endpoint
         $certifyResponse = json_decode($this->certify($dataHash), true);
+        if ($certifyResponse === null) {
+            throw new ImproperActionException(Messages::GenericError->toHuman());
+        }
         if (isset($certifyResponse['errors'])) {
             throw new ImproperActionException(implode(', ', $certifyResponse['errors']));
         }
         // now we send the previous response to another endpoint to get the pdf back in a zip archive
         // the binary response is a zip archive that contains the certificate in pdf format
-        // we send both api_key and api-key headers because on June 27th 2025 only api-key will work.
-        $zip = $this->getter->postJson(self::PROOF_URL, $certifyResponse, array('api_key' => $this->apiKey, 'api-key' => $this->apiKey));
+        $zip = $this->getter->postJson(self::PROOF_URL, $certifyResponse, array('api-key' => $this->apiKey));
 
         // add the data to the zipfile and get the path to where it is stored in cache
         $tmpFilePath = $this->addToZip($zip, $data);
@@ -76,7 +79,7 @@ final class MakeBloxberg extends AbstractMakeTimestamp
         $this->updateTimestamp(date('Y-m-d H:i:s'));
         // save the zip file as an upload
         return $this->entity->Uploads->create(
-            new CreateUpload(
+            new CreateUploadFromLocalFile(
                 $this->getFileName(),
                 $tmpFilePath,
                 sprintf(_('Timestamp archive by %s'), $this->entity->Users->userData['fullname']),
@@ -107,7 +110,7 @@ final class MakeBloxberg extends AbstractMakeTimestamp
             ), JSON_THROW_ON_ERROR, 4),
         );
 
-        return $this->getter->postJson(self::CERT_URL, $json, array('api_key' => $this->apiKey));
+        return $this->getter->postJson(self::CERT_URL, $json, array('api-key' => $this->apiKey));
     }
 
     /**

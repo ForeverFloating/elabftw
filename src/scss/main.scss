@@ -17,6 +17,7 @@ $theme-colors: (
   'danger': $dangerred,
   'neutral': $medium,
 );
+$dropdown-link-active-bg: $elabblue;
 /* make the non active link in navbar have slightly more contrast */
 $navbar-dark-color: $secondlevel;
 $text-muted: $medium;
@@ -29,12 +30,11 @@ $text-muted: $medium;
 @import 'jquery-ui/themes/base/menu';
 @import 'jquery-ui/themes/base/sortable';
 @import 'jquery-ui/themes/base/theme';
-
 @import '@fortawesome/fontawesome-free/scss/fontawesome';
 @import '@fortawesome/fontawesome-free/scss/solid';
 @import '@fortawesome/fontawesome-free/scss/brands';
 @import '@fortawesome/fontawesome-free/scss/regular';
-
+@import 'material-icons';
 @import 'animations';
 @import 'autocomplete';
 @import 'footer';
@@ -42,6 +42,7 @@ $text-muted: $medium;
 @import 'star-rating';
 @import 'jsoneditor';
 @import 'ove';
+@import 'spreadsheet-editor';
 @import 'search-syntax-highlighting';
 @import 'tom-select';
 @import 'tinymce-custom';
@@ -114,11 +115,13 @@ body {
 /* TinyMCE selector for body in preview excluded to prevent flashing */
 body::before,
 .mce-preview-body::before {
-  box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
-  content: '';
-  left: 0;
-  top: -10px;
-  width: 100%;
+  &:not(.no-shadow) {
+    box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+    content: '';
+    left: 0;
+    top: -10px;
+    width: 100%;
+  }
 }
 
 body::before {
@@ -213,6 +216,14 @@ select.form-control {
   z-index: 3;
 }
 
+/* textarea for metadata (extra fields) */
+/* default size same as other inputs to keep harmony */
+.form-textarea {
+  min-height: 2rem;
+  overflow: auto;
+  resize: vertical;
+}
+
 /* fix bootstrap setting it to nowrap, it results in long content making the whole thing super wide */
 .dropdown-item.wrap {
   white-space: normal;
@@ -236,7 +247,7 @@ blockquote {
 }
 
 blockquote::before {
-  color: #ccc;
+  color: $firstlevel;
   content: open-quote;
   font-size: 4em;
   line-height: 0.1em;
@@ -245,36 +256,28 @@ blockquote::before {
 }
 
 /* TITLES */
-h1 {
+h1,
+h2,
+h3,
+h4,
+h5 {
   color: $strongest;
-  font-size: 2.8rem;
   font-weight: normal;
   margin-top: 0;
 }
 
-h2 {
-  color: $strongest;
-  font-size: 2rem;
-  font-weight: normal;
-  margin-top: 0;
-}
+h1 { font-size: 2.8rem; }
+
+h2 { font-size: 2rem; }
 
 h3 {
-  color: $strongest;
   font-size: 1.55rem;
   margin: 0 auto;
 }
 
-h4 {
-  color: $strongest;
-  font-size: 1.2rem;
-  font-weight: normal;
-}
+h4 { font-size: 1.2rem; }
 
-h5 {
-  color: $strongest;
-  font-size: 1rem;
-}
+h5 { font-size: 1rem; }
 
 /* HEAD */
 
@@ -331,14 +334,32 @@ h5 {
 
 .alert-success {
   background-color: $lightblue;
-  border-color: #36b1c0;
-  color: #36b1c0;
+  border-color: $elabblue;
+  color: $elabblue;
+
+  .close {
+    color: $elabblue;
+  }
+}
+
+.alert-warning {
+  border-color: $darkgold;
+
+  .close {
+    color: $darkgold;
+  }
+
 }
 
 .alert-danger {
   background-color: $lightred;
-  border-color: #e6614c;
-  color: #e6614c;
+  border-color: $darkred;
+  color: $darkred;
+
+  .close {
+    color: $darkred;
+  }
+
 }
 
 .hover-danger:hover {
@@ -356,15 +377,6 @@ h5 {
   transition: color 0.8s ease;
 }
 
-
-.alert-danger .close {
-  color: #e6614c;
-}
-
-.alert-sucess .close {
-  color: #36b1c0;
-}
-
 button:disabled {
   cursor: not-allowed;
 }
@@ -379,7 +391,7 @@ button:disabled {
 .beta {
   background: $elabblue;
   border-radius: 5px;
-  color: #fff;
+  color: $white;
   display: inline-block;
   font-family: sans-serif;
   font-size: 10px;
@@ -394,6 +406,10 @@ button:disabled {
 }
 
 #body_view {
+  /* https://developer.mozilla.org/en-US/docs/Web/CSS/contain */
+  /* we cannot apply strict here */
+  contain: content;
+
   img {
     max-height: 100%;
     max-width: 100%;
@@ -412,6 +428,10 @@ button:disabled {
 }
 
 .table {
+  /* display borders correctly, keeps cells flush without extra spacing. See #5681  */
+  border-collapse: separate;
+  border-spacing: 0;
+
   thead {
     position: sticky;
     top: 0;
@@ -420,6 +440,10 @@ button:disabled {
     /* stylelint-disable-next-line selector-no-qualifying-type */
     &.with-top {
       border-top: 1px solid $firstlevel;
+    }
+
+    th {
+      border-bottom: $firstlevel 1px solid;
     }
   }
 
@@ -436,14 +460,13 @@ button:disabled {
     width: fit-content;
 
     img {
-      object-fit: contain;
-      max-width: 100%;
       height: auto;
+      max-width: 100%;
+      object-fit: contain;
     }
   }
 
   th {
-    border-top: 0;
     white-space: nowrap;
   }
 
@@ -466,42 +489,15 @@ tr {
   background-color: $white;
 }
 
-/* responsive tables, with a threshold width pretty high */
-@media screen and (max-width: 800px) {
-  .table {
-    /** hide the header completely */
-    thead {
-      display: none;
-    }
-
-    tr {
-      display: block;
-    }
-
-    td,
-    th {
-      border-bottom: 1px solid $firstlevel;
-      display: block;
-      font-size: 0.8em;
-      /** ensure an empty value won't mess the rows */
-      min-height: 50px;
-      text-align: right;
-
-      &::before {
-        content: attr(data-label);
-        float: left;
-        font-weight: bold;
-        text-transform: uppercase;
-      }
-
-      &:last-child {
-        border-bottom: 3px solid $secondlevel;
-      }
-    }
-  }
+/* the first row does not need a border-top */
+tr:first-child td {
+  border-top-width: 0;
 }
 
-
+/* enable responsive tables while preserving structure via horizontal scrolling (phone, tablets, etc.) */
+.table-container {
+  overflow-x: auto;
+}
 
 /* TABLE SHOW MODE */
 .item-table {
@@ -548,13 +544,10 @@ tr {
   }
 }
 
-/* required labels/input for extra fields */
-#metadataDiv,
-.new-field-form {
-  .required-label::after {
-    color: $dangerred;
-    content: ' *';
-  }
+/* required labels/input */
+.required-label::after {
+  color: $dangerred;
+  content: ' *';
 }
 
 .margin-1px {
@@ -589,12 +582,12 @@ tr {
 
 /* container for notifications in top left of screen */
 #overlay-container {
-  position: fixed;
-  top: 10px;
-  left: 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  left: 10px;
+  position: fixed;
+  top: 10px;
   z-index: 19850;
 }
 
@@ -609,17 +602,32 @@ tr {
   // see #2419
   // and over 15000 for open vector editor fullscreen mode
   z-index: 19850;
-  animation: slideInOut 3.5s ease-in-out forwards;
 }
 
 .overlay p {
-  color: #fff;
+  color: $white;
   font-weight: bold;
-  vertical-align: middle;
+  margin-bottom: 0;
 }
 
 .overlay-success {
+  animation: slideInOut 3.5s ease-in-out forwards;
   background-color: $elabblue;
+}
+
+.overlay-error,
+.overlay-warning {
+  animation: slideIn 3.5s ease-in forwards;
+
+  span > i {
+    color: $strongest;
+  }
+
+  &:hover {
+    span > i {
+      color: $darkred;
+    }
+  }
 }
 
 .overlay-error {
@@ -649,7 +657,7 @@ tr {
   z-index: 1337;
 
   p {
-    color: #fff;
+    color: $white;
     left: 50%;
     opacity: 1;
     position: absolute;
@@ -661,13 +669,13 @@ tr {
 
 /* ENTITIES */
 .entity {
-  min-width: 100%;
-  max-width: 100%;
   background-color: $white;
   border: 1px solid $firstlevel;
   border-left: 6px solid var(--left-color);
   border-radius: 5px;
   margin: 5px auto;
+  max-width: 100%;
+  min-width: 100%;
   opacity: var(--opacity);
   padding: 5px 10px 5px 5px;
 
@@ -737,6 +745,21 @@ tr {
   border: 1px dashed $firstlevel;
 }
 
+.entity-deleted-overlay {
+  align-items: center;
+  backdrop-filter: blur(1px);
+  background: rgba(0, 0, 0, 0.5);
+  color: $white;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  left: 0;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 19850;
+}
 
 .bgnd-gray {
   background-color: $firstlevel;
@@ -869,7 +892,7 @@ tr {
 
 .item-next {
   .item-next-step {
-    color: #000;
+    color: $strongest;
   }
 }
 
@@ -959,11 +982,23 @@ the form-control fails to do that so we do the border ourselves */
   @include breakable;
 }
 
+/* links in tables (view mode) often contain long-name files. See #6137 */
+#body_view a {
+  @include breakable;
+}
+
 /* TITLE */
 /* add several rules for the word-wrap, see https://stackoverflow.com/a/36555643 */
 .title {
   @include breakable;
   font-size: 160%;
+
+  /* titles inside item-table need to stay readable */
+  .item-table & {
+    font-size: 100%;
+    hyphens: none;
+    word-break: normal;
+  }
 
   a {
     color: $strongest;
@@ -1008,7 +1043,7 @@ the form-control fails to do that so we do the border ourselves */
 }
 
 .color-warning {
-  color: #856404 !important;
+  color: $gold !important;
 }
 
 .lh-150 {
@@ -1030,11 +1065,11 @@ the form-control fails to do that so we do the border ourselves */
 .catstat-btn {
   border: 0;
   border-radius: 0.25rem;
-  font-size: 72%;
+  font-size: 75%;
   font-weight: bold;
   line-height: normal;
-  text-transform: uppercase;
   padding: 0.25rem;
+  text-transform: uppercase;
 
   /* Only Category */
   &.category-btn {
@@ -1068,6 +1103,10 @@ the form-control fails to do that so we do the border ourselves */
 
 .small {
   font-size: 80%;
+}
+
+.text-big {
+  font-size: 120%;
 }
 
 /* ucp.php */
@@ -1108,13 +1147,36 @@ the form-control fails to do that so we do the border ourselves */
   }
 }
 
+/* make the details shrink-to-fit and establish a positioning context */
+.suggested-tags {
+  display: inline-block;
+  position: relative;
+}
+
+/* replace flex container with a responsive grid */
+.suggested-tags-menu {
+  background: #fff;
+  border-radius: 5px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  display: grid;
+  gap: 0.25rem;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  margin-top: 6px;
+  max-width: 40rem;
+  padding: 0.5rem;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 100;
+}
+
 .box {
   background-color: $white;
 }
 
 /* background for archived users */
 .bg-medium {
-  background-color: $secondlevel;
+  background-color: $secondlevel !important;
 }
 
 .border-secondlevel {
@@ -1232,26 +1294,34 @@ the form-control fails to do that so we do the border ourselves */
   z-index: 10;
 }
 
-/* eye overlay for uploaded file icons */
-.eye-overlay {
+/* icon overlay for uploaded file icons */
+.icon-overlay {
   display: block;
   position: relative;
 }
 
-.eye-overlay:hover::after {
+.icon-overlay:hover::after {
   background-color: $medium;
   color: $white;
-  content: '\f06e';
   display: block;
   font-family: 'Font Awesome 6 Free';
   font-size: 3em;
   font-weight: 900;
   left: 50%;
-  margin-left: -33px; // half width
   position: absolute;
   text-align: center;
   top: 37px;
+  transform: translateX(-50%);
   width: 66px;
+}
+
+// edit-overlay
+.icon-overlay.edit-overlay:hover::after {
+  content: '\f304';
+}
+// eye-overlay
+.icon-overlay.eye-overlay:hover::after {
+  content: '\f06e';
 }
 
 /* fix the canvas for 3Dmoljs uploaded files */
@@ -1362,16 +1432,11 @@ input[type='color'] {
   &::before {
     color: $dangerred;
     content: 'Admin';
-    left: 0;
     font-size: 75%;
+    left: 0;
     position: absolute;
     top: -16px;
   }
-}
-
-.custom-id-badge {
-  color: $medium;
-  padding: 0.25rem;
 }
 
 .increased-spacing {
@@ -1452,7 +1517,7 @@ input[type='color'] {
 
   /* make the up arrow white or we can't see it */
   svg {
-    color: #fff;
+    color: $white;
   }
 }
 
@@ -1600,11 +1665,11 @@ input:user-invalid {
 @keyframes pulse {
   0%,
   100% {
-    color: #ffa500; /* Bright orange */
+    color: $brightorange; /* Bright orange */
   }
 
   50% {
-    color: #ffe6b8; /* Less bright orange */
+    color: $lessbrightorange; /* Less bright orange */
   }
 }
 
@@ -1642,9 +1707,9 @@ input:user-invalid {
 }
 
 .ketcher-editor-container {
+  display: flex;
   /*flex-grow: 1; /* Make the editor grow to fill available space */
   flex: 0 1 620px;
-  display: flex;
   flex-direction: column;
 }
 
@@ -1667,9 +1732,97 @@ input:user-invalid {
 
 /* top right button */
 .initials {
-  font-weight: bold;
   color: $secondlevel;
   font-size: 1.5rem;
+  font-weight: bold;
+}
+
+/* opencloning iframe */
+#syc-root {
+  height: 87vh;
+  width: 100%;
+
+  iframe {
+    height: 100%;
+    width: 100%;
+  }
+}
+
+.round-spot {
+  border-radius: 50%;
+  display: inline-block;
+  height: 1em;
+  line-height: 1;
+  vertical-align: middle;
+  width: 1em;
+}
+
+.round-spot-ghost {
+  border: 1px dashed $medium;
+}
+
+.calendar-event-hover {
+  box-shadow: 5px 4px 4px $medium !important;
+}
+
+.calendar-event-disabled {
+  opacity: 0.5;
+}
+
+.flash:hover {
+  background-color: $elabblue;
+  transition: background-color 0.1s ease;
+}
+
+.color-input {
+  min-width: 116px;
+}
+
+.infotip {
+  display: inline-block;   // shrink-wrap to content
+  position: relative;
+
+  &-icon {
+    cursor: help;          // help cursor on hover
+  }
+
+  &-text {
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 0.25em;
+    color: $white;
+    left: 50%;
+    line-height: 1.3;
+    margin: 0;
+    max-width: 900px;
+    min-width: 400px;
+    opacity: 0;
+    padding: 0.5em;
+    pointer-events: none;  // doesn’t block mouse events
+    position: absolute;
+    text-align: start;
+    top: 100%;             // just below the icon
+    transform: translateX(-50%);
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    visibility: hidden;
+    z-index: 1985;
+  }
+
+  &:hover {
+    .infotip-text {
+      opacity: 1;
+      visibility: visible;
+    }
+  }
+}
+
+.vertically-limited {
+  max-height: 500px;
+  overflow: scroll;
+}
+
+// disable touch action for doodle canvas
+#doodleCanvas {
+  touch-action: none;
 }
 
 /* custom scss */
@@ -1685,8 +1838,8 @@ input:user-invalid {
   td,
   [scope='row'],
   [scope='rowgroup'] {
-    border-top: thin solid;
     border-bottom: thin solid;
+    border-top: thin solid;
   }
 
   [scope='col'],
@@ -1819,7 +1972,7 @@ input:user-invalid {
 }
 
 .mce-codemirror {
+  bottom: 0;
   position: absolute;
   top: 0;
-  bottom: 0;
 }

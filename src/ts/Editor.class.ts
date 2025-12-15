@@ -11,7 +11,7 @@ import { getTinymceBaseConfig } from './tinymce';
 import { marked } from 'marked';
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
 import { Entity, Target } from './interfaces';
-import {Api} from './Apiv2.class';
+import { ApiC } from './api';
 import { mathString } from './mathjs';
 declare const MathJax: MathJaxObject;
 
@@ -31,7 +31,7 @@ class Editor {
   switch(entity: Entity): Promise<Response> {
     const params = {};
     params[Target.ContentType] = this.type === 'tiny' ? 2 : 1;
-    return (new Api()).patch(`${entity.type}/${entity.id}`, params);
+    return ApiC.patch(`${entity.type}/${entity.id}`, params);
   }
 }
 

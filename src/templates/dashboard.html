@@ -10,14 +10,25 @@
 <div class='row'>
   <div class='col-md-4'>
     <div class='d-flex justify-content-between'>
-      <h4>{% trans %}Experiment{% plural 2 %}Experiments{% endtrans %}</h4>
-      {% include 'create-new.html' with {'entityPage': 'experiments'} %}
+      <h4><a href='experiments.php' class='color-medium'><i class='fas fa-flask mr-1'></i>{% trans %}Experiment{% plural 2 %}Experiments{% endtrans %}</a></h4>
+      <div>
+        {% include 'create-new.html' with {'entityPage': 'experiments'} %}
+      </div>
     </div>
+    <form class='mt-2' action='experiments.php' aria-label='{{ 'Quick search experiments'|trans }}'>
+      <label for='dashboard-search-experiments' class='sr-only'>{{ 'Search experiments'|trans }}</label>
+      <div class='input-group'>
+        <input id='dashboard-search-experiments' class='form-control' type='search' name='q' placeholder='{{ 'Search'|trans }}' aria-label='{{ 'Search'|trans }}' />
+        <div class='input-group-append'>
+          <button type='submit' class='btn btn-sm btn-primary' aria-label='{{ 'Search'|trans }}'><i class='fas fa-magnifying-glass color-white' aria-hidden='true'></i></button>
+        </div>
+      </div>
+    </form>
     <hr>
-    {% if experimentsCategoryArr %}
+    {% if App.experimentsCategoryArr %}
       <h5>{{ 'Browse by category'|trans }}</h5>
       <div class='d-flex my-2 flex-wrap lh-150'>
-        {% for category in experimentsCategoryArr -%}
+        {% for category in App.experimentsCategoryArr -%}
           <a href='experiments.php?mode=show&amp;cat={{ category.id }}' class='btn mr-2 catstat-btn category-btn mb-1' style='--bg: #{{ category.color }}'>{{ category.title }}</a>
         {%- endfor %}
       </div>
@@ -32,8 +43,11 @@
       </div>
       <hr>
     {% endif %}
-    <h5>{{ 'Last modified experiments'|trans }}</h5>
-    <div class='list-group mt-1'>
+    <div class='d-flex justify-content-between'>
+      <h5 class='mb-0 mt-1'>{{ 'Last modified experiments'|trans }}</h5>
+      {% include 'scope-button.html' with {'btnId': 'scopeExp', 'reload': 'lastModifiedExp,scopeExp', 'target': 'scope_experiments'} %}
+    </div>
+    <div class='list-group mt-1' id='lastModifiedExp'>
       {% for experiment in experimentsArr %}
         <a href='experiments.php?mode=view&amp;id={{ experiment.id }}' class='list-group-item hl-hover-gray breakable'>
           {%- if experiment.category_title -%}
@@ -46,13 +60,24 @@
   </div>
   <div class='col-md-4 mt-2 mt-md-0'>
     <div class='d-flex justify-content-between'>
-      <h4>{% trans %}Resource{% plural 2 %}Resources{% endtrans %}</h4>
-      {% include 'create-new.html' with {'entityPage': 'database'} %}
+      <h4><a href='database.php' class='color-medium'><i class='fas fa-cubes-stacked mr-1'></i>{% trans %}Resource{% plural 2 %}Resources{% endtrans %}</a></h4>
+      <div>
+        {% include 'create-new.html' with {'entityPage': 'database'} %}
+      </div>
     </div>
+    <form class='mt-2' action='database.php' aria-label='{{ 'Quick search resources'|trans }}'>
+      <label for='dashboard-search-resources' class='sr-only'>{{ 'Search resources'|trans }}</label>
+      <div class='input-group'>
+        <input id='dashboard-search-resources' class='form-control' type='search' name='q' placeholder='{{ 'Search'|trans }}' />
+        <div class='input-group-append'>
+          <button type='submit' class='btn btn-sm btn-primary' aria-label='{{ 'Search'|trans }}'><i class='fas fa-magnifying-glass color-white' aria-hidden='true'></i></button>
+        </div>
+      </div>
+    </form>
     <hr>
     <h5>{{ 'Browse by category'|trans }}</h5>
     <div class='d-flex my-2 flex-wrap lh-150'>
-      {% for category in itemsCategoryArr -%}
+      {% for category in App.itemsCategoryArr -%}
         <a href='database.php?mode=show&amp;cat={{ category.id }}' class='btn mr-2 catstat-btn category-btn lh-normal border-0 mb-1' style='--bg: #{{ category.color }}'>{{ category.title }}</a>
       {%- endfor %}
     </div>
@@ -66,8 +91,11 @@
       </div>
       <hr>
     {% endif %}
-    <h5>{{ 'Last modified resources'|trans }}</h5>
-    <div class='list-group mt-1'>
+    <div class='d-flex justify-content-between'>
+      <h5 class='mb-0 mt-1'>{{ 'Last modified resources'|trans }}</h5>
+      {% include 'scope-button.html' with {'btnId': 'scopeItems', 'reload': 'lastModifiedResources,scopeItems', 'target': 'scope_items'} %}
+    </div>
+    <div class='list-group mt-1' id='lastModifiedResources'>
       {% for item in itemsArr %}
         <a href='database.php?mode=view&amp;id={{ item.id }}' class='list-group-item hl-hover-gray breakable'>
           {% if item.category_title %}
@@ -80,12 +108,16 @@
   </div>
   <div class='col-md-4 mt-2 mt-md-0'>
     <div class='d-flex justify-content-between'>
-      <h4>{{ 'Scheduled bookings'|trans }}</h4>
-      <a href='scheduler.php' class='btn btn-secondary'>{{ 'Scheduler'|trans }}</a>
+      <h4><a href='scheduler.php' class='color-medium'><i class='far fa-calendar-alt mr-1'></i>{{ 'Scheduled bookings'|trans }}</a></h4>
+      <div>
+        {% include 'scope-button.html' with {'btnId': 'scopeEvent', 'reload': 'scheduledBookings,scopeEvent', 'target': 'scope_events'} %}
+        <a href='scheduler.php' class='btn btn-secondary'>{{ 'Scheduler'|trans }}</a>
+      </div>
     </div>
-    <div class='list-group mt-1'>
+    <hr>
+    <div class='list-group mt-1' id='scheduledBookings'>
       {% for booking in bookingsArr %}
-        <a href='scheduler.php?item={{ booking.items_id }}&amp;start={{ booking.start|url_encode }}' class='list-group-item hl-hover-gray'><span style='color: {{ booking.color }}'>{{ booking.title }}</span> <span title='{{ booking.start|date('Y-m-d H:i:s') }}' class='relative-moment text-nowrap smallgray'></span></a>
+        <a href='scheduler.php?items[]={{ booking.items_id }}&amp;start={{ booking.start|url_encode }}' class='list-group-item hl-hover-gray'><span style='color: {{ booking.color }}'>{{ booking.title }}</span> <span title='{{ booking.start|date('Y-m-d H:i:s') }}' class='relative-moment text-nowrap smallgray'></span></a>
       {% endfor %}
     </div>
   </div>

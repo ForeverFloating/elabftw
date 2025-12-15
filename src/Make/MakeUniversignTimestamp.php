@@ -12,14 +12,11 @@ declare(strict_types=1);
 
 namespace Elabftw\Make;
 
-use DateTime;
 use Defuse\Crypto\Crypto;
 use Defuse\Crypto\Key;
+use Elabftw\Elabftw\Env;
 use Elabftw\Exceptions\ImproperActionException;
-use Elabftw\Models\Config;
 use Override;
-
-use function sprintf;
 
 /**
  * RFC3161 timestamping with Universign service
@@ -48,7 +45,7 @@ class MakeUniversignTimestamp extends AbstractMakeTrustedTimestamp
         if (empty($config['ts_password'])) {
             throw new ImproperActionException('Universign timestamping requires a password!');
         }
-        $password = Crypto::decrypt($config['ts_password'], Key::loadFromAsciiSafeString(Config::fromEnv('SECRET_KEY')));
+        $password = Crypto::decrypt($config['ts_password'], Key::loadFromAsciiSafeString(Env::asString('SECRET_KEY')));
 
         return array(
             'ts_login' => $config['ts_login'],
@@ -60,20 +57,5 @@ class MakeUniversignTimestamp extends AbstractMakeTrustedTimestamp
             'ts_cert' => '',
             'ts_chain' => '',
         );
-    }
-
-    /**
-     * Convert the time found in the response file to the correct format for sql insertion
-     */
-    #[Override]
-    protected function formatResponseTime(string $timestamp): string
-    {
-        $date = DateTime::createFromFormat('M j H:i:s.u Y T', $timestamp);
-        if ($date instanceof DateTime) {
-            // Return formatted time as this is what we will store in the database.
-            // PHP will take care of correct timezone conversions (if configured correctly)
-            return date('Y-m-d H:i:s', $date->getTimestamp());
-        }
-        throw new ImproperActionException(sprintf('Could not format response time from timestamp: %s', $timestamp));
     }
 }

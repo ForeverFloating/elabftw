@@ -13,6 +13,7 @@ declare(strict_types=1);
 namespace Elabftw\Make;
 
 use Elabftw\Controllers\DownloadController;
+use Elabftw\Elabftw\App;
 use Elabftw\Elabftw\EntitySlugsSqlBuilder;
 use Elabftw\Elabftw\FsTools;
 use Elabftw\Elabftw\Invoker;
@@ -24,14 +25,12 @@ use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Interfaces\QueryParamsInterface;
 use Elabftw\Interfaces\StorageInterface;
 use Elabftw\Models\AbstractRest;
-use Elabftw\Models\Users;
+use Elabftw\Models\Users\Users;
 use Elabftw\Services\Filter;
 use Elabftw\Services\MpdfProvider;
 use Elabftw\Traits\SetIdTrait;
 use Exception;
 use League\Flysystem\Filesystem;
-use Monolog\Handler\ErrorLogHandler;
-use Monolog\Logger;
 use Override;
 use PDO;
 use RuntimeException;
@@ -261,7 +260,7 @@ final class Exports extends AbstractRest
                 fclose($fileStream);
                 break;
             case ExportFormat::Pdf:
-                $log = (new Logger('elabftw'))->pushHandler(new ErrorLogHandler());
+                $log = App::getDefaultLogger();
                 $mpdfProvider = new MpdfProvider(
                     $this->requester->userData['fullname'],
                     $this->requester->userData['pdf_format'],

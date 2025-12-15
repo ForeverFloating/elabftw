@@ -11,7 +11,9 @@ declare(strict_types=1);
 
 namespace Elabftw\Auth;
 
-use Elabftw\Elabftw\AuthResponse;
+use Elabftw\Enums\Action;
+use Elabftw\Models\Users\UltraAdmin;
+use Elabftw\Models\Users\Users;
 
 class TeamTest extends \PHPUnit\Framework\TestCase
 {
@@ -20,20 +22,25 @@ class TeamTest extends \PHPUnit\Framework\TestCase
         $AuthService = new Team(1, 1);
         $authResponse = $AuthService->tryAuth();
         $this->assertInstanceOf(AuthResponse::class, $authResponse);
-        $this->assertEquals(1, $authResponse->userid);
-        $this->assertFalse($authResponse->isAnonymous);
-        $this->assertEquals(1, $authResponse->selectedTeam);
+        $this->assertEquals(1, $authResponse->getAuthUserid());
+        $this->assertFalse($authResponse->isAnonymous());
+        $this->assertEquals(1, $authResponse->getSelectedTeam());
     }
 
     public function testTryAuthInvalidUser(): void
     {
-        $AuthService = new Team(8, 2);
+        $team = 2;
+        $Users = new Users();
+        $invalidUserId = $Users->createOne('auth-team-test@example.com', array($team));
+        $invalidUser = new Users($invalidUserId, $team, new UltraAdmin());
+        $invalidUser->patch(Action::Update, array('validated' => '0'));
+
+        $AuthService = new Team($invalidUserId, $team);
 
         $authResponse = $AuthService->tryAuth();
         $this->assertInstanceOf(AuthResponse::class, $authResponse);
-        $this->assertEquals(8, $authResponse->userid);
-        $this->assertFalse($authResponse->isValidated);
-        $this->assertFalse($authResponse->isAnonymous);
-        $this->assertEquals(2, $authResponse->selectedTeam);
+        $this->assertEquals($invalidUserId, $authResponse->getAuthUserid());
+        $this->assertFalse($authResponse->isAnonymous());
+        $this->assertEquals($team, $authResponse->getSelectedTeam());
     }
 }

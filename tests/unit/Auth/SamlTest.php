@@ -1,6 +1,5 @@
 <?php
 
-declare(strict_types=1);
 /**
  * @author Nicolas CARPi <nico-git@deltablot.email>
  * @copyright 2012 Nicolas CARPi
@@ -9,21 +8,26 @@ declare(strict_types=1);
  * @package elabftw
  */
 
+declare(strict_types=1);
+
 namespace Elabftw\Auth;
 
 use Elabftw\Auth\Saml as SamlAuth;
-use Elabftw\Elabftw\AuthResponse;
 use Elabftw\Elabftw\IdpsHelper;
 use Elabftw\Enums\Action;
 use Elabftw\Exceptions\ImproperActionException;
 use Elabftw\Exceptions\UnauthorizedException;
+use Elabftw\Interfaces\AuthResponseInterface;
 use Elabftw\Models\Config;
 use Elabftw\Models\Idps;
-use Elabftw\Models\Users;
+use Elabftw\Models\Users\Users;
+use Elabftw\Traits\TestsUtilsTrait;
 use OneLogin\Saml2\Auth as SamlAuthLib;
 
 class SamlTest extends \PHPUnit\Framework\TestCase
 {
+    use TestsUtilsTrait;
+
     private array $configArr;
 
     private SamlAuthLib $SamlAuthLib;
@@ -59,7 +63,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         ));
 
         $this->configArr = array(
-            'debug' => '0',
+            'saml_debug' => '0',
             'saml_sync_teams' => '0',
             'saml_team_default' => '2',
             'saml_user_default' => '0',
@@ -93,7 +97,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
     {
         $AuthService = new SamlAuth($this->SamlAuthLib, $this->configArr, $this->settings);
         $authResponse = $AuthService->tryAuth();
-        $this->assertInstanceOf(AuthResponse::class, $authResponse);
+        $this->assertInstanceOf(AuthResponseInterface::class, $authResponse);
     }
 
     public function testAssertIdpResponse(): void
@@ -101,10 +105,10 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         // happy path
         $AuthService = new SamlAuth($this->SamlAuthLib, $this->configArr, $this->settings);
         $authResponse = $AuthService->assertIdpResponse();
-        $this->assertInstanceOf(AuthResponse::class, $authResponse);
-        $this->assertEquals(1, $authResponse->userid);
-        $this->assertFalse($authResponse->isAnonymous);
-        $this->assertEquals(1, $authResponse->selectedTeam);
+        $this->assertInstanceOf(AuthResponseInterface::class, $authResponse);
+        $this->assertEquals(1, $authResponse->getAuthUserid());
+        $this->assertFalse($authResponse->isAnonymous());
+        $this->assertEquals(1, $authResponse->getSelectedTeam());
     }
 
     public function testgetSettings(): void
@@ -123,7 +127,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $configArr['saml_sync_teams'] = '1';
         $AuthService = new SamlAuth($this->SamlAuthLib, $configArr, $this->settings);
         $authResponse = $AuthService->assertIdpResponse();
-        $this->assertEquals(1, $authResponse->selectedTeam);
+        $this->assertEquals(1, $authResponse->getSelectedTeam());
     }
 
     public function testAssertIdpResponseFailedAuth(): void
@@ -149,7 +153,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         unset($samlUserdata['User.team']);
 
         $authResponse = $this->getAuthResponse($samlUserdata);
-        $this->assertEquals(1, $authResponse->selectedTeam);
+        $this->assertEquals(1, $authResponse->getSelectedTeam());
     }
 
     /**
@@ -164,7 +168,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $config['saml_team_default'] = '0';
         $authResponse = $this->getAuthResponse($samlUserdata, $config);
         // as user exists already, they'll be in team 1
-        $this->assertEquals(1, $authResponse->selectedTeam);
+        $this->assertEquals(1, $authResponse->getSelectedTeam());
     }
 
     /**
@@ -176,7 +180,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $samlUserdata['User.team'] = array('Alpha');
 
         $authResponse = $this->getAuthResponse($samlUserdata);
-        $this->assertEquals(1, $authResponse->selectedTeam);
+        $this->assertEquals(1, $authResponse->getSelectedTeam());
     }
 
     /**
@@ -189,7 +193,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $samlUserdata['User.email'] = 'is_in_alpha_and_bravo@example.com';
         $samlUserdata['User.firstname'] = 'Multiteam';
         $samlUserdata['User.lastname'] = 'User';
-        $samlUserdata['User.team'] = array('Alpha', 'wheel', 'Bravo', 'staff', 'researcher');
+        $samlUserdata['User.team'] = array('Alpha', 'wheel', 'Microscopy platform', 'staff', 'researcher');
         $config = $this->configArr;
         // disable creation of new teams
         $config['saml_team_create'] = '0';
@@ -197,10 +201,10 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $config['saml_user_default'] = '1';
 
         $authResponse = $this->getAuthResponse($samlUserdata, $config);
-        $this->assertTrue($authResponse->isInSeveralTeams);
-        $this->assertEquals(2, count($authResponse->selectableTeams));
-        $this->assertEquals('Alpha', $authResponse->selectableTeams[0]['name']);
-        $this->assertEquals('Bravo', $authResponse->selectableTeams[1]['name']);
+        $this->assertTrue($authResponse->isInSeveralTeams());
+        $this->assertCount(2, $authResponse->getSelectableTeams());
+        $this->assertEquals('Alpha', $authResponse->getSelectableTeams()[0]['name']);
+        $this->assertEquals('Microscopy platform', $authResponse->getSelectableTeams()[1]['name']);
     }
 
     /**
@@ -222,8 +226,8 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $config['saml_sync_teams'] = '1';
 
         $authResponse = $this->getAuthResponse($samlUserdata, $config);
-        $this->assertFalse($authResponse->isInSeveralTeams);
-        $this->assertEquals(1, $authResponse->selectedTeam);
+        $this->assertFalse($authResponse->isInSeveralTeams());
+        $this->assertEquals(1, $authResponse->getSelectedTeam());
     }
 
     /**
@@ -235,7 +239,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $samlUserdata['User.email'] = array('toto@yopmail.com');
 
         $authResponse = $this->getAuthResponse($samlUserdata);
-        $this->assertEquals(1, $authResponse->selectedTeam);
+        $this->assertEquals(1, $authResponse->getSelectedTeam());
     }
 
     /**
@@ -247,7 +251,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $samlUserdata['internal_id'] = array('internal_id_1');
 
         $authResponse = $this->getAuthResponse($samlUserdata);
-        $this->assertEquals(1, $authResponse->selectedTeam);
+        $this->assertEquals(1, $authResponse->getSelectedTeam());
     }
 
     /**
@@ -275,7 +279,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $config['saml_fallback_orgid'] = '1';
 
         $authResponse = $this->getAuthResponse($samlUserdata, $config);
-        $this->assertEquals(1, $authResponse->userid);
+        $this->assertSame(1, $authResponse->getAuthUserid());
     }
 
     /**
@@ -284,10 +288,11 @@ class SamlTest extends \PHPUnit\Framework\TestCase
     public function testMatchUserWithOrgidAndChangeEmail(): void
     {
         $samlUserdata = $this->samlUserdata;
+        $email = 'somesamluser42@example.com';
         // this will match the user with original email "somesamluser@example.com"
         $samlUserdata['internal_id'] = 'internal_id_42';
         // we assign a new email to that user from the idp response
-        $samlUserdata['User.email'] = 'somesamluser42@example.com';
+        $samlUserdata['User.email'] = $email;
         // make sure the orgid is picked up
         $this->settings['idp']['orgidAttr'] = 'internal_id';
         $config = $this->configArr;
@@ -296,7 +301,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $config['saml_sync_email_idp'] = '1';
 
         $authResponse = $this->getAuthResponse($samlUserdata, $config);
-        $this->assertEquals(7, $authResponse->userid);
+        $this->assertEquals($this->getUserIdFromEmail($email), $authResponse->getAuthUserid());
     }
 
     /**
@@ -328,7 +333,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $config['saml_user_default'] = '1';
 
         $authResponse = $this->getAuthResponse($samlUserdata, $config, $settings);
-        $this->assertIsInt($authResponse->userid);
+        $this->assertIsInt($authResponse->getAuthUserid());
     }
 
     /**
@@ -377,7 +382,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $config['saml_fallback_orgid'] = '1';
 
         $authResponse = $this->getAuthResponse($samlUserdata, $config, $settings);
-        $this->assertEmpty($authResponse->selectableTeams);
+        $this->assertEmpty($authResponse->getSelectableTeams());
     }
 
     /**
@@ -387,14 +392,14 @@ class SamlTest extends \PHPUnit\Framework\TestCase
     {
         $samlUserdata = $this->samlUserdata;
         $samlUserdata['User.email'] = 'a_new_never_seen_before_user_for_real@example.com';
-        $samlUserdata['User.team'] = array('Bravo');
+        $samlUserdata['User.team'] = array('Microscopy platform');
 
         // create the user on the fly
         $config = $this->configArr;
         $config['saml_user_default'] = '1';
 
         $authResponse = $this->getAuthResponse($samlUserdata, $config);
-        $this->assertEquals(2, $authResponse->selectedTeam);
+        $this->assertEquals(6, $authResponse->getSelectedTeam());
     }
 
     public function testCreateUserWithTeamsFromIdpButConfigIsEmpty(): void
@@ -432,7 +437,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $config['saml_sync_teams'] = '1';
 
         $response = $this->getAuthResponse($samlUserdata, $config, $settings);
-        $this->assertEquals(2, count($response->selectableTeams));
+        $this->assertEquals(2, count($response->getSelectableTeams()));
     }
 
     public function testCreateUserWithTeamsFromIdpButIdpValueIsEmpty(): void
@@ -466,7 +471,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $config['saml_user_default'] = '1';
 
         $authResponse = $this->getAuthResponse($samlUserdata, $config);
-        $this->assertEquals(2, count($authResponse->selectableTeams));
+        $this->assertEquals(2, count($authResponse->getSelectableTeams()));
     }
 
     /**
@@ -489,7 +494,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
         $this->SamlAuthLib = $this->createMock(SamlAuthLib::class);
         $this->SamlAuthLib->method('getErrors')->willReturn(array('Error' => 'Something went wrong!'));
         $configArr = $this->configArr;
-        $configArr['debug'] = '1';
+        $configArr['saml_debug'] = '1';
         $AuthService = new SamlAuth($this->SamlAuthLib, $configArr, $this->settings);
         $this->expectException(UnauthorizedException::class);
         $AuthService->assertIdpResponse();
@@ -536,7 +541,7 @@ class SamlTest extends \PHPUnit\Framework\TestCase
     /**
      * Helper function to avoid code repetition
      */
-    private function getAuthResponse(?array $samlUserdata = null, ?array $config = null, ?array $settings = null): AuthResponse
+    private function getAuthResponse(?array $samlUserdata = null, ?array $config = null, ?array $settings = null): AuthResponseInterface
     {
         $samlUserdata ??= $this->samlUserdata;
         $config ??= $this->configArr;

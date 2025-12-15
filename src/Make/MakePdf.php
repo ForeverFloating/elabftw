@@ -13,20 +13,21 @@ declare(strict_types=1);
 namespace Elabftw\Make;
 
 use DateTimeImmutable;
+use Elabftw\Elabftw\Env;
 use Elabftw\Elabftw\FsTools;
 use Elabftw\Elabftw\Tools;
+use Elabftw\Enums\BodyContentType;
 use Elabftw\Enums\Classification;
 use Elabftw\Enums\EntityType;
 use Elabftw\Enums\Storage;
 use Elabftw\Interfaces\MpdfProviderInterface;
 use Elabftw\Models\AbstractEntity;
 use Elabftw\Models\Changelog;
-use Elabftw\Models\Config;
 use Elabftw\Models\Notifications\MathjaxFailed;
 use Elabftw\Models\Notifications\MathJsFailed;
 use Elabftw\Models\Notifications\PdfAppendmentFailed;
 use Elabftw\Models\Notifications\PdfGenericError;
-use Elabftw\Models\Users;
+use Elabftw\Models\Users\Users;
 use Elabftw\Services\EvalMathJs;
 use Elabftw\Services\Filter;
 use Elabftw\Services\Tex2Svg;
@@ -133,8 +134,10 @@ class MakePdf extends AbstractMakePdf
         return $this->Entity->entityData['title'] ?? 'eLabFTW PDF';
     }
 
+    /** @psalm-suppress InvalidReturnType */
     protected function getKeywords(): string
     {
+        /** @psalm-suppress InvalidReturnStatement */
         return str_replace('|', ' ', $this->Entity->entityData['tags'] ?? '');
     }
 
@@ -237,11 +240,11 @@ class MakePdf extends AbstractMakePdf
         $Changelog = new Changelog($this->Entity);
 
         $baseUrls = array();
+        $siteUrl = Env::asUrl('SITE_URL');
         foreach (array(EntityType::Items, EntityType::Experiments) as $entityType) {
-            $baseUrls[$entityType->value] = sprintf('%s/%s', Config::fromEnv('SITE_URL'), $entityType->toPage());
+            $baseUrls[$entityType->value] = sprintf('%s/%s', $siteUrl, $entityType->toPage());
         }
 
-        $siteUrl = Config::fromEnv('SITE_URL');
         $renderArr = array(
             'body' => $this->getBody(),
             'changes' => $Changelog->readAllWithAbsoluteUrls(),
@@ -267,8 +270,7 @@ class MakePdf extends AbstractMakePdf
             'useCjk' => $this->requester->userData['cjk_fonts'],
         );
 
-        $Config = Config::getConfig();
-        return $this->getTwig((bool) $Config->configArr['debug'])->render('pdf.html', $renderArr);
+        return $this->getTwig(Env::asBool('DEV_MODE'))->render('pdf.html', $renderArr);
     }
 
     /**
@@ -277,7 +279,7 @@ class MakePdf extends AbstractMakePdf
     private function getBody(): string
     {
         $body = $this->Entity->entityData['body'] ?? '';
-        if ($this->Entity->entityData['content_type'] === AbstractEntity::CONTENT_MD) {
+        if ($this->Entity->entityData['content_type'] === BodyContentType::Markdown->value) {
             // md2html can result in invalid html, see https://github.com/elabftw/elabftw/issues/3076
             // the Filter::body (HTMLPurifier) rescues the invalid parts and thus avoids some MathJax errors
             // the consequence is a slightly different layout
@@ -318,6 +320,8 @@ class MakePdf extends AbstractMakePdf
             $body = str_replace($src, "var:$longname", $body);
         }
 
+        /** @psalm-suppress PossiblyInvalidArgument */
+        /** @psalm-suppress PossiblyInvalidCast */
         return $this->fixLocalLinks($body);
     }
 
@@ -330,8 +334,9 @@ class MakePdf extends AbstractMakePdf
         $matches = array();
         preg_match_all('/href="(experiments|database).php/', $body, $matches);
         $i = 0;
+        $siteUrl = Env::asUrl('SITE_URL');
         foreach ($matches[0] as $match) {
-            $body = str_replace($match, 'href="' . Config::fromEnv('SITE_URL') . '/' . $matches[1][$i] . '.php', $body);
+            $body = str_replace($match, 'href="' . $siteUrl . '/' . $matches[1][$i] . '.php', $body);
             $i += 1;
         }
         return $body;

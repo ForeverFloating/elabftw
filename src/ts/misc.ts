@@ -6,23 +6,24 @@
  * @package elabftw
  */
 import 'jquery-ui/ui/widgets/sortable';
-import { Action, CheckableItem, EntityType, Entity, Model, Target } from './interfaces';
+import { Action, CheckableItem, EntityType, Entity, Model, Target, FileType } from './interfaces';
 import { DateTime } from 'luxon';
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
 import tinymce from 'tinymce/tinymce';
-import { Notification } from './Notifications.class';
+import { notify } from './notify';
 import TableSorting from './TableSorting.class';
 declare const MathJax: MathJaxObject;
 import $ from 'jquery';
-import i18next from 'i18next';
-import { Api } from './Apiv2.class';
+import i18next from './i18n';
+import { ApiC } from './api';
 import { getEditor } from './Editor.class';
-import TomSelect from 'tom-select/dist/esm/tom-select';
-import TomSelectCheckboxOptions from 'tom-select/dist/esm/plugins/checkbox_options/plugin';
-import TomSelectClearButton from 'tom-select/dist/esm/plugins/clear_button/plugin';
-import TomSelectDropdownInput from 'tom-select/dist/esm/plugins/dropdown_input/plugin';
-import TomSelectNoActiveItems from 'tom-select/dist/esm/plugins/no_active_items/plugin';
-import TomSelectRemoveButton from 'tom-select/dist/esm/plugins/remove_button/plugin';
+import TomSelect from 'tom-select/base';
+import TomSelectCheckboxOptions from 'tom-select/dist/esm/plugins/checkbox_options/plugin.js';
+import TomSelectClearButton from 'tom-select/dist/esm/plugins/clear_button/plugin.js';
+import TomSelectDropdownInput from 'tom-select/dist/esm/plugins/dropdown_input/plugin.js';
+import TomSelectNoActiveItems from 'tom-select/dist/esm/plugins/no_active_items/plugin.js';
+import TomSelectRemoveButton from 'tom-select/dist/esm/plugins/remove_button/plugin.js';
+import TomSelectNoBackspaceDelete from 'tom-select/dist/esm/plugins/no_backspace_delete/plugin.js';
 
 // get html of current page reloaded via get
 function fetchCurrentPage(tag = ''): Promise<Document>{
@@ -31,7 +32,12 @@ function fetchCurrentPage(tag = ''): Promise<Document>{
     url.searchParams.delete('tags[]');
     url.searchParams.set('tags[]', tag);
   }
-  return fetch(url.toString()).then(response => {
+  const prevHref = window.location.href;
+  const nextHref = url.toString();
+  if (nextHref !== prevHref) {
+    history.replaceState(history.state, '', nextHref);
+  }
+  return fetch(nextHref).then(response => {
     return response.text();
   }).then(data => {
     const parser = new DOMParser();
@@ -56,21 +62,22 @@ export function relativeMoment(): void {
 // Add a listener for all elements triggered by an event
 // and POST an update request
 // select will be on change, text inputs on blur
-function triggerHandler(event: Event, el: HTMLInputElement): void {
-  const ApiC = new Api();
+async function triggerHandler(event: Event, el: HTMLInputElement): Promise<void> {
   event.preventDefault();
   el.classList.remove('is-invalid');
+  const isCheckbox = el.type === 'checkbox';
+  // save the real boolean state so we can revert correctly on error
+  // use the inverse of the checked state because it's already changed!
+  const originalChecked = isCheckbox ? !el.checked : undefined;
   // for a checkbox element, look at the checked attribute, not the value
-  let value = el.type === 'checkbox' ? el.checked ? '1' : '0' : el.value;
+  let value: string | number = isCheckbox ? (el.checked ? '1' : '0') : el.value;
 
-  // CUSTOM ACTIONS
-  if (el.dataset.customAction === 'patch-user2team-is-owner') {
-    ApiC.patch(`${Model.User}/${el.dataset.userid}`, {action: Action.PatchUser2Team, userid: el.dataset.userid, team: el.dataset.team, target: 'is_owner', content: value});
-    return;
-  }
-  if (el.dataset.customAction === 'patch-user2team-is-admin') {
-    const group = value === '1' ? 2 : 4;
-    ApiC.patch(`${Model.User}/${el.dataset.userid}`, {action: Action.PatchUser2Team, team: el.dataset.team, target: 'group', content: group, userid: el.dataset.userid}).then(() => reloadElements(['editUsersBox']));
+  const userid = document.getElementById('editUserModal')?.dataset.userid ?? el.dataset.userid;
+
+  // CUSTOM ACTIONS not doing API calls
+  // Idea: maybe have a data-dispatch with the custom event name in data-target
+  if (el.dataset.customAction === 'show-all-users') {
+    document.dispatchEvent(new CustomEvent('dataReload'));
     return;
   }
   // END CUSTOM ACTIONS
@@ -81,27 +88,61 @@ function triggerHandler(event: Event, el: HTMLInputElement): void {
   if (el.dataset.value) {
     value = el.dataset.value;
   }
-  const params = {};
-  params[el.dataset.target] = value;
-  ApiC.patch(`${el.dataset.model}`, params).then(() => {
-    // data-reload can be "page" to reload the page, "reloadEntitiesShow" to reload properly entities in show mode,
-    // or a comma separated list of ids of elements to reload
-    if (el.dataset.reload) {
-      if (el.dataset.reload === 'page') {
-        location.reload();
-      } else {
-        el.dataset.reload.split(',').forEach(toreload => {
-          if (toreload === 'reloadEntitiesShow') {
-            reloadEntitiesShow();
-          } else {
-            reloadElements([toreload]).then(() => relativeMoment());
-          }
-        });
-      }
+
+  // use a run function to be able to have a single error handler
+  const run = async () => {
+    if (el.dataset.customAction === 'patch-user2team-is') {
+      await ApiC.patch(`${Model.User}/${userid}`, {
+        action: Action.PatchUser2Team,
+        team: el.dataset.team,
+        target: el.dataset.target,
+        content: value,
+      });
+      // success side-effect for this path
+      document.dispatchEvent(new CustomEvent('dataReload'));
+      return;
     }
-  }).catch(error => {
-    if (el.dataset.target === Target.Customid && error.message === i18next.t('custom-id-in-use')) {
+
+    const params: Record<string, unknown> = {};
+    params[el.dataset.target as string] = value;
+
+    await ApiC.patch(`${el.dataset.model}`, params);
+
+    // success side-effect for the generic path
+    if (el.dataset.reload) {
+      handleReloads(el.dataset.reload);
+    }
+  };
+
+  try {
+    await run();
+  } catch (error) {
+    // if input is a checkbox we revert the change
+    if (isCheckbox && originalChecked !== undefined) {
+      el.checked = originalChecked;
+    }
+    if (el.dataset.target === Target.Customid && error?.message === i18next.t('custom-id-in-use')) {
       el.classList.add('is-invalid');
+    }
+  }
+}
+
+// data-reload can be "page" for full page, "reloadEntitiesShow" for entities in show mode,
+// or a comma separated list of ids of elements to reload
+export function handleReloads(reloadAttributes: string | undefined): void {
+  if (!reloadAttributes) return;
+
+  if (reloadAttributes === 'page') {
+    location.reload();
+    return;
+  }
+
+  const reloadTargets = reloadAttributes.split(',');
+  reloadTargets.forEach((toReload) => {
+    if (toReload === 'reloadEntitiesShow') {
+      reloadEntitiesShow();
+    } else {
+      reloadElements([toReload]).then(() => relativeMoment());
     }
   });
 }
@@ -124,31 +165,39 @@ export function listenTrigger(elementId: string = ''): void {
  * Loop over all the input and select elements of an element and collect their value
  * Returns an object with name => value
  * Add data-ignore='1' to elements that should not be considered
+ * Add data-allow-empty='1' to elements that can be empty (e.g. orgid)
  */
 export function collectForm(form: HTMLElement): object {
   const inputs = [];
   ['input', 'select', 'textarea'].forEach(inp => {
     form.querySelectorAll(inp).forEach((input: HTMLInputElement) => {
-      inputs.push(input);
+      if (input.type !== 'radio' || input.checked) {
+        inputs.push(input);
+      }
     });
   });
 
   let params = {};
   inputs.forEach(input => {
     const el = input;
+    el.classList.remove('border-danger');
     if (el.reportValidity() === false) {
+      console.error(el);
+      el.classList.add('border-danger');
+      el.focus();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       throw new Error('Invalid input found! Aborting.');
     }
     let value = el.value;
     if (el.type === 'checkbox') {
       value = el.checked ? 'on' : 'off';
     }
-    if (el.dataset.ignore !== '1' && el.disabled === false) {
-      params = Object.assign(params, {[input.name]: value});
+    if (el.dataset.ignore !== '1' && el.disabled === false && (value !== '' || el.dataset.allowEmpty === '1')) {
+      params = Object.assign(params, {[el.name]: value});
     }
   });
 
-  return removeEmpty(params);
+  return params;
 }
 
 export function clearForm(form: HTMLElement): void {
@@ -165,28 +214,31 @@ export function clearForm(form: HTMLElement): void {
 }
 
 // for view or edit mode, get type and id from the page to construct the entity object
-export function getEntity(): Entity {
-  if (!document.getElementById('info')) {
-    return;
-  }
-  // holds info about the page through data attributes
-  const about = document.getElementById('info').dataset;
+// enable usage with parent Window for iframe cases (e.g., with spreadsheet editor)
+export function getEntity(useParent: boolean = false): Entity {
   let entityType: EntityType;
-  if (about.type === 'experiments') {
+  let entityId: number | null = null;
+  // pick the right location (parent or self)
+  const loc = useParent ? window.parent.location : window.location;
+  switch (loc.pathname) {
+  case '/experiments.php':
     entityType = EntityType.Experiment;
-  }
-  if (about.type === 'items') {
+    break;
+  case '/database.php':
     entityType = EntityType.Item;
-  }
-  if (about.type === 'experiments_templates') {
+    break;
+  case '/templates.php':
     entityType = EntityType.Template;
-  }
-  if (about.type === 'items_types') {
+    break;
+  case '/resources-templates.php':
     entityType = EntityType.ItemType;
+    break;
+  default:
+    return {type: EntityType.Other, id: entityId};
   }
-  let entityId = null;
-  if (about.id) {
-    entityId = parseInt(about.id);
+  const params = new URLSearchParams(loc.search);
+  if (params.has('id')) {
+    entityId = parseInt(params.get('id')!, 10);
   }
   return {
     type: entityType,
@@ -223,7 +275,7 @@ export function makeSortableGreatAgain(): void {
         },
         body: JSON.stringify(params),
       }).then(resp => resp.json()).then(json => {
-        (new Notification()).response(json);
+        notify.response(json);
       });
     },
   });
@@ -281,6 +333,8 @@ export async function reloadElements(elementIds: string[]): Promise<void> {
     listenTrigger(elementId);
   });
   (new TableSorting()).init();
+  makeSortableGreatAgain();
+  relativeMoment();
 }
 
 /**
@@ -312,7 +366,6 @@ export function adjustHiddenState(): void {
 // AUTOCOMPLETE
 export function addAutocompleteToLinkInputs(): void {
   const cache = {};
-  const ApiC = new Api();
   [{
     selectElid: 'addLinkCatFilter',
     itemType: EntityType.Item,
@@ -348,7 +401,7 @@ export function addAutocompleteToLinkInputs(): void {
             response(res);
             return;
           }
-          ApiC.getJson(`${object.itemType}/?${object.filterFamily}=${filterEl.value}&q=${escapeExtendedQuery(request.term)}`).then(json => {
+          ApiC.getJson(`${object.itemType}/?${object.filterFamily}=${filterEl.value}&q=${escapeExtendedQuery(request.term)}&scope=3`).then(json => {
             cache[object.selectElid][term] = json;
             const res = [];
             json.forEach(entity => {
@@ -369,7 +422,6 @@ export function addAutocompleteToLinkInputs(): void {
 }
 
 export function addAutocompleteToTagInputs(): void {
-  const ApiC = new Api();
   $('[data-autocomplete="tags"]').autocomplete({
     source: function(request: Record<string, string>, response: (data) => void): void {
       ApiC.getJson(`${Model.Team}/current/${Model.Tag}?q=${request.term}`).then(json => {
@@ -384,7 +436,6 @@ export function addAutocompleteToTagInputs(): void {
 }
 
 export function addAutocompleteToCompoundsInputs(): void {
-  const ApiC = new Api();
   $('[data-autocomplete="compounds"]').autocomplete({
     source: function(request: Record<string, string>, response: (data) => void): void {
       ApiC.getJson(`${Model.Compounds}?q=${request.term}`).then(json => {
@@ -399,7 +450,6 @@ export function addAutocompleteToCompoundsInputs(): void {
 }
 
 export function addAutocompleteToExtraFieldsKeyInputs(): void {
-  const ApiC = new Api();
   $('[data-autocomplete="extraFieldsKeys"]').autocomplete({
     appendTo: '#autocompleteAnchorDiv_extra_fields_keys',
     source: function(request: Record<string, string>, response: (data) => void): void {
@@ -418,8 +468,10 @@ export function addAutocompleteToExtraFieldsKeyInputs(): void {
 export async function updateCatStat(target: string, entity: Entity, value: string): Promise<string> {
   const params = {};
   params[target] = value;
-  const newEntity = await (new Api()).patch(`${entity.type}/${entity.id}`, params).then(resp => resp.json());
-  return (target === 'category' ? newEntity.category_color : newEntity.status_color) ?? 'bdbdbd';
+  const newEntity = await ApiC.patch(`${entity.type}/${entity.id}`, params).then(resp => resp.json());
+  // return a string separated with | with the id first so we can use it in data-id of new element
+  let response = value + '|';
+  return response += (target === 'category' ? newEntity.category_color : newEntity.status_color) ?? 'bdbdbd';
 }
 
 // used in edit.ts to build search patterns from strings that contain special characters
@@ -434,13 +486,18 @@ export function normalizeFieldName(input: string): string {
   return input.replace(/['"]/g, '').trim().replace(/\s+/g, ' ');
 }
 
-function removeEmpty(params: object): object {
-  for (const [key, value] of Object.entries(params)) {
-    if (value === '') {
-      delete params[key];
-    }
+export function askFileName(extension: FileType): string | undefined {
+  const realName = prompt(i18next.t('request-filename'));
+  // user hits cancel: exit silently
+  if (realName === null) return;
+  if (realName.trim() === '') {
+    throw new Error(i18next.t('error-no-filename'));
   }
-  return params;
+  const ext = `.${extension.toLowerCase()}`;
+  if (realName.toLowerCase().endsWith(ext)) {
+    return realName;
+  }
+  return realName + ext;
 }
 
 export function permissionsToJson(base: number, extra: string[]): string {
@@ -532,7 +589,6 @@ export function escapeExtendedQuery(searchTerm: string): string {
 
 export function replaceWithTitle(): void {
   document.querySelectorAll('[data-replace-with-title="true"]').forEach((el: HTMLElement) => {
-    const ApiC = new Api();
     // mask error notifications
     ApiC.notifOnError = false;
     // view mode is innerText
@@ -581,7 +637,6 @@ export async function saveStringAsFile(filename: string, content: string|Promise
 export async function updateEntityBody(): Promise<void> {
   const editor = getEditor();
   const entity = getEntity();
-  const ApiC = new Api();
   return ApiC.patch(`${entity.type}/${entity.id}`, {body: editor.getContent()}).then(response => response.json()).then(json => {
     if (editor.type === 'tiny') {
       // set the editor as non dirty so we can navigate out without a warning to clear
@@ -610,6 +665,7 @@ TomSelect.define('clear_button', TomSelectClearButton);
 TomSelect.define('dropdown_input', TomSelectDropdownInput);
 TomSelect.define('no_active_items', TomSelectNoActiveItems);
 TomSelect.define('remove_button', TomSelectRemoveButton);
+TomSelect.define('no_backspace_delete', TomSelectNoBackspaceDelete);
 export { TomSelect };
 
 // toggle appearance of button
@@ -701,6 +757,7 @@ export function toggleEditCompound(json: object): void {
     input.checked = json[param] === 1;
   });
   document.getElementById('editCompoundModalSaveBtn').dataset.compoundId = json['id'];
+  (document.getElementById('compoundLink-pubchem') as HTMLLinkElement).href = `https://pubchem.ncbi.nlm.nih.gov/compound/${json['pubchem_cid']}`;
   $('#editCompoundModal').modal('toggle');
 }
 
@@ -719,4 +776,126 @@ export function mkSpin(el: HTMLElement): string {
 export function mkSpinStop(el: HTMLElement, oldHTML: string): void {
   el.innerHTML = oldHTML;
   el.removeAttribute('disabled');
+}
+export async function populateUserModal(user: Record<string, string|number>) {
+  const manageTeamsDiv = document.getElementById('manageTeamsDiv');
+  if (!manageTeamsDiv) {
+    return;
+  }
+  const requester = await ApiC.getJson('users/me');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const userTeams = user.teams as any;
+  // set a dataset.userid on the modal, that's where all js code will fetch current user, instead of having to set it on every elementel.dataset.
+  document.getElementById('editUserModal').dataset.userid = String(user.userid);
+  // manage teams block
+  // remove previous content
+  manageTeamsDiv.innerHTML = '';
+  userTeams.forEach(team => {
+    const teamBadge = document.createElement('div');
+    teamBadge.classList.add('user-badge', 'm-1');
+    teamBadge.innerText = team.name;
+    // REMOVE TEAM BUTTON
+    // prevent deleting association of the team we are currently logged in, allow it for other users
+    if (team.id !== requester.team || user.userid !== requester.userid) {
+      const removeTeamBtn = document.createElement('span');
+      removeTeamBtn.classList.add('hl-hover-gray', 'p-1', 'rounded', 'clickable', 'm-1');
+      removeTeamBtn.title = i18next.t('delete');
+      removeTeamBtn.dataset.action = 'destroy-user2team';
+      removeTeamBtn.dataset.teamid = team.id;
+      const removeTeamIcon = document.createElement('i');
+      removeTeamIcon.classList.add('fas', 'fa-xmark', 'color-blue');
+      removeTeamBtn.appendChild(removeTeamIcon);
+      teamBadge.appendChild(removeTeamBtn);
+    }
+
+    teamBadge.appendChild(generateIsSomethingElement('owner', team, Boolean(requester.is_sysadmin)));
+    teamBadge.appendChild(generateIsSomethingElement('admin', team));
+    teamBadge.appendChild(generateIsSomethingElement('archived', team));
+
+    manageTeamsDiv.appendChild(teamBadge);
+  });
+  listenTrigger(manageTeamsDiv.id);
+  // add team section
+  // we need to generate the teams that are addable for this user
+  const teams = await ApiC.getJson('teams');
+  const userTeamIds = new Set(userTeams.map(t => t.id));
+  const addTeamSelect = document.getElementById('addTeamSelect');
+  addTeamSelect.innerHTML = '';
+  const available = teams.filter((team: Record<string, string|number>) => !userTeamIds.has(team.id));
+  available
+    .forEach(({ id, name }) => {
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = name;
+      addTeamSelect.appendChild(opt);
+    });
+  // don't show it if empty
+  const addTeamDiv = document.getElementById('addTeamDiv');
+  addTeamDiv.hidden = available.length === 0;
+
+  // actions
+  const disable2faBtn = document.getElementById('disable2faBtn');
+  if (disable2faBtn) {
+    disable2faBtn.removeAttribute('disabled');
+    if (user.has_mfa_enabled === 0) {
+      disable2faBtn.setAttribute('disabled', 'disabled');
+    }
+  }
+  const validateUserBtn = document.getElementById('validateUserBtn');
+  validateUserBtn.removeAttribute('disabled');
+  if (user.validated !== 0) {
+    validateUserBtn.setAttribute('disabled', 'disabled');
+  }
+}
+
+// generate the slider element to toggle isAdmin and isOwner for a given user in a given team
+function generateIsSomethingElement(what: string, team: Record<string, string|number>, isSysadmin: boolean = false) {
+  const isSomething = document.createElement('div');
+  isSomething.classList.add('d-flex', 'justify-content-between');
+  const isSomethingLabel = document.createElement('label');
+  isSomethingLabel.htmlFor = `is${what}Team_${team.id}`;
+  isSomethingLabel.classList.add('col-form-label');
+  isSomethingLabel.innerText = i18next.t(`is-${what}`);
+  const isSomethingSwitch = document.createElement('label');
+  isSomethingSwitch.classList.add('switch', 'ucp-align');
+  isSomethingSwitch.id = `is${what}TeamSwitch_${team.id}`;
+  const isSomethingInput = document.createElement('input');
+  isSomethingInput.type = 'checkbox';
+  isSomethingInput.autocomplete = 'off';
+  // the is_owner checkbox is disabled if we are not sysadmin
+  if (what === 'owner' && !isSysadmin) {
+    isSomethingInput.disabled = true;
+    isSomethingSwitch.classList.add('disabled');
+    isSomethingSwitch.title = i18next.t('only-a-sysadmin');
+  }
+  isSomethingInput.dataset.trigger = 'change';
+  isSomethingInput.dataset.customAction = 'patch-user2team-is';
+  isSomethingInput.dataset.target= `is_${what}`;
+  isSomethingInput.dataset.team = String(team.id);
+  isSomethingInput.checked = team[`is_${what}`] === 1;
+  isSomethingInput.id = `is${what}Team_${team.id}`;
+  const slider = document.createElement('span');
+  slider.classList.add('slider');
+  isSomethingSwitch.appendChild(isSomethingInput);
+  isSomethingSwitch.appendChild(slider);
+  isSomething.appendChild(isSomethingLabel);
+  isSomething.appendChild(isSomethingSwitch);
+  return isSomething;
+}
+
+// from https://www.paulirish.com/2009/random-hex-color-code-snippets/
+export function getRandomColor(): string {
+  return `#${Math.floor(Math.random()*16777215).toString(16)}`;
+}
+
+export function ensureTogglableSectionIsOpen(iconId: string, divId: string): void {
+  // toggle the arrow icon
+  const iconEl = document.getElementById(iconId);
+  iconEl.classList.add('fa-caret-down');
+  iconEl.classList.remove('fa-caret-right');
+  const div = document.getElementById(divId);
+  // make sure it's not hidden
+  div.removeAttribute('hidden');
+  // and scroll page into editor view
+  div.scrollIntoView({ behavior: 'smooth' });
 }

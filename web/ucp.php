@@ -12,19 +12,17 @@ declare(strict_types=1);
 
 namespace Elabftw\Elabftw;
 
-use Elabftw\Auth\Local;
+use Elabftw\Enums\AuthType;
 use Elabftw\Enums\Classification;
 use Elabftw\Enums\PasswordComplexity;
-use Elabftw\Exceptions\DatabaseErrorException;
-use Elabftw\Exceptions\IllegalActionException;
-use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Exceptions\AppException;
 use Elabftw\Models\ApiKeys;
 use Elabftw\Models\ExperimentsCategories;
 use Elabftw\Models\ExperimentsStatus;
 use Elabftw\Models\ItemsTypes;
 use Elabftw\Models\TeamGroups;
-use Elabftw\Models\Teams;
 use Elabftw\Models\TeamTags;
+use Elabftw\Services\MfaHelper;
 use Exception;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -33,20 +31,18 @@ use Symfony\Component\HttpFoundation\Response;
  */
 require_once 'app/init.inc.php';
 
-/** @psalm-suppress UncaughtThrowInGlobalScope */
 $Response = new Response();
-$Response->prepare($App->Request);
-
 try {
+    $Response->prepare($App->Request);
+
     $ApiKeys = new ApiKeys($App->Users);
     $apiKeysArr = $ApiKeys->readAll();
 
-    $Teams = new Teams($App->Users);
     $TeamGroups = new TeamGroups($App->Users);
     $TeamTags = new TeamTags($App->Users);
 
-    $Category = new ExperimentsCategories($Teams);
-    $Status = new ExperimentsStatus($Teams);
+    $Category = new ExperimentsCategories($App->Teams);
+    $Status = new ExperimentsStatus($App->Teams);
     $entityData = array();
     $changelogData = array();
     $metadataGroups = array();
@@ -88,12 +84,17 @@ try {
             );
     }
 
-    $showMfa = !Local::isMfaEnforced(
-        $App->Users->userData['userid'],
-        (int) $App->Config->configArr['enforce_mfa'],
-    );
-
     $passwordComplexity = PasswordComplexity::from((int) $App->Config->configArr['password_complexity_requirement']);
+
+    // MFA
+    $mfaNewSecret = '';
+    $mfaQRCodeImageDataUri = '';
+    // if mfa is not set yet, we generate a secret, otherwise, there is no need to, and we don't want to, to avoid leak of existing valid secret
+    if ($App->Users->userData['mfa_secret'] === null) {
+        $MfaHelper = new MfaHelper();
+        $mfaNewSecret = $MfaHelper->secret;
+        $mfaQRCodeImageDataUri = $MfaHelper->getQRCodeImageAsDataUri($App->Users->userData['email']);
+    }
 
     $template = 'ucp.html';
     $renderArr = array(
@@ -103,8 +104,11 @@ try {
         'classificationArr' => Classification::getAssociativeArray(),
         'entityData' => $entityData,
         'itemsCategoryArr' => $itemsCategoryArr,
-        'teamsArr' => $Teams->readAll(),
+        'isLocalAuth' => $App->Users->userData['auth_service'] === AuthType::Local->asService(),
+        'teamsArr' => $App->Teams->readAllVisible(),
         'metadataGroups' => $metadataGroups,
+        'mfaQRCodeImageDataUri' => $mfaQRCodeImageDataUri,
+        'mfaNewSecret' => $mfaNewSecret,
         'scopedTeamgroupsArr' => $TeamGroups->readScopedTeamgroups(),
         'notificationsSettings' => $notificationsSettings,
         'pageTitle' => _('Settings'),
@@ -113,32 +117,13 @@ try {
         'statusArr' => $Status->readAll(),
         'teamTagsArr' => $TeamTags->readAll(),
         'visibilityArr' => $PermissionsHelper->getAssociativeArray(),
-        'showMFA' => $showMfa,
         'usersArr' => $App->Users->readAllActiveFromTeam(),
     );
-} catch (IllegalActionException $e) {
-    // log notice and show message
-    $App->Log->notice('', array(array('userid' => $App->Session->get('userid')), array('IllegalAction', $e)));
-    $template = 'error.html';
-    $renderArr = array('error' => $e->getMessage());
     $Response->setContent($App->render($template, $renderArr));
-} catch (ImproperActionException $e) {
-    // show message to user
-    $template = 'error.html';
-    $renderArr = array('error' => $e->getMessage());
-    $Response->setContent($App->render($template, $renderArr));
-} catch (DatabaseErrorException $e) {
-    // log error and show message
-    $App->Log->error('', array(array('userid' => $App->Session->get('userid')), array('Error', $e)));
-    $template = 'error.html';
-    $renderArr = array('error' => $e->getMessage());
-    $Response->setContent($App->render($template, $renderArr));
+} catch (AppException $e) {
+    $Response = $e->getResponseFromException($App);
 } catch (Exception $e) {
-    // log error and show general error message
-    $App->Log->error('', array(array('userid' => $App->Session->get('userid')), array('Exception' => $e)));
-    $template = 'error.html';
-    $renderArr = array('error' => Tools::error());
-    $Response->setContent($App->render($template, $renderArr));
+    $Response = $App->getResponseFromException($e);
+} finally {
+    $Response->send();
 }
-$Response->setContent($App->render($template, $renderArr));
-$Response->send();

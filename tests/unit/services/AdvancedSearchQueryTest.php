@@ -14,7 +14,7 @@ namespace Elabftw\Services;
 
 use Elabftw\Enums\Action;
 use Elabftw\Models\TeamGroups;
-use Elabftw\Models\Users;
+use Elabftw\Models\Users\Users;
 use Elabftw\Services\AdvancedSearchQuery\Visitors\VisitorParameters;
 
 use function implode;
@@ -49,7 +49,7 @@ class AdvancedSearchQueryTest extends \PHPUnit\Framework\TestCase
             ' TEST TEST1 AND TEST2 OR TEST3 NOT TEST4 & TEST5',
             '| TEST6 AND ! TEST7 (TEST8 or TEST9) "T E S T 1 0"',
             '\'T E S T 1 1\' "chinese 汉语 漢語 中文" "japanese 日本語 ひらがな 平仮名 カタカナ 片仮名"',
-            'attachment:0 author:"Toto Le sysadmin" body:"some text goes here"',
+            'author:"Toto Le sysadmin" body:"some text goes here"',
             'elabid:7bebdd3512dc6cbee0b1 locked:yes rating:5 rating:unrated',
             'status:"only meaningful with experiments but no error"',
             'timestamped:0 timestamped:true title:"very cool experiment" visibility:%owner',
@@ -59,7 +59,6 @@ class AdvancedSearchQueryTest extends \PHPUnit\Framework\TestCase
             'extrafield:s:key:value',
             'extrafield:s:"key with space":"value with space"',
             'extrafield:**:%',
-            'attachment:"hello world"',
             'timestamped_at:2022.12.01..2022-12-31',
             'timestamped_at:2022/12/09',
             'timestamped_at:!=2022,12,09',
@@ -148,11 +147,10 @@ class AdvancedSearchQueryTest extends \PHPUnit\Framework\TestCase
         ));
 
         $advancedSearchQuery = new AdvancedSearchQuery($query, new VisitorParameters(
-            'itmes',
+            'items',
             $this->groups,
         ));
         $advancedSearchQuery->getWhereClause();
-        $this->assertStringStartsWith('timestamped: is only allowed when searching in experiments.', $advancedSearchQuery->getException());
-        $this->assertStringContainsString('timestamped_at: is only allowed when searching in experiments.', $advancedSearchQuery->getException());
+        $this->assertEmpty($advancedSearchQuery->getException());
     }
 }
