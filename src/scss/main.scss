@@ -37,6 +37,7 @@ $text-muted: $medium;
 @import 'material-icons';
 @import 'animations';
 @import 'autocomplete';
+@import 'charts';
 @import 'footer';
 @import 'header';
 @import 'star-rating';
@@ -53,18 +54,14 @@ $text-muted: $medium;
   font-family: 'Lato';
   font-style: normal;
   font-weight: 400;
-  src:
-    url('fonts/lato-regular.woff2') format('woff2'),
-    url('fonts/lato-regular.ttf') format('truetype');
+  src: url('fonts/lato-regular.woff2') format('woff2');
 }
 @font-face {
   font-display: swap;
   font-family: 'Lato';
   font-style: italic;
   font-weight: 400;
-  src:
-    url('fonts/lato-italic.woff2') format('woff2'),
-    url('fonts/lato-italic.ttf') format('truetype');
+  src: url('fonts/lato-italic.woff2') format('woff2');
 }
 
 @font-face {
@@ -72,9 +69,7 @@ $text-muted: $medium;
   font-family: 'Lato';
   font-style: normal;
   font-weight: 700;
-  src:
-    url('fonts/lato-bold.woff2') format('woff2'),
-    url('fonts/lato-bold.ttf') format('truetype');
+  src: url('fonts/lato-bold.woff2') format('woff2');
 }
 
 @font-face {
@@ -82,9 +77,7 @@ $text-muted: $medium;
   font-family: 'Lato';
   font-style: italic;
   font-weight: 700;
-  src:
-    url('fonts/lato-bold-italic.woff2') format('woff2'),
-    url('fonts/lato-bold-italic.ttf') format('truetype');
+  src: url('fonts/lato-bold-italic.woff2') format('woff2');
 }
 
 @font-face {
@@ -92,9 +85,7 @@ $text-muted: $medium;
   font-family: 'Lato';
   font-style: normal;
   font-weight: 900;
-  src:
-    url('fonts/lato-black.woff2') format('woff2'),
-    url('fonts/lato-black.ttf') format('truetype');
+  src: url('fonts/lato-black.woff2') format('woff2');
 }
 
 @font-face {
@@ -102,9 +93,7 @@ $text-muted: $medium;
   font-family: 'Lato';
   font-style: italic;
   font-weight: 900;
-  src:
-    url('fonts/lato-black-italic.woff2') format('woff2'),
-    url('fonts/lato-black-italic.ttf') format('truetype');
+  src: url('fonts/lato-black-italic.woff2') format('woff2');
 }
 
 body {
@@ -150,6 +139,13 @@ body::before {
   /* reduce padding for small screen sizes */
   @media (max-width: 992px) {
     padding: 1%;
+  }
+}
+
+/* only on large viewports */
+@media (min-width: 1280px) {
+  .max-width-70 {
+    max-width: 1280px;
   }
 }
 
@@ -272,7 +268,6 @@ h2 { font-size: 2rem; }
 
 h3 {
   font-size: 1.55rem;
-  margin: 0 auto;
 }
 
 h4 { font-size: 1.2rem; }
@@ -519,6 +514,8 @@ tr:first-child td {
 
   .tags {
     max-width: 20ch;
+    overflow-wrap: normal;  // don't force per-character wrapping
+    word-break: keep-all;
   }
 
   .item-rating {
@@ -571,7 +568,7 @@ tr:first-child td {
 /* SHOW MODE */
 .rating-show {
   background-color: $lightgold;
-  font-size: 70%;
+  font-size: 75%;
 
   i {
     color: $gold;
@@ -679,16 +676,16 @@ tr:first-child td {
   opacity: var(--opacity);
   padding: 5px 10px 5px 5px;
 
+  &:hover {
+    background-color: $highlighted;
+  }
+
   img {
     max-width: 100%;
   }
 
   p {
     margin-bottom: 0;
-  }
-
-  .fa-square-plus {
-    color: $medium;
   }
 
   .fa-comments,
@@ -712,8 +709,6 @@ tr:first-child td {
   }
 
   .left-icon {
-    padding: 8px 10px;
-
     i:not(.fa-lock) {
       color: $white;
     }
@@ -1018,6 +1013,10 @@ the form-control fails to do that so we do the border ourselves */
   color: $disabled !important;
 }
 
+.color-thirdlevel {
+  color: $thirdlevel !important;
+}
+
 .color-medium {
   color: $medium;
 }
@@ -1070,6 +1069,7 @@ the form-control fails to do that so we do the border ourselves */
   line-height: normal;
   padding: 0.25rem;
   text-transform: uppercase;
+  white-space: normal;
 
   /* Only Category */
   &.category-btn {
@@ -1185,6 +1185,10 @@ the form-control fails to do that so we do the border ourselves */
 
 .bg-firstlevel {
   background-color: $firstlevel;
+}
+
+.bg-superlight {
+  background-color: $superlight;
 }
 
 /* print only the main div */
@@ -1790,7 +1794,7 @@ input:user-invalid {
     background: rgba(0, 0, 0, 0.9);
     border-radius: 0.25em;
     color: $white;
-    left: 50%;
+    left: 200px;
     line-height: 1.3;
     margin: 0;
     max-width: 900px;
@@ -1818,6 +1822,15 @@ input:user-invalid {
 .vertically-limited {
   max-height: 500px;
   overflow: scroll;
+}
+
+#metadataDiv {
+  textarea,
+  input {
+    &:required:invalid {
+      background-color: $mediumyellow;
+    }
+  }
 }
 
 // disable touch action for doodle canvas

@@ -26,6 +26,7 @@ use Elabftw\Elabftw\TimestampResponse;
 use Elabftw\Elabftw\Tools;
 use Elabftw\Enums\AccessType;
 use Elabftw\Enums\Action;
+use Elabftw\Enums\BinaryValue;
 use Elabftw\Enums\BodyContentType;
 use Elabftw\Enums\EntityType;
 use Elabftw\Enums\ExportFormat;
@@ -34,6 +35,7 @@ use Elabftw\Enums\Messages;
 use Elabftw\Enums\Metadata as MetadataEnum;
 use Elabftw\Enums\RequestableAction;
 use Elabftw\Enums\State;
+use Elabftw\Exceptions\AppException;
 use Elabftw\Exceptions\DatabaseErrorException;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
@@ -69,6 +71,7 @@ use Elabftw\Services\Email;
 use Elabftw\Services\Filter;
 use Elabftw\Services\HttpGetter;
 use Elabftw\Services\SignatureHelper;
+use Elabftw\Services\TeamsHelper;
 use Elabftw\Services\TimestampUtils;
 use Elabftw\Traits\EntityTrait;
 use GuzzleHttp\Client;
@@ -168,6 +171,7 @@ abstract class AbstractEntity extends AbstractRest
         ?int $status = null,
         ?int $customId = null,
         ?string $metadata = null,
+        BinaryValue $hideMainText = BinaryValue::False,
         int $rating = 0,
         BodyContentType $contentType = BodyContentType::Html,
     ): int;
@@ -188,6 +192,7 @@ abstract class AbstractEntity extends AbstractRest
             category: $template['category'],
             status: $template['status'],
             metadata: $template['metadata'],
+            hideMainText: BinaryValue::from($template['hide_main_text']),
             rating: $template['rating'],
             contentType: BodyContentType::from($template['content_type']),
         );
@@ -212,7 +217,7 @@ abstract class AbstractEntity extends AbstractRest
             Action::Create => (
                 function () use ($reqBody) {
                     if (isset($reqBody['template']) && ((int) $reqBody['template']) !== -1) {
-                        return $this->createFromTemplate((int) $reqBody['template']);
+                        return $this->createFromTemplate((int) $reqBody['template'], $reqBody['title'] ?? null);
                     }
                     // check if use of template is enforced at team level for experiments
                     $teamConfigArr = new Teams($this->Users, $this->Users->team)->readOne();
@@ -485,7 +490,7 @@ abstract class AbstractEntity extends AbstractRest
             Action::ForceLock => $this->lock(),
             Action::ForceUnlock => $this->unlock(),
             Action::Pin => $this->Pins->togglePin(),
-            Action::Restore => $this->update(new EntityParams('state', State::Normal->value)),
+            Action::Restore => $this->restore(),
             Action::RemoveExclusiveEditMode => $this->ExclusiveEditMode->destroy(),
             Action::SetCanread => $this->update(new EntityParams('canread', $params['can'])),
             Action::SetCanwrite => $this->update(new EntityParams('canwrite', $params['can'])),
@@ -503,6 +508,7 @@ abstract class AbstractEntity extends AbstractRest
                     }
                 }
             )(),
+            Action::UpdateOwner => $this->updateOwnership((int) $params['userid'], (int) $params['team']),
             Action::Update => (
                 function () use ($params) {
                     foreach ($params as $key => $value) {
@@ -525,6 +531,9 @@ abstract class AbstractEntity extends AbstractRest
     public function readAll(?QueryParamsInterface $queryParams = null): array
     {
         $queryParams ??= $this->getQueryParams();
+        if ($queryParams->getFastq()) {
+            return $this->readAllSimple($queryParams);
+        }
         return $this->readShow($queryParams, true);
     }
 
@@ -559,7 +568,7 @@ abstract class AbstractEntity extends AbstractRest
         $this->entityData['comments'] = $this->Comments->readAll();
         $this->entityData['page'] = mb_substr($this->entityType->toPage(), 0, -4);
         $CompoundsLinks = LinksFactory::getCompoundsLinks($this);
-        $this->entityData['compounds'] = $CompoundsLinks->readAll();
+        $this->entityData['compounds_links'] = $CompoundsLinks->readAll();
         $ContainersLinks = LinksFactory::getContainersLinks($this);
         $this->entityData['containers'] = $ContainersLinks->readAll();
         $this->entityData['sharelink'] = sprintf(
@@ -615,7 +624,7 @@ abstract class AbstractEntity extends AbstractRest
             $idSql = 'OR entity.id = :intQuery OR entity.custom_id = :intQuery';
         }
 
-        $sql = 'SELECT entity.id, entity.title, entity.custom_id, entity.state,
+        $sql = 'SELECT entity.id, entity.title, entity.custom_id, entity.state, entity.category,
             categoryt.color AS category_color,
             categoryt.title AS category_title,
             statust.color AS status_color,
@@ -764,8 +773,15 @@ abstract class AbstractEntity extends AbstractRest
         $this->update(new EntityParams('custom_id', ''));
         // delete from pinned too
         $this->Pins->cleanup();
-        // set state to deleted
+        $this->Uploads->destroyAll();
         return $this->update(new EntityParams('state', State::Deleted->value));
+    }
+
+    public function restore(): bool
+    {
+        $this->canOrExplode('write');
+        $this->Uploads->restoreAll();
+        return $this->update(new EntityParams('state', State::Normal->value));
     }
 
     public function updateExtraFieldsOrdering(ExtraFieldsOrderingParams $params): array
@@ -967,7 +983,7 @@ abstract class AbstractEntity extends AbstractRest
     protected function bloxberg(): array
     {
         $configArr = Config::getConfig()->configArr;
-        $HttpGetter = new HttpGetter(new Client(), $configArr['proxy']);
+        $HttpGetter = new HttpGetter(new Client(), $configArr['proxy'], !Env::asBool('DEV_MODE'));
         $Maker = new MakeBloxberg(
             $this->Users,
             $this,
@@ -1064,6 +1080,23 @@ abstract class AbstractEntity extends AbstractRest
             $toggleLock();
         }
         $this->update(new EntityParams('state', (string) $targetState->value));
+    }
+
+    private function updateOwnership(int $userid, int $team): void
+    {
+        // if there's no team provided, assign the current user's team
+        if ($team === 0) {
+            $team = $this->Users->team ?? throw new AppException(Messages::GenericError->toHuman());
+        }
+        $TeamsHelper = new TeamsHelper($team);
+        if (!$TeamsHelper->isUserInTeam($userid)) {
+            throw new UnauthorizedException(_('The selected user cannot be assigned ownership in the current team context.'));
+        }
+        $this->update(new EntityParams('userid', $userid));
+        $this->update(new EntityParams('team', $team));
+        // transfer entity's uploads as well
+        $this->bypassWritePermission = true;
+        $this->Uploads->transferOwnership($userid);
     }
 
     private function addToExtendedFilter(string $extendedFilter, array $extendedValues = array()): void

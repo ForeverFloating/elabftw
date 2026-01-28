@@ -51,7 +51,7 @@
     </button>
     {% endif %}
     {# logo #}
-    <a href='dashboard.php' title='{{ 'Go to dashboard'|trans }}'><img class='navbar-brand d-xs-none d-sm-none d-lg-none d-xl-block' src='assets/images/logo-header.svg' width='110' height='40' alt='elabftw logo' /></a>
+    <a href='dashboard.php' title='{{ 'Go to dashboard'|trans }}' aria-label='{{ 'Go to dashboard'|trans }}'><img class='navbar-brand d-xs-none d-sm-none d-lg-none d-xl-block' src='assets/images/logo-header.svg' width='110' height='40' alt='elabftw logo' /></a>
 
     {% if App.Session.has('is_auth') %}
     {# everything in there will be part of the burger #}
@@ -63,7 +63,7 @@
               {% if App.devMode -%}
                 <!-- [html-validate-disable-next prefer-native-element: using a button here will mess up the navbar] -->
               {%- endif %}
-              <div class='nav-link dropdown-toggle {{ scriptName == 'experiments.php' or scriptName == 'templates.php' or scriptName == 'experiments-categories.php' or scriptName == 'experiments-status.php' ? 'active' }}' role='button' data-toggle='dropdown' aria-expanded='false'>
+              <div class='nav-link dropdown-toggle {{ scriptName in ['experiments.php', 'templates.php', 'experiments-categories.php', 'experiments-status.php'] ? 'active' }}' role='button' data-toggle='dropdown' aria-expanded='false'>
               {% trans %}Experiment{% plural 2 %}Experiments{% endtrans %}
               </div>
               <div class='dropdown-menu'>
@@ -100,7 +100,7 @@
               {% if App.devMode -%}
                 <!-- [html-validate-disable-next prefer-native-element: using a button here will mess up the navbar] -->
               {%- endif %}
-              <div class='nav-link dropdown-toggle {{ scriptName == 'database.php' or scriptName == 'resources-templates.php' or scriptName == 'resources-categories.php' or scriptName == 'resources-status.php' ? 'active' }}' role='button' data-toggle='dropdown' aria-expanded='false'>
+              <div class='nav-link dropdown-toggle {{ scriptName in ['database.php', 'resources-templates.php', 'resources-categories.php', 'resources-status.php'] ? 'active' }}' role='button' data-toggle='dropdown' aria-expanded='false'>
                 {{ 'Resources'|trans }}
               </div>
               <div class='dropdown-menu'>
@@ -130,7 +130,7 @@
                 {% set isActive = scriptName == 'resources-templates.php' %}
                 <a class='dropdown-item {{ isActive ? 'active' }}' href='resources-templates.php' {{ isActive ? 'aria-current="page"' }}><i class='fas fa-copy fa-fw mr-1 {{ isActive ? 'color-white' }}'></i>{{ 'Resource templates'|trans }}</a>
                 {% set isActive = scriptName == 'resources-categories.php' %}
-                <a class='dropdown-item {{ isActive ? 'active' }}' href='resources-categories.php' {{ isActive ? 'aria-current="page"' }}><i class='fas fa-rectangle-list fa-fw mr-1 {{ isActive ? 'color-white' }}'></i>{{ 'Resource categories'|trans }}</a>
+                <a class='dropdown-item {{ isActive ? 'active' }} {{ not App.Teams.teamArr.users_canwrite_resources_categories and not App.Users.isAdmin ? 'disabled' }}' href='resources-categories.php' {{ isActive ? 'aria-current="page"' }}><i class='fas fa-rectangle-list fa-fw mr-1 {{ isActive ? 'color-white' }}'></i>{{ 'Resource categories'|trans }}</a>
                 {% set isActive = scriptName == 'resources-status.php' %}
                 <a class='dropdown-item {{ isActive ? 'active' }} {{ not App.Teams.teamArr.users_canwrite_resources_status and not App.Users.isAdmin ? 'disabled' }}' href='resources-status.php' {{ isActive ? 'aria-current="page"' }}><i class='fas fa-list-check fa-fw mr-1 {{ isActive ? 'color-white' }}'></i>{{ 'Resource status'|trans }}</a>
               </div>
@@ -149,7 +149,7 @@
               {% if App.devMode -%}
                 <!-- [html-validate-disable-next prefer-native-element: using a button here will mess up the navbar] -->
               {%- endif %}
-              <div class='nav-link dropdown-toggle' role='button' data-toggle='dropdown' aria-expanded='false'>
+              <div class='nav-link dropdown-toggle {{ scriptName in ['compounds.php', 'chem-editor.php', 'syc.php', 'inventory.php'] ? 'active' }}' role='button' data-toggle='dropdown' aria-expanded='false'>
               {{ 'Tools'|trans }}
               </div>
               <div class='dropdown-menu'>
@@ -167,7 +167,16 @@
 
         {# Notification bell #}
         {% if App.Session.has('is_auth') and not App.Session.has('is_anon') %}
-        <div class='nav-item dropdown ml-auto' id='navbarNotifDiv'>
+        {% include 'create-new-modal.html' %}
+        <div class='nav-item dropdown ml-auto'>
+          <button class='btn nav-link' id='createNewDropdown' type='button' aria-label='{{ 'Create new...'|trans }}' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'><i class='far fa-plus fa-2x'></i></button>
+          <div class='dropdown-menu dropdown-menu-right' id='navbar-create-dropdown' aria-labelledby='createNewDropdown'><span class='dropdown-header'>{{ 'Create new...'|trans }}</span>
+            <div data-action='toggle-create-modal' data-type='experiments' class='dropdown-item'><i class='fas fa-flask fa-fw mr-1'></i>{{ 'Experiment'|trans }}</div>
+            <div data-action='toggle-create-modal' data-type='items' class='dropdown-item'><i class='fas fa-cubes-stacked fa-fw mr-1'></i>{{ 'Resource'|trans }}</div>
+          </div>
+        </div>
+
+        <div class='nav-item dropdown' id='navbarNotifDiv'>
           <button class='btn nav-link' id='navbarNotifDropdown' type='button' aria-label='{{ 'Notifications'|trans }}' data-toggle='dropdown' aria-haspopup='true' aria-expanded='false'><i class='far fa-bell fa-2x {{ App.notifsArr|filter(n => n.is_ack == 0)|length ? 'active' }}'></i></button>
           <div class='dropdown-menu dropdown-menu-right' id='navbar-notif-dropdown' aria-labelledby='navbarNotifDropdown'><span class='dropdown-header'>{{ 'Notifications'|trans }}</span>
             {% if App.notifsArr %}
@@ -252,13 +261,12 @@
   </div>
 {% endif %}
 
-<div class='real-container'>
-
-{# TEMPORARY notice for deprecation of open_science #}
-{% if App.Config.configArr.open_science == '1' %}
-{{ 'You are using a deprecated configuration option "open science". Please read <a target="_blank" href="https://github.com/elabftw/elabftw/discussions/6164">this Discussion</a>.'|msg('ko') }}
-{% endif %}
-{# END TEMPORARY notice for deprecation of open_science #}
+  {% set pageSupportsWide = scriptName in ['experiments.php', 'database.php', 'templates.php', 'experiments-categories.php', 'experiments-status.php', 'resources-templates.php', 'resources-categories.php', 'resources-status.php'] %}
+  {% set enableWide = App.Request.query.get('mode') == 'show' or (pageSupportsWide and App.Users.userData.display_mode == 'it' and not App.Request.query.has('mode')) %}
+  <div id='realContainer' class='real-container {{ enableWide ? 'max-width-70' : '' }}'>
+<div id='safariWarning' hidden>
+    {{ 'Warning: you are using an unsupported browser known to cause issues (Safari). Please use a supported browser (see %sdocumentation%s).'|trans|format("<a class='external-link' target='_blank' href='https://doc.elabftw.net/faq.html#requirements-for-the-clients-users'>", "</a>")|msg('warning', true, 'safari_warning_v1') }}
+</div>
 
 <noscript>{# show warning if javascript is disabled #}
     <div class='alert alert-danger'>

@@ -123,6 +123,7 @@ CREATE TABLE `experiments` (
   `modified_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `lastchangeby` int(10) UNSIGNED NULL DEFAULT NULL,
   `metadata` json NULL DEFAULT NULL,
+  `hide_main_text` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `state` int(10) UNSIGNED NOT NULL DEFAULT 1,
   `access_key` varchar(36) NULL DEFAULT NULL,
   PRIMARY KEY (`id`)
@@ -277,6 +278,7 @@ CREATE TABLE `experiments_steps` (
   `finished_time` datetime DEFAULT NULL,
   `deadline` datetime DEFAULT NULL,
   `deadline_notif` tinyint UNSIGNED NOT NULL DEFAULT 0,
+  `is_immutable` tinyint UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
@@ -316,7 +318,7 @@ CREATE TABLE `experiments_edit_mode` (
 CREATE TABLE `experiments_templates` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `team` int(10) UNSIGNED NOT NULL,
-  `body` text,
+  `body` mediumtext NULL DEFAULT NULL,
   `category` INT UNSIGNED NULL DEFAULT NULL,
   `custom_id` INT UNSIGNED NULL DEFAULT NULL,
   `date` date NULL DEFAULT NULL,
@@ -338,6 +340,7 @@ CREATE TABLE `experiments_templates` (
   `modified_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `lastchangeby` int(10) UNSIGNED NULL DEFAULT NULL,
   `metadata` json NULL DEFAULT NULL,
+  `hide_main_text` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `state` int(10) UNSIGNED NOT NULL DEFAULT 1,
   `status` INT UNSIGNED NULL DEFAULT NULL,
   `timestamped` tinyint UNSIGNED NOT NULL DEFAULT 0,
@@ -534,12 +537,6 @@ CREATE TABLE `idps` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `name` varchar(255) NOT NULL,
   `entityid` varchar(255) NOT NULL,
-  `sso_url` varchar(255) NOT NULL,
-  `sso_binding` varchar(255) NOT NULL,
-  `slo_url` varchar(255) NOT NULL,
-  `slo_binding` varchar(255) NOT NULL,
-  `x509` text NOT NULL,
-  `x509_new` text NOT NULL,
   `enabled` tinyint UNSIGNED NOT NULL DEFAULT 1,
   `source` tinyint UNSIGNED NULL DEFAULT NULL,
   `email_attr` varchar(255) NOT NULL,
@@ -567,6 +564,53 @@ CREATE TABLE `idps_sources` (
   UNIQUE KEY `unique_url` (`url`(255))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `idps_certs`
+--
+
+CREATE TABLE `idps_certs` (
+    id                  INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    idp                 INT UNSIGNED NOT NULL,
+    purpose             TINYINT UNSIGNED NOT NULL,
+    x509                TEXT NOT NULL,
+    sha256              CHAR(64) NOT NULL,
+    not_before          DATETIME NULL,
+    not_after           DATETIME NULL,
+    is_active           TINYINT UNSIGNED NOT NULL DEFAULT 1,
+    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    modified_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_idps_certs_idp_id
+        FOREIGN KEY (idp)
+        REFERENCES idps(id)
+        ON DELETE CASCADE,
+    UNIQUE KEY uniq_idp_purpose_fpr (idp, purpose, sha256),
+    KEY idx_idp_purpose_active (idp, purpose, is_active, not_before, not_after)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `idps_endpoints`
+--
+
+CREATE TABLE `idps_endpoints` (
+    id                  INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    idp                 INT UNSIGNED NOT NULL,
+    binding             TINYINT UNSIGNED NOT NULL,
+    location            VARCHAR(255) NOT NULL,
+    is_slo              TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    modified_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_idps_endpoints_idp_id
+        FOREIGN KEY (idp)
+        REFERENCES idps(id)
+        ON DELETE CASCADE,
+    UNIQUE KEY uniq_idp_bdg_loc (idp, binding, location)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 -- --------------------------------------------------------
 
 --
@@ -598,6 +642,7 @@ CREATE TABLE `items` (
   `modified_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `lastchangeby` int(10) UNSIGNED NULL DEFAULT NULL,
   `metadata` json NULL DEFAULT NULL,
+  `hide_main_text` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `state` int(10) UNSIGNED NOT NULL DEFAULT 1,
   `status` INT UNSIGNED NULL DEFAULT NULL,
   `timestamped` tinyint UNSIGNED NOT NULL DEFAULT 0,
@@ -774,7 +819,7 @@ CREATE TABLE `items_types` (
   `category` INT UNSIGNED NULL DEFAULT NULL,
   `color` varchar(6) DEFAULT '29aeb9',
   `custom_id` INT UNSIGNED NULL DEFAULT NULL,
-  `body` text NULL DEFAULT NULL,
+  `body` mediumtext NULL DEFAULT NULL,
   `ordering` int(10) UNSIGNED DEFAULT NULL,
   `content_type` tinyint NOT NULL DEFAULT 1,
   `canread` JSON NOT NULL,
@@ -789,6 +834,7 @@ CREATE TABLE `items_types` (
   `lockedby` int UNSIGNED DEFAULT NULL,
   `locked_at` timestamp NULL DEFAULT NULL,
   `metadata` json NULL DEFAULT NULL,
+  `hide_main_text` TINYINT UNSIGNED NOT NULL DEFAULT 0,
   `state` int(10) UNSIGNED NOT NULL DEFAULT 1,
   `status` INT UNSIGNED NULL DEFAULT NULL,
   `timestamped` tinyint UNSIGNED NOT NULL DEFAULT 0,
@@ -856,6 +902,7 @@ CREATE TABLE `items_types_steps` (
   `finished_time` datetime DEFAULT NULL,
   `deadline` datetime DEFAULT NULL,
   `deadline_notif` tinyint UNSIGNED NOT NULL DEFAULT 0,
+  `is_immutable` tinyint UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
@@ -1161,16 +1208,24 @@ CREATE TABLE `team_events` (
   `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT,
   `team` int(10) UNSIGNED NOT NULL,
   `item` int(10) UNSIGNED NOT NULL,
-  `start` varchar(255) NOT NULL,
-  `end` varchar(255) DEFAULT NULL,
+  `start` DATETIME NOT NULL,
+  `end` DATETIME NOT NULL,
   `title` varchar(255) DEFAULT NULL,
   `userid` int(10) UNSIGNED NOT NULL,
   `experiment` int(10) UNSIGNED DEFAULT NULL,
   `item_link` int(10) UNSIGNED DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `modified_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  CONSTRAINT `chk_end_after_start` CHECK (`end` >= `start`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+--
+-- Indexes for table `team_events`
+--
+CREATE INDEX `idx_team_events_item_start_end` ON `team_events` (`item`, `start`, `end`);
+CREATE INDEX `idx_team_events_team_start_end` ON `team_events` (`team`, `start`, `end`);
+CREATE INDEX `idx_team_events_user_start_end` ON `team_events` (`userid`, `start`, `end`);
 
 --
 -- RELATIONSHIPS FOR TABLE `team_events`:
@@ -1935,6 +1990,7 @@ CREATE TABLE `items_steps` (
     `finished_time` datetime DEFAULT NULL,
     `deadline` datetime DEFAULT NULL,
     `deadline_notif` tinyint UNSIGNED NOT NULL DEFAULT 0,
+    `is_immutable` tinyint UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
     KEY `fk_items_steps_items_id` (`item_id`),
     CONSTRAINT `fk_items_steps_items_id` FOREIGN KEY (`item_id`) REFERENCES `items` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
@@ -1949,6 +2005,7 @@ CREATE TABLE `experiments_templates_steps` (
     `finished_time` datetime DEFAULT NULL,
     `deadline` datetime DEFAULT NULL,
     `deadline_notif` tinyint UNSIGNED NOT NULL DEFAULT 0,
+    `is_immutable` tinyint UNSIGNED NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
     KEY `fk_experiments_templates_steps_items_id` (`item_id`),
     CONSTRAINT `fk_experiments_templates_steps_items_id` FOREIGN KEY (`item_id`) REFERENCES `experiments_templates` (`id`) ON DELETE CASCADE ON UPDATE CASCADE

@@ -7,6 +7,7 @@
  */
 import {
   collectForm,
+  getSafeElementById,
   mkSpin,
   mkSpinStop,
   permissionsToJson,
@@ -34,10 +35,8 @@ function collectSelectable(name: string): number[] {
   return collected;
 }
 
-function collectTargetOwner(): number {
-  const collected = document.getElementById('target_owner') as HTMLInputElement;
-  // Convert element to an int
-  return collected ? parseInt(collected.value, 10) || 0 : 0;
+function collectInt(name: string): number {
+  return parseInt((getSafeElementById(name) as HTMLInputElement).value, 10);
 }
 
 function collectCan(): string {
@@ -63,8 +62,10 @@ function getSelected(): Selected {
     experiments_categories: collectSelectable('experiments_categories'),
     experiments_tags: collectSelectable('experiments_tags'),
     tags: collectSelectable('tags'),
-    users: collectSelectable('users'),
-    target_owner: collectTargetOwner(),
+    users_experiments: collectSelectable('users-experiments'),
+    users_resources: collectSelectable('users-resources'),
+    userid: collectInt('targetUserId'),
+    team: collectInt('targetTeamId'),
     can: collectCan(),
   };
 }
@@ -159,42 +160,42 @@ on('admin-add-tag', () => {
   });
 });
 
-on('patch-newcomer_banner', () => {
-  const params = {};
-  params['newcomer_banner'] = tinymce.get('newcomer_banner').getContent();
-  ApiC.patch(`${Model.Team}/current`, params);
-});
-
-on('patch-onboarding-email', () => {
-  const key = 'onboarding_email_body';
-  ApiC.patch(`${Model.Team}/current`, {
-    [key]: tinymce.get(key).getContent(),
-  });
-});
-
-on('open-onboarding-email-modal', () => {
-  // reload the modal in case the users of the team have changed
-  reloadElements(['sendOnboardingEmailModal'])
-    .then(() => $('#sendOnboardingEmailModal').modal('toggle'))
-    .then(() => new TomSelect('#sendOnboardingEmailToUsers', {
-      plugins: ['dropdown_input', 'no_active_items', 'remove_button'],
-    }));
-});
-
-on('send-onboarding-emails', () => {
-  ApiC.notifOnSaved = false;
-  ApiC.patch(`${Model.Team}/current`, {
-    'action': Action.SendOnboardingEmails,
-    'userids': Array.from((document.getElementById('sendOnboardingEmailToUsers') as HTMLSelectElement).selectedOptions)
-      .map(option => parseInt(option.value, 10)),
-  }).then(response => {
-    if (response.ok) {
-      notify.success('onboarding-email-sent');
-    }
-  });
-});
-
 if (window.location.pathname === '/admin.php') {
+  on('patch-newcomer_banner', () => {
+    const params = {};
+    params['newcomer_banner'] = tinymce.get('newcomer_banner').getContent();
+    ApiC.patch(`${Model.Team}/current`, params);
+  });
+
+  on('patch-onboarding-email', () => {
+    const key = 'onboarding_email_body';
+    ApiC.patch(`${Model.Team}/current`, {
+      [key]: tinymce.get(key).getContent(),
+    });
+  });
+
+  on('open-onboarding-email-modal', () => {
+    // reload the modal in case the users of the team have changed
+    reloadElements(['sendOnboardingEmailModal'])
+      .then(() => $('#sendOnboardingEmailModal').modal('toggle'))
+      .then(() => new TomSelect('#sendOnboardingEmailToUsers', {
+        plugins: ['dropdown_input', 'no_active_items', 'remove_button'],
+      }));
+  });
+
+  on('send-onboarding-emails', () => {
+    ApiC.notifOnSaved = false;
+    ApiC.patch(`${Model.Team}/current`, {
+      'action': Action.SendOnboardingEmails,
+      'userids': Array.from((document.getElementById('sendOnboardingEmailToUsers') as HTMLSelectElement).selectedOptions)
+        .map(option => parseInt(option.value, 10)),
+    }).then(response => {
+      if (response.ok) {
+        notify.success('onboarding-email-sent');
+      }
+    });
+  });
+
   getEditor().init('admin');
 
   // edit the team group name

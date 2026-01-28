@@ -37,7 +37,7 @@ import {
 import i18next from './i18n';
 import { Metadata } from './Metadata.class';
 import { DateTime } from 'luxon';
-import { Action, EntityType, Model, Target } from './interfaces';
+import { Action, EntityType, Model, LinkSubModel } from './interfaces';
 import { MathJaxObject } from 'mathjax-full/js/components/startup';
 declare const MathJax: MathJaxObject;
 import 'bootstrap-markdown-fa5/js/bootstrap-markdown';
@@ -188,6 +188,41 @@ if (needFocus) {
   needFocus.focus();
 }
 
+// START SAFARI DETECTION
+// iOS browsers often look like Safari UA; exclude by tokens:
+// https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/User-Agent
+const FORBIDDEN_UA_TOKENS = [
+  'Chrome',
+  'CriOS',
+  'Edg',
+  'EdgiOS',
+  'OPT',
+  'OPiOS',
+  'Firefox',
+  'FxiOS',
+  'SamsungBrowser',
+];
+
+const isSafari = (): boolean => {
+  const ua = navigator.userAgent ?? '';
+  const vendor = navigator.vendor ?? '';
+
+  if (vendor !== 'Apple Computer, Inc.') return false;
+  if (!ua.includes('Safari/')) return false;
+  if (!ua.includes('Version/')) return false;
+
+  for (const token of FORBIDDEN_UA_TOKENS) {
+    if (ua.includes(token)) return false;
+  }
+  return true;
+};
+
+const isDismissedSafari = localStorage.getItem('dismiss_safari_warning_v1') === '1';
+if (isSafari() && !isDismissedSafari) {
+  document.getElementById('safariWarning').removeAttribute('hidden');
+}
+// END SAFARI DETECTION
+
 // Listen for malleable columns
 new Malle({
   onEdit: (original, _, input) => {
@@ -264,6 +299,9 @@ new Malle({
 
 // only on entity page
 const pageMode = new URLSearchParams(document.location.search).get('mode');
+
+notify.flashSuccess();
+
 if (entity.type !== EntityType.Other && (pageMode === 'view' || pageMode === 'edit')) {
   // MALLEABLE ENTITY TITLE
   new Malle({
@@ -388,23 +426,6 @@ if (entity.type !== EntityType.Other && (pageMode === 'view' || pageMode === 'ed
   }).listen();
 }
 
-// validate the form upon change. fix #451
-// add to the input itself, not the form for more flexibility
-// for instance the tags input allow multiple selection, so we don't want to submit on change
-document.querySelectorAll('.autosubmit').forEach(el => {
-  el.addEventListener('change', event => {
-    // look for all the select that have an empty value and ignore them by setting the name to empty string
-    // this is done to avoid the "extended" being repeated with the last one possibly empty taking over the first one
-    document.querySelectorAll('select.autosubmit').forEach((sel: HTMLSelectElement) => {
-      if (sel.options[sel.selectedIndex].value === '') {
-        // using empty name is better than sel.disabled to avoid visual glitch during submit
-        sel.name = '';
-      }
-    });
-    (event.currentTarget as HTMLElement).closest('form').submit();
-  });
-});
-
 /**
  * Add listeners for filter bar on top of a table
  * The "filter" data attribute value is the id of the tbody element with rows to filter
@@ -513,6 +534,13 @@ on('insert-param-and-reload', (el: HTMLElement) => {
   handleReloads(el.dataset.reload);
 });
 
+// used on displayMessage divs: we save the fact that it was closed
+on('save-dismiss', (el: HTMLElement) => {
+  if (el.dataset.dismissKey) {
+    localStorage.setItem(`dismiss_${el.dataset.dismissKey}`, '1');
+  }
+});
+
 on('add-query-filter', (el: HTMLElement) => {
   const params = new URLSearchParams(document.location.search.substring(1));
   params.set(el.dataset.key, el.dataset.value);
@@ -550,11 +578,13 @@ on('toggle-pin', (el: HTMLElement) => {
   });
 });
 
-on('transfer-ownership', () => {
-  const value = (document.getElementById('target_owner') as HTMLInputElement).value;
-  const params = {};
-  params[Target.UserId] = parseInt(value.split(' ')[0], 10);
-  ApiC.patch(`${entity.type}/${entity.id}`, params).then(() => window.location.reload());
+on('transfer-ownership', async () => {
+  const params = collectForm(document.getElementById('ownershipTransferForm'));
+  const userid = parseInt(params['targetUserId'].split(' ')[0] ?? '', 10);
+  ApiC.notifOnSaved = false;
+  await ApiC.patch(`${entity.type}/${entity.id}`, { action: Action.UpdateOwner, userid });
+  sessionStorage.setItem('flash_ownershipTransfer', i18next.t('ownership-transfer'));
+  window.location.reload();
 });
 
 on(Action.Restore, () => {
@@ -883,7 +913,7 @@ on('create-resource-from-compound', (el: HTMLElement) => {
   }
   ApiC.post2location('items', payload).then(id => {
     // now create a link with that compound
-    ApiC.post(`items/${id}/compounds/${compoundId}`).then(() => {
+    ApiC.post(`items/${id}/${LinkSubModel.CompoundsLinks}/${compoundId}`).then(() => {
       // also change the title
       const compoundName = (document.getElementById('compoundInput-name') as HTMLInputElement).value;
       ApiC.patch(`items/${id}`, {title: compoundName}).then(() => {
@@ -980,17 +1010,12 @@ on('ack-notif', (el: HTMLElement) => {
 on('destroy-notif', () => ApiC.delete(`${Model.User}/me/${Model.Notification}`).then(() => reloadElements(['navbarNotifDiv'])));
 
 // CREATE EXPERIMENT, TEMPLATE or DATABASE item: main create button in top right
-on('create-entity', (el: HTMLElement, event: Event) => {
+on('create-entity', async (el: HTMLElement, event: Event) => {
   event.preventDefault();
-  let params = {};
-  if (el.dataset.hasTitle) {
-    params = collectForm(document.getElementById(el.dataset.formId));
-  }
+  const form = document.getElementById('createNewForm') as HTMLFormElement;
+  const params = collectForm(form);
   if (el.dataset.tplid) {
     params['template'] = parseInt(el.dataset.tplid, 10);
-  }
-  if (el.dataset.catid) {
-    params['category'] = parseInt(el.dataset.catid, 10);
   }
   // look for any tag present in the url, we will create the entry with these tags
   const urlParams = new URLSearchParams(document.location.search);
@@ -1009,21 +1034,11 @@ on('create-entity', (el: HTMLElement, event: Event) => {
     el.dataset.type = 'items';
     page = 'database.php';
   }
-  ApiC.post2location(`${el.dataset.type}`, params).then(id => {
-    window.location.href = `${page}?mode=edit&id=${id}`;
-  });
-});
-
-on('create-entity-ask-title', (el: HTMLElement) => {
-  // this is necessary to convey information between two modals
-  // hide previous modal first
-  $('.modal.show').modal('hide');
-  // then add the category id to the other create button
-  const targetButton = document.getElementById('askTitleButton') as HTMLButtonElement;
-  targetButton.dataset.catid = el.dataset.catid;
-  // also carry over the type as on Dashboard we have both types, but only one modal to ask title
-  targetButton.dataset.type = el.dataset.type;
-  $('#askTitleModal').modal('toggle');
+  const id = await ApiC.post2location(`${el.dataset.type}`, params);
+  if (params['compound']) {
+    await ApiC.post(`${el.dataset.type}/${id}/compounds_links/${params['compound']}`, {});
+  }
+  window.location.href = `${page}?mode=edit&id=${id}`;
 });
 
 on('report-bug', (el: HTMLElement, event: Event) => {
@@ -1084,7 +1099,7 @@ on('copy-to-clipboard', (el: HTMLElement) => {
 });
 
 // REMOVE COMPOUND LINK
-on('delete-compound-link', (el: HTMLElement) => ApiC.delete(`${entity.type}/${entity.id}/compounds/${el.dataset.id}`)
+on('delete-compound-link', (el: HTMLElement) => ApiC.delete(`${entity.type}/${entity.id}/${LinkSubModel.CompoundsLinks}/${el.dataset.id}`)
   .then(() => reloadElements(['compoundDiv'])));
 
 // CLICK the NOW button of a time or date extra field
@@ -1173,6 +1188,9 @@ on('autocomplete', (el: HTMLElement) => {
   if (el.dataset.target === 'users') {
     transformer = user => `${user.userid} - ${user.fullname} (${user.email})`;
   }
+  if (el.dataset.target === 'compounds') {
+    transformer = compound => `${compound.id} - ${compound.name} ${compound.cas_number ? ` (CAS: ${compound.cas_number})` : ''}`;
+  }
 
   // use autocomplete jquery-ui plugin
   $(el).autocomplete({
@@ -1192,7 +1210,22 @@ on('autocomplete', (el: HTMLElement) => {
       const queryTerm = ['experiments', 'items'].includes(el.dataset.target)
         ? escapeExtendedQuery(term)
         : term;
-      ApiC.getJson(`${el.dataset.target}/?q=${encodeURIComponent(queryTerm)}`).then(json => {
+
+      const params = new URLSearchParams();
+      params.set('q', queryTerm);
+
+      // allow filtering users within a specific team
+      if (el.dataset.team) {
+        const teamId = document.getElementById(el.dataset.team) as HTMLInputElement | HTMLSelectElement;
+        if (teamId?.value) {
+          params.set('team', teamId.value);
+        }
+      }
+      ApiC.getJson(`${el.dataset.target}/?${params.toString()}`).then(json => {
+        if (!Array.isArray(json) || json.length === 0) {
+          response([i18next.t('not-found')]);
+          return;
+        }
         response(json.map(entry => transformer(entry)));
       });
     },

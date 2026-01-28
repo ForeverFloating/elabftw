@@ -12,8 +12,6 @@ declare(strict_types=1);
 
 namespace Elabftw\Controllers;
 
-use Defuse\Crypto\Crypto;
-use Defuse\Crypto\Key;
 use Elabftw\Auth\Anon;
 use Elabftw\Auth\Cookie;
 use Elabftw\Auth\CookieToken;
@@ -34,8 +32,8 @@ use Elabftw\Enums\Entrypoint;
 use Elabftw\Enums\Language;
 use Elabftw\Exceptions\IllegalActionException;
 use Elabftw\Exceptions\ImproperActionException;
+use Elabftw\Exceptions\InvalidCredentialsException;
 use Elabftw\Exceptions\InvalidDeviceTokenException;
-use Elabftw\Exceptions\QuantumException;
 use Elabftw\Exceptions\ResourceNotFoundException;
 use Elabftw\Exceptions\UnauthorizedException;
 use Elabftw\Interfaces\AuthInterface;
@@ -230,7 +228,7 @@ final class LoginController implements ControllerInterface
             try {
                 $Users = ExistingUser::fromEmail($this->Request->request->getString('email'));
             } catch (ResourceNotFoundException) {
-                throw new QuantumException(_('Invalid email/password combination.'));
+                throw new InvalidCredentialsException();
             }
             // check if authentication is locked for untrusted clients for that user
             if ($Users->allowUntrustedLogin() === false) {
@@ -261,19 +259,6 @@ final class LoginController implements ControllerInterface
             return new Anon((bool) $this->config['anon_users'], $team, Language::EnglishGB);
         }
 
-        // autologin as anon if it's allowed by sysadmin
-        if ($this->config['open_science']) {
-            // don't do it if we have elabid in url
-            // only autologin on selected pages and if we are not authenticated with an account
-            $autoAnon = array(
-                Entrypoint::Experiments->toPage(),
-                Entrypoint::Database->toPage(),
-            );
-            if (in_array(basename($this->Request->getScriptName()), $autoAnon, true)) {
-                return new Anon((bool) $this->config['anon_users'], (int) ($this->config['open_team'] ?? 1), Language::EnglishGB);
-            }
-        }
-
         // now the other types of Auth like Local, Ldap, Saml, etc...
         $authType = AuthType::tryFrom($this->Request->request->getAlpha('auth_type'));
         switch ($authType) {
@@ -289,9 +274,8 @@ final class LoginController implements ControllerInterface
                 $this->Session->set('auth_service', AuthType::Ldap->asService());
                 $c = $this->config;
                 $ldapPassword = null;
-                // assume there is a password to decrypt if username is not null
-                if ($c['ldap_username']) {
-                    $ldapPassword = Crypto::decrypt($c['ldap_password'], Key::loadFromAsciiSafeString(Env::asString('SECRET_KEY')));
+                if (!empty($c['ldap_password'])) {
+                    $ldapPassword = $c['ldap_password'];
                 }
                 $ldapConfig = array(
                     'protocol' => $c['ldap_scheme'] . '://',
